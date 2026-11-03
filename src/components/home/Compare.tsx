@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PRODUCT_COUNT } from "@/lib/search";
+import { AI_ENABLED } from "@/lib/site";
 import { HwArt } from "../art/Hardware";
 import { IArrowRight, IBox, ICheck, ISound } from "../art/Icons";
 
@@ -147,17 +148,19 @@ export default function Compare() {
             <IBox size={18} />
             {PRODUCT_COUNT.toLocaleString("en-US")} JYSK products
           </li>
-          <li>
-            <ISound size={18} />
-            Read out loud, hands free
-          </li>
+          {AI_ENABLED && (
+            <li>
+              <ISound size={18} />
+              Read out loud, hands free
+            </li>
+          )}
           <li>
             <ICheck size={18} />
             Free, no account
           </li>
         </ul>
-        <Link href="/build/kallax-2x2" className="cmp-cta">
-          Try it on KALLAX <IArrowRight size={18} />
+        <Link href="/build/4-drawer-chest-limfjorden-beige" className="cmp-cta">
+          Try it on LIMFJORDEN <IArrowRight size={18} />
         </Link>
       </div>
     </section>

@@ -29,7 +29,7 @@ export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[]
   { id: "seating", label: "Chairs", kinds: ["chair", "stool", "bench", "backbench", "office", "conference", "highchair", "junior", "lounge"] },
   { id: "sofas", label: "Sofas", kinds: ["sofa", "armchair", "corner", "usofa", "section", "chaise", "swivel", "lounger"] },
   { id: "kids", label: "Kids", kinds: ["kidstable", "kidschair", "junior", "highchair", "cot", "changing"], tag: "kids" },
-  { id: "outdoor", label: "Outdoor", tag: "outdoor" },
+  { id: "outdoor", label: "Garden", tag: "outdoor" },
 ];
 
 // a kind no tab names yet still lands in the tab for its furniture type

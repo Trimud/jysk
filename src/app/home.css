@@ -103,58 +103,6 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-/* GitHub: a two-part pill, the star fills in and turns on hover */
-.gh {
-  display: inline-flex;
-  align-items: stretch;
-  height: 36px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 0 0 1px var(--line-2);
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  transition:
-    box-shadow 0.2s,
-    transform 0.2s var(--ease);
-}
-.gh:hover {
-  box-shadow: 0 0 0 1px var(--ink-3);
-}
-.gh:active {
-  transform: scale(0.97);
-}
-.gh-main {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 12px 0 11px;
-}
-.gh-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 13px 0 10px;
-  background: var(--sunk);
-  box-shadow: inset 1px 0 0 var(--line-2);
-  font-variant-numeric: tabular-nums;
-}
-.gh-star {
-  fill: var(--accent);
-  stroke: var(--ink);
-  stroke-width: 1.9;
-  stroke-linejoin: round;
-  transition:
-    fill 0.2s,
-    transform 0.5s var(--spring);
-}
-.gh:hover .gh-star {
-  transform: rotate(72deg) scale(1.15);
-}
-
 .lead {
   font-size: clamp(17px, 1.4vw, 19.5px);
   letter-spacing: -0.016em;
@@ -1435,69 +1383,29 @@
 .foot-cols a:hover .arrow-out {
   color: var(--ink);
 }
-/* the credit: the two of us stand on the card's bottom edge, holding up the names */
+/* the project this one is forked from, along the card's bottom edge */
 .foot-credit {
   grid-area: credit;
-  display: flex;
-  align-items: flex-end;
-  gap: 28px;
   margin: 0 -48px;
-  padding: 30px 48px 0;
+  padding: 18px 48px;
   border-top: 1px solid var(--line);
-  background: linear-gradient(180deg, #fff, #faf9f6);
+  background: #faf9f6;
+  text-align: right;
+  font-size: 13.5px;
+  color: var(--ink-3);
 }
-.foot-crew {
-  display: block;
-  flex: none;
-  margin-bottom: -1px;
-}
-/* one line, as big as the footer's wordmark, level with the two of us */
-.foot-credit-text {
-  align-self: center;
-  margin: 0;
-  font-family: var(--display);
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-/* the names wear a yellow marker line that fills in behind them on hover */
-.foot-credit-text a {
-  color: inherit;
+.foot-credit a {
+  color: var(--ink);
+  font-weight: 600;
   text-decoration: none;
-  padding: 0 2px;
-  margin: 0 -2px;
-  border-radius: 4px;
-  background: linear-gradient(var(--accent), var(--accent)) left 100% / 100% 0.22em no-repeat;
-  transition: background-size 0.35s var(--ease);
 }
-.foot-credit-text a:hover {
-  background-size: 100% 100%;
+.foot-credit a:hover {
+  text-decoration: underline;
 }
-.crew-a,
-.crew-b,
-.crew-board {
-  transform-box: view-box;
-}
-.foot-credit:hover .crew-a,
-.foot-credit:hover .crew-board {
-  animation: crew-hop 0.6s var(--ease);
-}
-.foot-credit:hover .crew-b {
-  animation: crew-hop-b 0.6s var(--ease) 0.08s;
-}
-@keyframes crew-hop {
-  40% {
-    transform: translateY(-5px);
-  }
-}
-@keyframes crew-hop-b {
-  40% {
-    transform: translate(66px, -5px);
-  }
-  0%,
-  100% {
-    transform: translate(66px, 0);
+@media (max-width: 760px) {
+  .foot-credit {
+    margin: 0 -24px;
+    padding: 16px 24px;
   }
 }
 .foot-base {
@@ -1537,15 +1445,6 @@
   }
   .foot-cols {
     justify-self: start;
-  }
-  .foot-credit {
-    gap: 16px;
-    margin: 0 -24px;
-    padding: 22px 20px 0;
-  }
-  .foot-crew {
-    width: auto;
-    height: 88px;
   }
   .foot-base {
     padding: 18px 4px 0;
@@ -2127,12 +2026,6 @@
   }
   .wordmark {
     display: none;
-  }
-  .gh-label {
-    display: none;
-  }
-  .gh-main {
-    padding: 0 10px;
   }
   .foot-brand .wordmark {
     display: inline;

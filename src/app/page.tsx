@@ -13,16 +13,30 @@ import { HwArt } from "@/components/art/Hardware";
 import { IArrowOut, IArrowRight, IScan } from "@/components/art/Icons";
 import { TogetherMark } from "@/components/art/Together";
 import { PRODUCT_COUNT } from "@/lib/search";
-import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
+import { AI_ENABLED, SCAN_ENABLED, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
-// ponytail: refilled with JYSK bestsellers in the Phase 2 pilot
-const QUICK: { slug: string; label: string }[] = [];
+// "Monta" is also an EV charging company: say plainly what this site is, and that it isn't JYSK
+const SITE_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Monta",
+  alternateName: "Monta JYSK assembly guides",
+  url: SITE_URL,
+  description: "Free step-by-step 3D assembly guides for JYSK furniture. An independent project, not affiliated with JYSK.",
+};
+
+const QUICK: { slug: string; label: string }[] = [
+  { slug: "4-drawer-chest-limfjorden-beige", label: "LIMFJORDEN chest" },
+  { slug: "bed-frame-limfjorden-double-3-drawers-white", label: "LIMFJORDEN bed" },
+  { slug: "desk-abbetved-48x120-light-oak-colour-white", label: "ABBETVED desk" },
+];
 
 export default function Home() {
   return (
     <div className="site">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_LD) }} />
       <SiteHeader />
 
       <section className="hero">
@@ -43,7 +57,7 @@ export default function Home() {
             <br />
             step by step.
           </h1>
-          <p className="lead">Type the name from the box. Each step plays in 3D and is read out loud, with the parts, screws and tools it needs.</p>
+          <p className="lead">Type the name from the box. Each step plays in 3D{AI_ENABLED ? " and is read out loud" : ""}, with the parts, screws and tools it needs.</p>
           <HeroSearch />
           {QUICK.length > 0 && (
           <div className="quick">
@@ -81,7 +95,7 @@ export default function Home() {
                 <g transform="translate(122 98) skewY(-15)">
                   <rect x="0" y="0" width="56" height="26" rx="3" fill="var(--accent)" stroke="var(--ink)" strokeWidth="2" />
                   <text x="28" y="18" textAnchor="middle" fontSize="12" fontWeight="800" fill="var(--ink)" fontFamily="var(--font)">
-                    KALLAX
+                    JENSLEV
                   </text>
                 </g>
               </svg>
@@ -90,7 +104,7 @@ export default function Home() {
               </span>
             </div>
             <h3>Type the name</h3>
-            <p>It&apos;s the big word on the box label, like KALLAX, or the number under it, like 802.758.87. Or snap a photo of it.</p>
+            <p>It&apos;s the big word on the box label, like LIMFJORDEN, or the 7-digit article number, like 3670661.{SCAN_ENABLED ? " Or snap a photo of it." : ""}</p>
           </li>
           <li>
             <span className="how-n">2</span>

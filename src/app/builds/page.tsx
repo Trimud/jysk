@@ -4,7 +4,7 @@ import Workshop from "@/components/workshop/Workshop";
 import SiteFooter from "@/components/SiteFooter";
 
 // your own builds, kept in this browser: nothing for a search engine to index
-export const metadata: Metadata = { title: "Your workshop | Monta", robots: { index: false } };
+export const metadata: Metadata = { title: "Your workshop", robots: { index: false } };
 
 export default function Page() {
   return (

@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { GITHUB_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy and terms | Monta",
+  title: "Privacy and terms",
   description: "What Monta keeps, what it sends where, and the terms for using the guides.",
   alternates: { canonical: "/privacy" },
 };

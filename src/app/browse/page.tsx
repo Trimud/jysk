@@ -5,7 +5,11 @@ import { Catalog } from "@/components/home/Sections";
 import { PRODUCT_COUNT } from "@/lib/search";
 import { PRODUCTS } from "@/lib/catalog";
 
-export const metadata: Metadata = { title: "All guides | Monta", alternates: { canonical: "/browse" } };
+export const metadata: Metadata = {
+  title: "All guides",
+  description: "Step-by-step 3D assembly guides for JYSK furniture: wardrobes, chests of drawers, beds, desks, shelving, tables, chairs, sofas and garden furniture. Search by name or article number.",
+  alternates: { canonical: "/browse" },
+};
 
 export default function Page() {
   return (

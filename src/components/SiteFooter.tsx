@@ -1,15 +1,8 @@
 import Link from "next/link";
 import Logo from "./Logo";
-import { Crew } from "./art/Figure";
 import { IArrowOut } from "./art/Icons";
 import { TogetherWordmark } from "./art/Together";
 import { AI_ENABLED, GITHUB_URL, SCAN_ENABLED } from "@/lib/site";
-
-const CREW = [
-  { name: "Hassan", handle: "nutlope" },
-  { name: "Youssef", handle: "YoussefUIUX" },
-];
-const x = (handle: string) => `https://x.com/${handle}`;
 
 export default function SiteFooter() {
   return (
@@ -17,7 +10,7 @@ export default function SiteFooter() {
       <div className="foot-card">
         <div className="foot-brand">
           <Logo size={30} />
-          <p>Assembly guides you can turn around, hear out loud and follow with your hands full. Free and open source.</p>
+          <p>Assembly guides for JYSK furniture you can turn around and follow with your hands full. Free, open source and not affiliated with JYSK.</p>
         </div>
 
         <nav className="foot-cols" aria-label="Footer">
@@ -39,19 +32,12 @@ export default function SiteFooter() {
           </div>
         </nav>
 
-        <div className="foot-credit">
-          <Crew names="Hassan & Youssef" size={128} className="foot-crew" />
-          <p className="foot-credit-text">
-            Built by{" "}
-            <a href={x(CREW[0].handle)} target="_blank" rel="noreferrer">
-              {CREW[0].name}
-            </a>{" "}
-            and{" "}
-            <a href={x(CREW[1].handle)} target="_blank" rel="noreferrer">
-              {CREW[1].name}
-            </a>
-          </p>
-        </div>
+        <p className="foot-credit">
+          Based on{" "}
+          <a href="https://github.com/Nutlope/bygga" target="_blank" rel="noreferrer">
+            Bygga <IArrowOut size={14} />
+          </a>
+        </p>
       </div>
 
       <div className="foot-base">

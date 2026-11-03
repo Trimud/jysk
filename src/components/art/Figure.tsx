@@ -135,32 +135,3 @@ export function TwoPeople({ size = 64, className }: { size?: number; className?:
     </svg>
   );
 }
-
-/** The two of us, holding up a board with our names on it, the way the manual draws a two-person job. */
-export function Crew({ names, size = 120, className }: { names: string; size?: number; className?: string }) {
-  const hands: Pt[] = [
-    [19.5, 47],
-    [40.5, 47],
-    [85.5, 47],
-    [106.5, 47],
-  ];
-  return (
-    <svg viewBox="0 -2 126 98" width={(size * 126) / 98} height={size} className={className} aria-hidden="true" overflow="visible">
-      <g className="crew-a">
-        <Body pose="hold" />
-      </g>
-      <g className="crew-b" transform="translate(66 0)">
-        <Body pose="hold" />
-      </g>
-      <g className="crew-board">
-        <rect x={11} y={46} width={104} height={21} rx={2.5} fill="var(--accent)" stroke={INK} strokeWidth={2.2} />
-        <text x={63} y={60.2} textAnchor="middle" fontSize={10} fontWeight={800} letterSpacing={-0.2} fill={INK} fontFamily="var(--display)">
-          {names}
-        </text>
-        {hands.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r={3.3} fill="#fff" stroke={INK} strokeWidth={1.8} />
-        ))}
-      </g>
-    </svg>
-  );
-}

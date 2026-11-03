@@ -9,8 +9,15 @@ import { buildPlan } from "@/lib/plan";
 import type { StageMode } from "@/engine/stage";
 import { IArrowRight } from "../art/Icons";
 
-// ponytail: emptied in Phase 0; the Phase 2 pilot picks JYSK products to show here
-const SHOW: string[] = [];
+// one per family from the pilot, so each tab has its own name
+const SHOW = [
+  "4-drawer-chest-limfjorden-beige",
+  "shelving-unit-trappedal-5-shelves-warm-oak-colour-black",
+  "desk-abbetved-48x120-light-oak-colour-white",
+  "sideboard-jenslev-2-doors-4-drawers-wild-natoak-colour",
+  "dining-table-marstrand-d110-110x200-white-natural",
+  "bed-frame-w-storage-billund-euro-single-white-concrete-color",
+];
 const HOLD = 3200;
 
 /** A manual page that keeps building furniture by itself. Tabs pick what it builds. */

@@ -7,7 +7,7 @@ import "./home.css";
 import "./scan.css";
 import { Analytics } from "@vercel/analytics/next";
 import Offline from "@/components/Offline";
-import { SITE_URL } from "@/lib/site";
+import { AI_ENABLED, SITE_URL } from "@/lib/site";
 
 const noto = Noto_Sans({
   subsets: ["latin", "latin-ext"],
@@ -23,11 +23,12 @@ const display = Noto_Sans_Display({
   display: "swap",
 });
 
-const description = "Type the product name from the box. Monta shows every assembly step in 3D, with the parts, screws and tools for each one, and reads it out loud.";
+const description = `Type the JYSK product name or article number from the box. Monta shows every assembly step in 3D, with the parts, screws and tools for each one${AI_ENABLED ? ", and reads it out loud" : ""}. Not affiliated with JYSK.`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Monta: build JYSK furniture, step by step",
+  // "Monta" alone is also an EV charging company: every title says what this one is
+  title: { default: "Monta: build JYSK furniture, step by step", template: "%s | Monta, JYSK assembly guides" },
   description,
   applicationName: "Monta",
   appleWebApp: { capable: true, title: "Monta", statusBarStyle: "default" },

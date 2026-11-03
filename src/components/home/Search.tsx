@@ -10,7 +10,7 @@ import { IArrowRight, ICamera, ISearch, ISparkle } from "../art/Icons";
 import KeyModal, { type KeyTrouble } from "../KeyModal";
 import { AI_ENABLED } from "@/lib/site";
 
-const EXAMPLES = ["KALLAX", "MALM 3 drawers", "802.758.87", "BILLY bookcase", "LACK side table", "HEMNES chest", "IDÅSEN desk"];
+const EXAMPLES = ["LIMFJORDEN", "ABBETVED desk", "3670661", "TRAPPEDAL shelving", "JENSLEV sideboard", "MARSTRAND table"];
 
 export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boolean }) {
   const router = useRouter();

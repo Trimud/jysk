@@ -238,8 +238,22 @@ export function guessSpec(q: string): ProductSpec | null {
 }
 
 export const FEATURED = PRODUCTS.filter((e) => e.featured);
-// ponytail: emptied in Phase 0; the Phase 2 pilot lists JYSK bestsellers here
-export const POPULAR = ([] as string[])
+// the pilot's guides, built and matched to their manuals: one per browse tab first
+export const POPULAR = [
+  "wardrobe-limfjorden-120x200-2-doors-3-drawers-beige",
+  "4-drawer-chest-limfjorden-beige",
+  "bed-frame-limfjorden-double-3-drawers-white",
+  "desk-abbetved-48x120-light-oak-colour-white",
+  "shelving-unit-trappedal-5-shelves-warm-oak-colour-black",
+  "sideboard-jenslev-2-doors-4-drawers-wild-natoak-colour",
+  "dining-table-marstrand-d110-110x200-white-natural",
+  "dining-chair-jegind-natural-wood-black",
+  "sofa-dalshuse-3-seater-beige-fabric",
+  "bed-frame-w-storage-billund-euro-single-white-concrete-color",
+  "garden-table-maderup-w90xl150-black",
+  "33-drawer-chest-limfjorden-beige",
+  "wardrobe-limfjorden-180x200-3-doors-3-drawers-beige",
+]
   .map((s) => PRODUCTS.find((e) => e.slug === s)!)
   .filter(Boolean);
 export const PRODUCT_COUNT = new Set(PRODUCTS.map((p) => fold(p.name) + "|" + p.category)).size;
