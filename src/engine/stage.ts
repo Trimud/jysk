@@ -638,7 +638,8 @@ export class Stage {
         const p = this.byKey.get(k)!;
         this.frameLocal.push(...p.corners.map((c) => c.clone().applyQuaternion(xf.q).add(xf.p)));
       }
-      this.stepEnd = 0.3 + this.parts.length * this.introGap() + PART_DUR + 0.6;
+      // extras land after everything else (see updateItems), so they get one more flight's time
+      this.stepEnd = 0.3 + this.parts.length * this.introGap() + PART_DUR + 0.6 + (this.parts.some((p) => p.type.extra) ? PART_DUR : 0);
     } else if (m.kind === "assembled") {
       this.frameLocal = [...(this.extents.get("final") ?? [])];
       for (const f of m.frame ?? []) this.frameLocal.push(new THREE.Vector3(...f));
@@ -776,10 +777,12 @@ export class Stage {
 
   private styleDrawable(d: Drawable, o: { opacity: number; ink: boolean; tint: number; width: number; depth?: boolean }) {
     d.opacity = o.opacity;
+    // a part still faded out (a mattress waiting to drop in) must not hide what's behind it
+    const depth = o.depth ?? o.opacity > 0.05;
     for (const f of d.faces) {
       f.uniforms.uOpacity.value = o.opacity;
       f.uniforms.uTintAmt.value = o.tint;
-      f.depthWrite = o.depth ?? o.opacity > 0.05;
+      f.depthWrite = depth;
     }
     const col = o.ink ? INK : INK_OLD;
     const lw = this.opts.offscreen ? o.width * 1.15 : o.width;
@@ -797,6 +800,7 @@ export class Stage {
       hm.uniforms.uColor.value.copy(col);
       hm.uniforms.uOpacity.value = o.opacity;
       hm.uniforms.uWidth.value = o.width * 0.95;
+      hm.depthWrite = depth;
     }
   }
 
@@ -854,7 +858,8 @@ export class Stage {
         visibleParts.add(p);
         const order = this.introOrder(p);
         const gap = this.introGap();
-        const delay = 0.3 + order * gap;
+        // what isn't in the box (a mattress) comes once every part has landed, so it never covers one still arriving
+        const delay = p.type.extra ? 0.3 + this.parts.filter((x) => !x.type.extra).length * gap + PART_DUR : 0.3 + order * gap;
         const k = clamp01((t - delay) / PART_DUR);
         const e = easeInOut(k);
         const a = this.stack.get(p.item.key);
