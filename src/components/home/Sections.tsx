@@ -2,39 +2,21 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { POPULAR, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
+import { POPULAR, PRODUCT_COUNT, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
 import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
-import { KIND_ARCH, type Kind } from "@/lib/products";
+import { KIND_ARCH } from "@/lib/products";
 import type { Archetype } from "@/lib/types";
+import { CATS, catNoun } from "@/lib/categories";
 import Drawing from "../Drawing";
 import { useUserKey } from "@/lib/userKey";
 import { Dots } from "../guide/ui";
 import { IArrowRight, IClock, IClose, ISearch } from "../art/Icons";
 
-/** Tabs over the kinds of furniture. Kids and Outdoor cut across them, by keyword. */
-export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[] = [
-  { id: "all", label: "All" },
-  { id: "shelves", label: "Shelves", kinds: ["cube", "bookcase", "open", "wallshelf", "bookrow", "divider"] },
-  { id: "drawers", label: "Drawers", kinds: ["chest", "nightstand", "changing"] },
-  { id: "wardrobes", label: "Wardrobes", kinds: ["wardrobe", "sliding", "cornerrobe", "clothesrack"] },
-  {
-    id: "storage",
-    label: "Cabinets",
-    kinds: ["cabinet", "sideboard", "tv", "shoe", "shoerack", "wallcab", "kitchen", "cabrow", "slidecab", "mixed", "cornercab", "sinkcab", "appliance", "washstand"],
-  },
-  { id: "tables", label: "Tables", kinds: ["dining", "coffee", "side", "bar", "console", "trolley", "dropleaf", "gateleg", "conftable"] },
-  { id: "desks", label: "Desks", kinds: ["desk", "cornerdesk", "deskdraw", "boxdesk"] },
-  { id: "beds", label: "Beds", kinds: ["bed", "daybed", "bunk", "loft", "cot"] },
-  { id: "seating", label: "Chairs", kinds: ["chair", "stool", "bench", "backbench", "office", "conference", "highchair", "junior", "lounge"] },
-  { id: "sofas", label: "Sofas", kinds: ["sofa", "armchair", "corner", "usofa", "section", "chaise", "swivel", "lounger"] },
-  { id: "kids", label: "Kids", kinds: ["kidstable", "kidschair", "junior", "highchair", "cot", "changing"], tag: "kids" },
-  { id: "outdoor", label: "Garden", tag: "outdoor" },
-];
-
 // a kind no tab names yet still lands in the tab for its furniture type
 const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
-const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "storage", table: "tables", bed: "beds", seat: "seating", sofa: "sofas", custom: "storage" };
+const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "cabinets", table: "tables", bed: "beds", seat: "chairs", sofa: "sofas", custom: "cabinets" };
 
 const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
   if (!c.kinds && !c.tag) return true;
@@ -76,17 +58,43 @@ export function ProductCard({ e, i = 0 }: { e: CatalogEntry; i?: number }) {
   );
 }
 
+/** The tab an address points at: /browse/beds is "beds", /browse is "all". */
+const catOf = (path: string) => CATS.find((c) => c.id === path.split("/")[2]) ?? CATS[0];
+
+// the catalogue is fixed at build time: count each tab once
+const COUNTS = new Map(CATS.map((c) => [c.id, PRODUCTS.filter((e) => inCat(e, c)).length]));
+
+/** The /browse heading names the tab in the address, and follows it as the tabs change it. */
+export function BrowseHead() {
+  const c = catOf(usePathname());
+  const n = COUNTS.get(c.id)!;
+  const all = c.id === "all";
+  return (
+    <header className="page-head">
+      <h1>{all ? "All guides" : c.label}</h1>
+      <p className="lead">
+        {all
+          ? `${PRODUCT_COUNT.toLocaleString("en-US")} JYSK products in ${PRODUCTS.length.toLocaleString("en-US")} sizes, drawn and ready to build.`
+          : `${n} ${n === 1 ? "guide" : "guides"} for JYSK ${catNoun(c)}, drawn and ready to build.`}
+      </p>
+    </header>
+  );
+}
+
 /**
  * Category tabs plus a grid. On the home page it shows a short pick; /browse shows everything with a filter,
  * a page of cards at a time (each card's drawing renders only while it is on screen).
  */
-export function Catalog({ limit, search }: { limit?: number; search?: boolean }) {
-  const [cat, setCat] = useState("all");
+export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: boolean }>) {
+  // on /browse the tab is the address (/browse/beds), so a link or the back button lands on it; the home page keeps it in state
+  const path = usePathname();
+  const [homeCat, setHomeCat] = useState("all");
+  const cat = search ? catOf(path).id : homeCat;
+  const setCat = (id: string) => (search ? window.history.pushState(null, "", id === "all" ? "/browse" : `/browse/${id}`) : setHomeCat(id));
   const [q, setQ] = useState("");
   const [more, setMore] = useState({ view: "", n: PAGE });
   const no = search ? articleNo(q) : null;
 
-  const counts = useMemo(() => (search ? new Map(CATS.map((c) => [c.id, PRODUCTS.filter((e) => inCat(e, c)).length])) : null), [search]);
   const list = useMemo(() => {
     const c = CATS.find((x) => x.id === cat)!;
     let l = c.kinds || c.tag ? PRODUCTS.filter((e) => inCat(e, c)) : limit ? POPULAR : PRODUCTS;
@@ -138,7 +146,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
             <button key={c.id} role="tab" aria-selected={cat === c.id} className={"cat-tab" + (cat === c.id ? " on" : "")} onClick={() => setCat(c.id)}>
               {cat === c.id && <motion.i layoutId={"cat-bg" + (search ? "b" : "h")} className="cat-bg" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
               <span>{c.label}</span>
-              {counts && <small className="cat-n">{counts.get(c.id)}</small>}
+              {search && <small className="cat-n">{COUNTS.get(c.id)}</small>}
             </button>
           ))}
         </div>

@@ -35,13 +35,13 @@
   transform: scale(0.965);
 }
 .btn.primary {
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   height: 52px;
   padding: 0 24px;
 }
 .btn.primary:hover:not(:disabled) {
-  background: #2a2a2a;
+  background: var(--brand-2);
 }
 .btn.primary.big {
   height: 58px;
@@ -85,7 +85,7 @@
   background: var(--sunk);
 }
 .btn.round:hover:not(:disabled) {
-  background: #e8e5de;
+  background: var(--sunk-2);
 }
 .btn.round.small {
   width: 40px;
@@ -128,7 +128,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -245,7 +245,7 @@
   transform: scale(0.97);
 }
 .chip.on {
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   box-shadow: none;
 }
@@ -254,7 +254,7 @@
   box-shadow: none;
 }
 .chip.ghost:hover {
-  background: #e8e5de;
+  background: var(--sunk-2);
 }
 .chips {
   display: flex;
@@ -267,7 +267,7 @@
   min-height: 36px;
   padding: 7px 14px;
   line-height: 1.3;
-  border-radius: 18px;
+  border-radius: 6px;
 }
 .chips.center {
   justify-content: center;
@@ -304,7 +304,7 @@
   background: var(--line-2);
 }
 .dots i.on {
-  background: var(--ink);
+  background: var(--brand);
 }
 .checkdot {
   display: inline-block;
@@ -336,8 +336,8 @@
 .thumb {
   display: block;
   position: relative;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #f6f5f1 0%, #fbfaf8 50%, #f6f5f1 100%);
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf1f6 0%, #f6f8fb 50%, #edf1f6 100%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
   overflow: hidden;
@@ -477,7 +477,7 @@
   background: rgba(18, 18, 18, 0.05);
 }
 .voice-btn.on {
-  background: var(--ink);
+  background: var(--brand);
   box-shadow: none;
   color: #fff;
 }
@@ -538,7 +538,7 @@
 .stp-line i {
   display: block;
   height: 100%;
-  background: var(--ink);
+  background: var(--brand);
   transform-origin: 0 50%;
 }
 
@@ -734,7 +734,7 @@
   gap: 12px;
   margin-top: 16px;
   padding: 13px 15px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--sunk);
   font-size: 15px;
   line-height: 1.45;
@@ -757,8 +757,7 @@
 }
 .callout.warn {
   align-items: center;
-  background: #fff6d5;
-  box-shadow: inset 0 0 0 1px #f2e3a0;
+  background: var(--accent-soft);
 }
 .callout.repeat {
   align-items: center;
@@ -773,7 +772,7 @@
   min-width: 44px;
   height: 44px;
   padding: 0 8px;
-  border-radius: 13px;
+  border-radius: 6px;
   background: var(--ink);
   color: #fff !important;
   font-weight: 800;
@@ -847,7 +846,7 @@
   gap: 4px;
   padding: 8px 10px 6px;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 6px;
   box-shadow: inset 0 0 0 1.8px var(--ink);
 }
 .hw-box-item {
@@ -858,7 +857,7 @@
   gap: 4px;
   min-width: 54px;
   padding: 2px 4px;
-  border-radius: 10px;
+  border-radius: 6px;
   transition: background 0.2s;
 }
 .hw-box-item svg {
@@ -959,7 +958,7 @@
   gap: 10px;
   margin: 0 0 22px;
   padding: 12px 8px 12px 18px;
-  border-radius: 18px;
+  border-radius: 6px;
   background: var(--sunk);
 }
 .voice-offer-text {
@@ -980,7 +979,7 @@
   gap: 7px;
   height: 38px;
   padding: 0 16px 0 13px;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   font-size: 14.5px;
   font-weight: 500;
@@ -1102,7 +1101,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 22px 0 0;
-  border-radius: 18px;
+  border-radius: 6px;
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .stats > div {
@@ -1147,7 +1146,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--sunk);
   flex: 0 0 auto;
   margin-top: -4px;
@@ -1228,7 +1227,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
+  border-radius: 6px;
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--line);
   backface-visibility: hidden;
@@ -1242,7 +1241,7 @@
   box-shadow: inset 0 0 0 1.5px var(--line-2);
 }
 .tcard.on .front {
-  background: #fffcf0;
+  background: var(--accent-soft);
   box-shadow: inset 0 0 0 1.5px var(--ink);
 }
 .tface.back {
@@ -1303,7 +1302,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   display: grid;
   place-items: center;
@@ -1351,7 +1350,7 @@
   width: 100%;
   min-height: 60px;
   padding: 6px 12px 6px 8px;
-  border-radius: 14px;
+  border-radius: 6px;
   border: 0;
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--line);
@@ -1367,7 +1366,7 @@
   box-shadow: inset 0 0 0 1.5px var(--ink);
 }
 .prow.ok {
-  background: #fffcf0;
+  background: var(--accent-soft);
 }
 .prow.miss {
   background: var(--miss-soft);
@@ -1430,7 +1429,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   display: grid;
   place-items: center;
@@ -1471,7 +1470,7 @@
   gap: 10px;
   margin-top: 16px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--sunk);
   font-size: 14px;
   line-height: 1.45;
@@ -1509,7 +1508,7 @@
   position: relative;
   width: min(520px, 100%);
   background: #fff;
-  border-radius: 28px;
+  border-radius: 8px;
   padding: 26px;
   box-shadow: var(--shadow-2);
   display: grid;
@@ -1583,7 +1582,7 @@ input[type="range"] {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-radius: 16px;
+  border-radius: 6px;
   /* a real border: an inset shadow sits under the rows, so a hovered row would paint over it */
   border: 1px solid var(--line);
   overflow: hidden;
@@ -1600,7 +1599,7 @@ input[type="range"] {
   border-top: 1px solid var(--line);
 }
 .needs li:hover {
-  background: #fffcf0;
+  background: var(--accent-soft);
 }
 .need-thumb {
   width: 56px;
@@ -1681,14 +1680,14 @@ input[type="range"] {
   align-items: center;
   gap: 12px;
   padding: 8px 14px 8px 8px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--sunk);
   transition:
     background 0.2s,
     transform 0.2s var(--ease);
 }
 .upnext:hover .upnext-body {
-  background: #ebe8e1;
+  background: var(--sunk-2);
 }
 .upnext:hover .upnext-body > svg {
   transform: translateX(3px);
@@ -1701,7 +1700,7 @@ input[type="range"] {
   width: 76px;
   flex: 0 0 auto;
   background-color: #fff;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 .upnext-text {
   flex: 1;
@@ -1771,8 +1770,8 @@ input[type="range"] {
   gap: 12px;
   margin-top: 16px;
   padding: 12px 16px 12px 12px;
-  border-radius: 16px;
-  background: var(--ink);
+  border-radius: 6px;
+  background: var(--brand);
   color: #fff;
   text-decoration: none;
   transition: transform 0.2s var(--ease);
@@ -1795,7 +1794,7 @@ input[type="range"] {
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--accent);
   color: var(--ink);
 }
@@ -1807,13 +1806,13 @@ input[type="range"] {
   align-items: center;
   margin-top: 16px;
   padding: 14px 16px 14px 14px;
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--sunk);
 }
 .share-pic {
   width: 92px;
   aspect-ratio: 4 / 5;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #fff;
   box-shadow:
     0 0 0 1px var(--line),
@@ -1869,13 +1868,13 @@ input[type="range"] {
 .btn.share-go {
   height: 40px;
   padding: 0 16px 0 14px;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   font-size: 15px;
   font-weight: 500;
 }
 .btn.share-go:hover {
-  background: #2a2a2a;
+  background: var(--brand-2);
 }
 .btn.link.small {
   font-size: 14px;
@@ -1892,7 +1891,7 @@ input[type="range"] {
   display: grid;
   gap: 2px;
   padding: 6px 6px 10px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink);
@@ -1911,7 +1910,7 @@ input[type="range"] {
 .next-thumb {
   display: block;
   width: 100%;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--sunk);
 }
 .next-card > span {
@@ -1937,7 +1936,7 @@ input[type="range"] {
 .match {
   margin-top: 22px;
   padding: 12px 12px 12px 16px;
-  border-radius: 18px;
+  border-radius: 6px;
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .match-q {
@@ -1990,14 +1989,14 @@ input[type="range"] {
   transform: scale(0.94);
 }
 .step-chip.on {
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
 }
 .match textarea {
   width: 100%;
   resize: none;
   border: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 10px 12px;
   background: var(--sunk);
   font: inherit;
@@ -2098,7 +2097,7 @@ input[type="range"] {
   width: min(460px, 100%);
   height: 100%;
   background: #fff;
-  border-radius: 28px;
+  border-radius: 8px;
   box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
@@ -2135,7 +2134,7 @@ input[type="range"] {
   gap: 6px;
 }
 .faq-item {
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--sunk);
   overflow: hidden;
 }
@@ -2193,7 +2192,7 @@ input[type="range"] {
     color 0.2s;
 }
 .ask-key:hover {
-  background: #e8e5de;
+  background: var(--sunk-2);
   color: var(--ink);
 }
 .ask-note {
@@ -2223,7 +2222,7 @@ input[type="range"] {
 .msg {
   max-width: 88%;
   padding: 10px 14px;
-  border-radius: 18px;
+  border-radius: 6px;
   font-size: 15px;
   line-height: 1.5;
 }
@@ -2234,7 +2233,7 @@ input[type="range"] {
 .msg img {
   display: block;
   width: 160px;
-  border-radius: 12px;
+  border-radius: 6px;
   margin-bottom: 8px;
 }
 .msg.user {
@@ -2286,7 +2285,7 @@ input[type="range"] {
   margin: 0;
   padding: 6px 6px 8px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 6px;
   background: #fff;
   box-shadow: 0 0 0 1px var(--line);
   text-align: left;
@@ -2296,7 +2295,7 @@ input[type="range"] {
 }
 .pic-thumb {
   width: 100%;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--sunk);
 }
 .pic-art {
@@ -2304,7 +2303,7 @@ input[type="range"] {
   place-items: center;
   width: 100%;
   aspect-ratio: 260 / 190;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--sunk);
 }
 .pic-art svg {
@@ -2393,7 +2392,7 @@ button.pic:disabled {
   width: min(1120px, 100%);
   max-height: calc(100dvh - 32px);
   background: #fff;
-  border-radius: 28px;
+  border-radius: 8px;
   box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
@@ -2426,7 +2425,7 @@ button.pic:disabled {
   align-items: stretch;
   gap: 6px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: 6px;
   border: 0;
   background: #fff;
   box-shadow: inset 0 0 0 1px var(--line);
@@ -2443,7 +2442,7 @@ button.pic:disabled {
 }
 .page.current {
   box-shadow: inset 0 0 0 2.5px var(--ink);
-  background: #fffcf0;
+  background: var(--accent-soft);
 }
 .page-n {
   font-family: var(--display);
@@ -2459,7 +2458,7 @@ button.pic:disabled {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   display: grid;
   place-items: center;
@@ -2576,7 +2575,7 @@ button.pic:disabled {
 .loader-bar span {
   display: block;
   height: 100%;
-  background: var(--ink);
+  background: var(--brand);
   border-radius: 99px;
   transition: width 1.4s var(--ease);
 }
@@ -2614,7 +2613,7 @@ button.pic:disabled {
   align-items: center;
   gap: 12px;
   padding: 12px 10px 12px 18px;
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--accent-soft);
   font-size: 15px;
   line-height: 1.45;
@@ -2641,12 +2640,12 @@ button.pic:disabled {
   flex: 0 0 auto;
   height: 40px;
   padding: 0 18px;
-  background: var(--ink);
+  background: var(--brand);
   color: #fff;
   font-size: 14.5px;
 }
 .btn.nf-ai-go:hover {
-  background: #2a2a2a;
+  background: var(--brand-2);
 }
 .kind-grid {
   display: grid;
@@ -2659,7 +2658,7 @@ button.pic:disabled {
   align-items: center;
   gap: 4px;
   padding: 12px 10px 14px;
-  border-radius: 20px;
+  border-radius: 8px;
   background: #fff;
   box-shadow: var(--shadow-1);
   text-decoration: none;
@@ -2729,7 +2728,7 @@ button.pic:disabled {
   z-index: 60;
   width: 384px;
   padding: 18px;
-  border-radius: 22px;
+  border-radius: 8px;
   background: #fff;
   box-shadow:
     0 0 0 1px rgba(18, 18, 18, 0.07),
@@ -2809,7 +2808,7 @@ button.pic:disabled {
   -webkit-tap-highlight-color: transparent;
 }
 .fb-topic:hover {
-  background: #ebe8e1;
+  background: var(--sunk-2);
   color: var(--ink);
 }
 .fb-topic:active {
@@ -2824,7 +2823,7 @@ button.pic:disabled {
 .fb-email {
   width: 100%;
   border: 0;
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 11px 13px;
   background: var(--sunk);
   font: inherit;
@@ -2936,7 +2935,7 @@ button.pic:disabled {
     bottom: 0;
     width: auto;
     padding: 20px 18px calc(16px + env(safe-area-inset-bottom));
-    border-radius: 24px 24px 0 0;
+    border-radius: 8px 24px 0 0;
     max-height: calc(100dvh - 40px);
     overflow-y: auto;
   }
@@ -2969,11 +2968,11 @@ button.pic:disabled {
   }
   .sheet {
     margin: 0 8px;
-    border-radius: 22px;
+    border-radius: 8px;
   }
   .panel {
     margin: 8px 0 0;
-    border-radius: 24px 24px 0 0;
+    border-radius: 8px 24px 0 0;
     box-shadow:
       0 -1px 0 var(--line),
       0 -6px 18px rgba(18, 18, 18, 0.035);
@@ -3058,7 +3057,7 @@ button.pic:disabled {
   .side-sheet {
     width: 100%;
     height: 88dvh;
-    border-radius: 26px 26px 0 0;
+    border-radius: 8px 26px 0 0;
   }
   .overview {
     max-height: 92dvh;
@@ -3120,7 +3119,7 @@ button.pic:disabled {
   .sheet,
   .panel {
     margin: 0;
-    border-radius: 20px;
+    border-radius: 8px;
   }
   .pane-scroll {
     padding: 16px 16px 12px;
@@ -3522,7 +3521,7 @@ button.pic:disabled {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 20px 24px 20px;
-  border-radius: 28px;
+  border-radius: 8px;
   background: #fff;
   box-shadow: var(--shadow-2);
   scrollbar-width: thin;
@@ -3561,7 +3560,7 @@ button.pic:disabled {
   align-items: flex-end;
   justify-content: center;
   height: 124px;
-  border-radius: 20px;
+  border-radius: 8px;
   background-color: var(--sunk);
   background-image: radial-gradient(var(--line-2) 1px, transparent 1.2px);
   background-size: 16px 16px;
@@ -3576,7 +3575,7 @@ button.pic:disabled {
   top: 18px;
   left: calc(50% + 24px);
   padding: 4px 11px 5px;
-  border-radius: 14px 14px 14px 4px;
+  border-radius: 6px 14px 14px 4px;
   background: #fff;
   box-shadow: 0 0 0 2px var(--ink);
   font-size: 14px;
@@ -3653,7 +3652,7 @@ button.pic:disabled {
   gap: 14px;
   margin: 18px 0 0;
   padding: 12px 16px 12px 12px;
-  border-radius: 18px;
+  border-radius: 6px;
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-size: 14.5px;
@@ -3698,7 +3697,7 @@ button.pic:disabled {
   gap: 10px;
   height: 52px;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: 6px;
   background: #fff;
   box-shadow: 0 0 0 1px var(--line-2);
   color: var(--ink-3);
@@ -3740,7 +3739,7 @@ button.pic:disabled {
   min-width: 96px;
   height: 52px;
   padding: 0 20px;
-  border-radius: 14px;
+  border-radius: 6px;
   gap: 6px;
 }
 .key-form.saved .btn.primary.key-save {
@@ -3780,7 +3779,7 @@ button.pic:disabled {
   gap: 12px;
   margin: 18px 0 0;
   padding: 10px 8px 10px 10px;
-  border-radius: 14px;
+  border-radius: 6px;
   box-shadow: 0 0 0 1px var(--line-2);
 }
 .key-have-ico {
@@ -3788,7 +3787,7 @@ button.pic:disabled {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--accent-soft);
 }
 .key-have-text {
@@ -3832,7 +3831,7 @@ button.pic:disabled {
     width: 100%;
     max-height: 94dvh;
     padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
-    border-radius: 26px 26px 0 0;
+    border-radius: 8px 26px 0 0;
   }
   .key-x {
     top: 22px;

@@ -90,7 +90,7 @@ export default function Compare() {
 
       <div className="cmp-pair" style={{ gridTemplateColumns: `${VB.paper.w}fr ${VB.bygga.w}fr` }}>
         <figure className="cmp-card paper">
-          <figcaption className="cmp-tag paper">Booklet style</figcaption>
+          <figcaption className="cmp-tag paper">As the paper booklet draws it</figcaption>
           <div className="cmp-art" style={{ aspectRatio: `${VB.paper.w} / ${VB.paper.h}` }}>
             <svg viewBox={`${VB.paper.x} ${VB.paper.y} ${VB.paper.w} ${VB.paper.h}`} aria-hidden="true">
               <PaperPage vb={VB.paper} />
@@ -105,7 +105,7 @@ export default function Compare() {
         </figure>
 
         <figure className="cmp-card bygga">
-          <figcaption className="cmp-tag bygga">On Monta</figcaption>
+          <figcaption className="cmp-tag bygga">The same step on Monta</figcaption>
           <div className="cmp-art" style={{ aspectRatio: `${VB.bygga.w} / ${VB.bygga.h}` }}>
             <svg viewBox={`${VB.bygga.x} ${VB.bygga.y} ${VB.bygga.w} ${VB.bygga.h}`} aria-hidden="true">
               <Scene style="bygga" />

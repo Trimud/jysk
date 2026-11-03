@@ -53,11 +53,11 @@ export default function Home() {
           </a>
           )}
           <h1>
-            Build JYSK furniture,
+            JYSK assembly,
             <br />
             step by step.
           </h1>
-          <p className="lead">Type the name from the box. Each step plays in 3D{AI_ENABLED ? " and is read out loud" : ""}, with the parts, screws and tools it needs.</p>
+          <p className="lead">Type the name or article number from the box. Each step plays in 3D{AI_ENABLED ? " and is read out loud" : ""}, with the parts, screws and tools it needs.</p>
           <HeroSearch />
           {QUICK.length > 0 && (
           <div className="quick">
@@ -86,7 +86,6 @@ export default function Home() {
         <h2 className="sec-title">How it works</h2>
         <ol className="how-steps">
           <li>
-            <span className="how-n">1</span>
             <div className="how-art">
               <svg viewBox="0 0 220 150" width="220" height="150" aria-hidden="true">
                 <path d="M30 60 L110 84 L190 60 L190 128 L110 150 L30 128 Z" fill="#fff" stroke="var(--ink)" strokeWidth="2.4" strokeLinejoin="round" />
@@ -107,7 +106,6 @@ export default function Home() {
             <p>It&apos;s the big word on the box label, like LIMFJORDEN, or the 7-digit article number, like 3670661.{SCAN_ENABLED ? " Or snap a photo of it." : ""}</p>
           </li>
           <li>
-            <span className="how-n">2</span>
             <div className="how-art tools">
               <span style={{ transform: "rotate(-10deg)" }}>
                 <ToolArt id="screwdriver" size={82} />
@@ -127,7 +125,6 @@ export default function Home() {
             <p>One tap if everything&apos;s there. Missing a piece? We&apos;ll tell you what to do.</p>
           </li>
           <li>
-            <span className="how-n">3</span>
             <div className="how-art step">
               <svg viewBox="0 0 200 140" width="200" height="140" aria-hidden="true">
                 <path d="M30 96 L120 120 L176 96 L86 72 Z" fill="#fff" stroke="var(--ink)" strokeWidth="2.2" strokeLinejoin="round" />

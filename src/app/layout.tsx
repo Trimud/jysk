@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans, Noto_Sans_Display } from "next/font/google";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import "./guide.css";
 import "./home.css";
@@ -9,17 +9,10 @@ import { Analytics } from "@vercel/analytics/next";
 import Offline from "@/components/Offline";
 import { AI_ENABLED, SITE_URL } from "@/lib/site";
 
-const noto = Noto_Sans({
+// the one face, site and guide alike
+const figtree = Figtree({
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-noto",
-  display: "swap",
-});
-
-const display = Noto_Sans_Display({
-  subsets: ["latin", "latin-ext"],
-  weight: ["600", "700", "800"],
-  variable: "--font-display",
+  variable: "--font-figtree",
   display: "swap",
 });
 
@@ -44,7 +37,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${noto.variable} ${display.variable}`}>
+    <html lang="en" className={figtree.variable}>
       <body>
         {children}
         <Analytics />

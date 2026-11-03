@@ -1,30 +1,42 @@
 import Link from "next/link";
 
-const HEX = "M16 6.2 L24.5 11.1 L24.5 20.9 L16 25.8 L7.5 20.9 L7.5 11.1 Z";
+// the o: a bolt head seen from above, a ring as heavy as the letters, the Allen key's hex socket in its middle
+// (32 box; the share card draws the same paths on its canvas)
+export const RING = "M16 0 A16 16 0 1 0 16 32 A16 16 0 1 0 16 0 Z M16 7.6 A8.4 8.4 0 1 0 16 24.4 A8.4 8.4 0 1 0 16 7.6 Z";
+export const SOCKET = "M16 11.2 L20.16 13.6 L20.16 18.4 L16 20.8 L11.84 18.4 L11.84 13.6 Z";
 
-/** The mark: an Allen bolt head seen from above. */
-export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
+function Bolt() {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={"mark " + (className ?? "")} aria-hidden="true">
-      <circle cx="16" cy="16" r="15.5" fill="var(--ink)" />
-      <path d="M6.2 11.4 A11 11 0 0 1 13 5.6" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="1.6" strokeLinecap="round" />
-      <g className="mark-socket">
-        <path d={HEX} fill="var(--accent)" stroke="var(--accent)" strokeWidth="2.2" strokeLinejoin="round" />
-        <path d="M16 11.2 L20.2 13.6 L20.2 18.4 L16 20.8 L11.8 18.4 L11.8 13.6 Z" fill="var(--ink)" stroke="var(--ink)" strokeWidth="1.4" strokeLinejoin="round" />
+    <>
+      <path fillRule="evenodd" d={RING} />
+      <path className="mark-socket" d={SOCKET} />
+    </>
+  );
+}
+
+/** The mark alone (favicon, the guide's corner): the bolt, white on the blue block. */
+export function LogoMark({ size = 32, className }: Readonly<{ size?: number; className?: string }>) {
+  return (
+    <svg viewBox="0 0 48 48" width={size} height={size} className={"mark " + (className ?? "")} aria-hidden="true">
+      <rect width="48" height="48" rx="5" fill="var(--logo-bg, var(--brand))" />
+      <g transform="translate(8 8)" fill="var(--logo-ink, #fff)">
+        <Bolt />
       </g>
     </svg>
   );
 }
 
-export function Wordmark({ className }: { className?: string }) {
-  return <span className={"wordmark " + (className ?? "")}>monta</span>;
-}
-
-export default function Logo({ href = "/", compact, size = 26 }: { href?: string; compact?: boolean; size?: number }) {
+/** The name, linked home, set at `size` px: "monta" in white on a blue block, its o the bolt. */
+export default function Logo({ href = "/", size = 24 }: Readonly<{ href?: string; size?: number }>) {
   return (
-    <Link href={href} className="logo" aria-label="Monta home">
-      <LogoMark size={size} />
-      {!compact && <Wordmark />}
+    <Link href={href} className="logo" aria-label="Monta home" style={{ fontSize: size }}>
+      <span className="wordmark">
+        m
+        <svg viewBox="0 0 32 32" className="wordmark-o" fill="currentColor" aria-hidden="true">
+          <Bolt />
+        </svg>
+        nta
+      </span>
     </Link>
   );
 }
