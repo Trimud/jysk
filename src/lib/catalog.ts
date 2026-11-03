@@ -2,7 +2,8 @@ import type { ProductSpec } from "./types";
 import { ROWS, specFor, type Kind, type X } from "./products";
 import { fold } from "./fold";
 import { decodeRows, type IkeaRow } from "./ikea";
-import { IKEA_ROWS } from "@/data/ikea-rows";
+// ponytail: IKEA rows removed in Phase 0; src/data/jysk-rows.ts replaces this in Phase 1
+const IKEA_ROWS = "";
 import { FIXES, SAME } from "@/data/fixes";
 
 type Entry = Omit<ProductSpec, "source" | "slug" | "variants" | "siblings"> & {

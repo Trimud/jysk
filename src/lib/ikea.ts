@@ -1,6 +1,7 @@
 import type { Kind, X } from "./products";
 import { fold } from "./fold";
-import { IKEA_GUARD } from "@/data/ikea-guard";
+// ponytail: IKEA data removed in Phase 0; scripts/jysk will generate the JYSK equivalents in Phase 1
+const IKEA_GUARD = "";
 
 /**
  * IKEA's public product data, compacted by scripts/ikea/build.ts:
@@ -76,7 +77,7 @@ export function isGuardedName(word: string) {
 let names: Promise<Map<string, string[]>> | null = null;
 
 function nameMap() {
-  names ??= import("@/data/ikea-names").then(({ IKEA_NAMES }) => {
+  names ??= Promise.resolve({ IKEA_NAMES: "" }).then(({ IKEA_NAMES }) => {
     const map = new Map<string, string[]>();
     for (const line of IKEA_NAMES.split("\n")) {
       if (!line) continue;
@@ -124,7 +125,7 @@ export function articleNo(q: string): string | null {
 
 /** Loads the article number index (a separate chunk, so pages don't pay for it until someone types digits). */
 export function loadArticles(): Promise<void> {
-  loading ??= import("@/data/ikea-items").then(({ IKEA_ITEMS }) => {
+  loading ??= Promise.resolve({ IKEA_ITEMS: "" }).then(({ IKEA_ITEMS }) => {
     const map = new Map<string, string>();
     for (const line of IKEA_ITEMS.split("\n")) {
       const [slug, list] = line.split("|");

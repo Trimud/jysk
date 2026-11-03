@@ -11,10 +11,6 @@
     "voice:names": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/voice/names.ts",
     "voice:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/voice/listen-check.ts",
     "feedback": "node --experimental-transform-types --no-warnings scripts/feedback.ts",
-    "ikea:fetch": "node --experimental-transform-types --no-warnings scripts/ikea/fetch.ts",
-    "ikea:measure": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/ikea/measure.ts",
-    "ikea:build": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/ikea/build.ts",
-    "ikea:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/ikea/check.ts",
     "families": "node scripts/families.mjs"
   },
   "dependencies": {
