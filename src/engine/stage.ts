@@ -693,8 +693,10 @@ export class Stage {
 
   tick(dt: number) {
     if (!this.plan) return;
-    if (!this.paused) this.t += dt * this.speed;
-    this.turnT += dt;
+    if (!this.paused) {
+      this.t += dt * this.speed;
+      this.turnT += dt;
+    }
     const m = this.mode;
     if (m.kind === "step" && this.opts.loop !== false) {
       const cycle = this.stepEnd + HOLD + FADE;

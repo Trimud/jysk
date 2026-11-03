@@ -366,7 +366,10 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   const [hl, setHl] = useState<string[] | null>(null);
   const [hover3d, setHover3d] = useState<string | null>(null);
   const [introPlayed, setIntroPlayed] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // a pause holds on the screen it was pressed on: moving on (cover to steps, steps to done) plays again
+  const [pausedIn, setPausedIn] = useState<Phase | null>(null);
+  const paused = pausedIn === phase;
+  const togglePause = () => setPausedIn(paused ? null : phase);
   const [slow, setSlow] = useState(false);
   const [xray, setXray] = useState(false);
   const [anyOpen, setAnyOpen] = useState(false);
@@ -892,6 +895,13 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
           </AnimatePresence>
 
           {phase === "cover" && (introPlayed || resume) && (
+            <div className="stage-ctl right top">
+              <button className="icon-btn float" onClick={togglePause} aria-label={paused ? "Play" : "Pause"} aria-pressed={paused} data-tip={paused ? "Play" : "Pause"}>
+                {paused ? <IPlay /> : <IPause />}
+              </button>
+            </div>
+          )}
+          {phase === "cover" && (introPlayed || resume) && (
             <div className="stage-ctl right">
               {plan.opens && (
                 <button className={"pill-btn float" + (anyOpen ? " on" : "")} onClick={() => stage.current?.openAll(!anyOpen)} aria-pressed={anyOpen}>
@@ -908,7 +918,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
               <button className="icon-btn float" onClick={() => stage.current?.replay()} aria-label="Replay animation" data-tip="Replay (R)">
                 <IReplay />
               </button>
-              <button className="icon-btn float" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Play" : "Pause"} data-tip={paused ? "Play" : "Pause"}>
+              <button className="icon-btn float" onClick={togglePause} aria-label={paused ? "Play" : "Pause"} aria-pressed={paused} data-tip={paused ? "Play" : "Pause"}>
                 {paused ? <IPlay /> : <IPause />}
               </button>
               <button className={"pill-btn float" + (slow ? " on" : "")} onClick={() => setSlow(!slow)} aria-pressed={slow}>

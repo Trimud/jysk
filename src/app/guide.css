@@ -187,7 +187,7 @@
   transform: translate(-50%, 0);
   transition-delay: 0.35s;
 }
-.stage-ctl [data-tip]::after,
+.stage-ctl:not(.top) [data-tip]::after,
 .pane-foot [data-tip]::after {
   top: auto;
   bottom: calc(100% + 8px);
@@ -914,6 +914,11 @@
 .stage-ctl.right {
   left: auto;
   right: 14px;
+}
+/* in the top corner, its tip opens below it, inside the drawing */
+.stage-ctl.top {
+  top: 14px;
+  bottom: auto;
 }
 .drag-hint,
 .sheet-caption {
@@ -3036,6 +3041,9 @@ button.pic:disabled {
   .stage-ctl.right {
     left: auto;
     right: 10px;
+  }
+  .stage-ctl.top {
+    top: 10px;
   }
   .stage-ctl .icon-btn,
   .stage-ctl .pill-btn {
