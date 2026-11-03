@@ -1330,11 +1330,11 @@ export class Stage {
     const sz = Math.max(box.max.x - box.min.x, box.max.y - box.min.y);
     const off = sz * 0.07;
     const P = (x: number, y: number, z: number) => this.project(this.root.localToWorld(new THREE.Vector3(x, y, z)));
-    // three dimension lines, each an extension path, the line with its arrow heads and a label: made once, then
+    // four dimension lines, each an extension path, the line with its arrow heads and a label: made once, then
     // only their attributes change as the turntable turns (no new markup every frame)
-    if (this.dimsEl.childElementCount !== 9) {
+    if (this.dimsEl.childElementCount !== 12) {
       this.dimsEl.innerHTML = "";
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         for (const cls of ["ext", "dim"]) {
           const el = document.createElementNS(ns, "path");
           el.setAttribute("class", cls);
@@ -1368,7 +1368,18 @@ export class Stage {
     const { min, max } = box;
     line(0, [min.x, min.y, max.z], [max.x, min.y, max.z], [0, -off * 0.2, off], `${Math.round(size.w)} cm`, 1);
     line(1, [max.x, min.y, max.z], [max.x, min.y, min.z], [off, -off * 0.2, 0], `${Math.round(size.d)} cm`, 1);
-    line(2, [min.x, min.y, max.z], [min.x, max.y, max.z], [-off, 0, off * 0.3], `${Math.round(size.h)} cm`, -1);
+    // the height stands at the taller end (a bed's headboard, at the back); a bed's lower foot board gets its own
+    // height, as drawn: the maker's page doesn't give it
+    let back = -Infinity, front = -Infinity; // the top of each end
+    for (const v of fin) {
+      if (v.z - min.z < 40) back = Math.max(back, v.y);
+      if (max.z - v.z < 40) front = Math.max(front, v.y);
+    }
+    const s = back > front + 1 ? -1 : 1; // which end is taller: -1 the back, 1 the front
+    const [hi, lo, low] = s < 0 ? [min.z, max.z, front] : [max.z, min.z, back];
+    line(2, [min.x, min.y, hi], [min.x, max.y, hi], [-off, 0, s * off * 0.3], `${Math.round(size.h)} cm`, -1);
+    if (this.plan!.spec.archetype === "bed" && max.y - low > 50) line(3, [min.x, min.y, lo], [min.x, low, lo], [-off, 0, -s * off * 0.3], `${cm(min.y, low)} cm`, -1);
+    else for (const e of [...kids].slice(9)) (e as SVGElement).style.opacity = "0";
     this.dimsEl.style.opacity = "1";
   }
 
