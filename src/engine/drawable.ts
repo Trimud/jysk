@@ -14,6 +14,8 @@ export class Drawable {
   hulls: THREE.ShaderMaterial[] = [];
   meshes: THREE.Mesh[] = [];
   base: THREE.Color[] = [];
+  /** a part's material per face (parts only), so a product colour can go on its board panels */
+  mats: string[] = [];
   opacity = 1;
 }
 
@@ -108,6 +110,7 @@ export function partDrawable(p: PartType, holes: Hole[]) {
       else if (q.shape === "cyl") addSolid(d, `cyl:${qx}:${qy}`, () => new THREE.CylinderGeometry(qx / 2, qx / 2, qy, 32), c, { hull: "cyl", ...at });
       else if (mat === "soft") addSolid(d, `soft:${qx}:${qy}:${qz}`, () => roundedBox(qx, qy, qz, Math.min(42, qy / 2.4, qx / 3, qz / 3)), c, { hull: "box", half: [qx / 2, qy / 2, qz / 2], edges: false, ...at });
       else addSolid(d, `box:${qx}:${qy}:${qz}`, () => new THREE.BoxGeometry(qx, qy, qz), c, at);
+      d.mats.push(mat);
     }
   } else if (p.shape === "cyl") {
     addSolid(d, `cyl:${sx}:${sy}`, () => new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 32), color, { hull: "cyl" });
@@ -116,6 +119,7 @@ export function partDrawable(p: PartType, holes: Hole[]) {
   } else {
     addSolid(d, `box:${sx}:${sy}:${sz}`, () => new THREE.BoxGeometry(sx, sy, sz), color);
   }
+  if (!p.pieces) d.mats.push(p.material);
   // a hole is drawn only where it sits on the part: one recorded off it would float in the air
   const near = (h: Hole) => h.p.every((v, i) => Math.abs(v) <= p.size[i] / 2 + 3);
   holes = holes.filter(near);

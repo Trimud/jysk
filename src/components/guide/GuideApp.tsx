@@ -369,6 +369,9 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   const [paused, setPaused] = useState(false);
   const [slow, setSlow] = useState(false);
   const [xray, setXray] = useState(false);
+  const [anyOpen, setAnyOpen] = useState(false);
+  // the colour shown on the panels: the product's first (its page's own) until another is picked
+  const [colour, setColour] = useState(plan.spec.colours?.[0]?.name ?? null);
   const [moved, setMoved] = useState(false);
   const [stamp, setStamp] = useState(0);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -826,11 +829,16 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
             paused={paused}
             speed={slow ? 0.5 : 1}
             xray={phase === "cover" && xray}
+            finish={(() => {
+              const hex = plan.spec.colours?.find((c) => c.name === colour)?.hex;
+              return hex && "#" + hex;
+            })()}
             options={{ callout: true, interactive: true }}
             onReady={(h) => (stage.current = h)}
             onIntroDone={() => setIntroPlayed(true)}
             onHover={setHover3d}
             onUserView={setMoved}
+            onOpen={setAnyOpen}
           />
 
           {phase === "steps" && cur && (
@@ -888,6 +896,11 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
 
           {phase === "cover" && (introPlayed || resume) && (
             <div className="stage-ctl right">
+              {plan.opens && (
+                <button className={"pill-btn float" + (anyOpen ? " on" : "")} onClick={() => stage.current?.openAll(!anyOpen)} aria-pressed={anyOpen}>
+                  {anyOpen ? "Close all" : "Open all"}
+                </button>
+              )}
               <button className={"pill-btn float" + (xray ? " on" : "")} onClick={() => setXray(!xray)} aria-pressed={xray}>
                 X-ray
               </button>
@@ -982,6 +995,8 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
               {phase === "cover" && (
                 <CoverPanel
                   plan={plan}
+                  colour={colour}
+                  onColour={setColour}
                   via={via}
                   resume={resume}
                   built={built}

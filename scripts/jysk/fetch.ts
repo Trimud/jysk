@@ -15,7 +15,7 @@ export interface Facts {
   family: string; // JSON-LD ProductGroup.productGroupID, e.g. "LIMFJORDEN"
   name: string; // "4 drawer chest LIMFJORDEN beige"
   category: string; // "Chest of Drawers"
-  sku: string; // 7-digit article number of this page's variant
+  colours: { name: string; sku: string }[]; // this page's colour first, then the others in the same size: one guide covers them all
   specs: Record<string, string>; // spec rows: "Number of drawers" -> "4"
   manual?: string; // official assembly instruction PDF
 }
@@ -48,7 +48,11 @@ function parse(url: string, html: string): Facts {
   const list = flat.slice(flat.lastIndexOf('[{"name"', start), flat.indexOf("]", start));
   for (const [, k, v] of list.matchAll(/\{"name":"([^"]+)","text":"([^"]*)"\}/g)) specs[k] ??= v;
   const manual = flat.match(/"title":"Assembly instruction","urls":\["([^"]+)"/)?.[1];
-  return { url, slug: new URL(url).pathname.split("/").pop()!, family: g.productGroupID, name: g.name, category: g.category, sku: g.sku, specs, manual };
+  type V = { size?: string; sku: string; color: string };
+  const colours = [g as V, ...(g.hasVariant ?? []).filter((v: V) => v.size === g.size && v.sku !== g.sku)].map((v: V) => ({ name: v.color, sku: v.sku }));
+  // the page's own address, so a product-lookup/<sku> link in pilot.txt still gives the product's slug
+  const page = new URL(g.offers?.url ?? url, "https://jysk.co.uk").href;
+  return { url: page, slug: new URL(page).pathname.split("/").pop()!, family: g.productGroupID, name: g.name, category: g.category, colours, specs, manual };
 }
 
 /** Self assembly: says so, or (when the row is missing, as on some pages) comes with an assembly manual. */
@@ -63,7 +67,7 @@ for (const url of urls) {
     continue;
   }
   out.push(f);
-  console.log(`${f.sku} ${f.family}: ${f.name}`);
+  console.log(`${f.colours[0].sku} ${f.family}: ${f.name}`);
 }
 writeFileSync(path.join(DIR, "facts.json"), JSON.stringify(out, null, 1) + "\n");
 console.log(`${out.length} of ${urls.length} products -> scripts/jysk/facts.json`);

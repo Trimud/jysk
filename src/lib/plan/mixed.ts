@@ -68,6 +68,7 @@ export function buildMixed(b: PlanBuilder, s: ProductSpec) {
       bottom: b.place(dbtT, [0, ys + 24 + 9, zBox - 2]),
     });
   }
+  for (const d of drawers) b.openDrawer([d.front, ...d.sides, d.back, d.bottom], dd);
 
   /* ---------- steps: the carcass ---------- */
   f.prepSides();
@@ -180,6 +181,7 @@ export function buildMixed(b: PlanBuilder, s: ProductSpec) {
     const sgn = nd === 2 && i === 1 ? 1 : -1;
     return { x: sgn * (W / 2 - 22), sgn };
   };
+  doors.forEach((d, i) => b.openDoor(d, hingeX(i).sgn));
   // a bookcase with a drawer: open shelves above it, no doors
   if (nd > 0) {
     b.step(

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { articleNo, articlesReady, loadArticles, searchCatalog, slugify, matchCatalog } from "@/lib/search";
+import { searchCatalog, slugify, matchCatalog } from "@/lib/search";
 import Drawing from "../Drawing";
 import { keyHeaders } from "@/lib/userKey";
 import { IArrowRight, ICamera, ISearch, ISparkle } from "../art/Icons";
@@ -57,14 +57,8 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
     return () => clearTimeout(t);
   }, [q]);
 
-  // article numbers live in their own chunk: fetch it once someone types a few digits
-  const [articles, setArticles] = useState(articlesReady);
-  const digits = /\d{3}/.test(q);
-  useEffect(() => {
-    if (digits && !articles) loadArticles().then(() => setArticles(true));
-  }, [digits, articles]);
-  const hits = useMemo(() => (q.trim() ? searchCatalog(q, 6) : []), [q, articles]); // eslint-disable-line react-hooks/exhaustive-deps
-  const exact = useMemo(() => (q.trim() ? matchCatalog(q) : null), [q, articles]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hits = useMemo(() => (q.trim() ? searchCatalog(q, 6) : []), [q]);
+  const exact = useMemo(() => (q.trim() ? matchCatalog(q) : null), [q]);
   const showAi = q.trim().length >= 2 && !exact;
   const rows = hits.length + (showAi ? 1 : 0);
 
@@ -74,7 +68,6 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
       input.current?.focus();
       return;
     }
-    if (articleNo(text)) await loadArticles().catch(() => {});
     const m = matchCatalog(text);
     if (m?.slug) router.push(`/build/${m.slug}`);
     else router.push(`/build/${slugify(text)}?q=${encodeURIComponent(text)}`);

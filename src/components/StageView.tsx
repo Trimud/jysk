@@ -9,6 +9,7 @@ export interface StageHandle {
   resetView(): void;
   setSpeed(s: number): void;
   setPaused(p: boolean): void;
+  openAll(open: boolean): void;
 }
 
 export default function StageView({
@@ -21,33 +22,38 @@ export default function StageView({
   onIntroDone,
   onHover,
   onUserView,
+  onOpen,
   paused,
   speed,
   xray,
+  finish,
 }: Readonly<{
   plan: Plan | null;
   mode: StageMode;
   highlight?: string[] | null;
-  options?: Omit<StageOptions, "onIntroDone" | "onHover" | "onUserView">;
+  options?: Omit<StageOptions, "onIntroDone" | "onHover" | "onUserView" | "onOpen">;
   className?: string;
   onReady?: (h: StageHandle) => void;
   onIntroDone?: () => void;
   onHover?: (ref: string | null) => void;
   onUserView?: (changed: boolean) => void;
+  onOpen?: (anyOpen: boolean) => void;
   paused?: boolean;
   speed?: number;
   xray?: boolean;
+  /** colour of the board panels (hex), or none for the drawing's own white */
+  finish?: string;
 }>) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
-  const cbs = useRef({ onIntroDone, onHover, onUserView, onReady });
+  const cbs = useRef({ onIntroDone, onHover, onUserView, onReady, onOpen });
   useEffect(() => {
-    cbs.current = { onIntroDone, onHover, onUserView, onReady };
+    cbs.current = { onIntroDone, onHover, onUserView, onReady, onOpen };
   });
   const modeKey = JSON.stringify(mode);
-  const latest = useRef({ plan, mode, highlight, xray });
+  const latest = useRef({ plan, mode, highlight, xray, finish });
   useEffect(() => {
-    latest.current = { plan, mode, highlight, xray };
+    latest.current = { plan, mode, highlight, xray, finish };
   });
 
   useEffect(() => {
@@ -60,6 +66,7 @@ export default function StageView({
         onIntroDone: () => cbs.current.onIntroDone?.(),
         onHover: (r) => cbs.current.onHover?.(r),
         onUserView: (c) => cbs.current.onUserView?.(c),
+        onOpen: (o) => cbs.current.onOpen?.(o),
       });
       stage.current = s;
       const { plan: p, mode: m, highlight: h } = latest.current;
@@ -69,11 +76,13 @@ export default function StageView({
       }
       s.setHighlight(h ?? null);
       s.setXray(!!latest.current.xray);
+      s.setFinish(latest.current.finish ?? null);
       cbs.current.onReady?.({
         replay: () => s?.replay(),
         resetView: () => s?.resetView(),
         setSpeed: (v) => s?.setSpeed(v),
         setPaused: (v) => s?.setPaused(v),
+        openAll: (v) => s?.openAll(v),
       });
     });
     return () => {
@@ -109,6 +118,9 @@ export default function StageView({
   useEffect(() => {
     stage.current?.setXray(!!xray);
   }, [xray]);
+  useEffect(() => {
+    stage.current?.setFinish(finish ?? null);
+  }, [finish]);
   useEffect(() => {
     stage.current?.setSpeed(speed ?? 1);
   }, [speed]);

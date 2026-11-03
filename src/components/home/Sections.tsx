@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { POPULAR, articleNo, fold, kindOf, loadArticles, searchCatalog, searchText, slugify } from "@/lib/search";
-import { articleSlug } from "@/lib/ikea";
+import { POPULAR, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
 import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
 import { KIND_ARCH, type Kind } from "@/lib/products";
 import type { Archetype } from "@/lib/types";
@@ -82,12 +81,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
   const [more, setMore] = useState({ view: "", n: PAGE });
-  const [articles, setArticles] = useState(false);
   const no = search ? articleNo(q) : null;
-
-  useEffect(() => {
-    if (no && !articles) loadArticles().then(() => setArticles(true));
-  }, [no, articles]);
 
   const counts = useMemo(() => (search ? new Map(CATS.map((c) => [c.id, PRODUCTS.filter((e) => inCat(e, c)).length])) : null), [search]);
   const list = useMemo(() => {
@@ -96,7 +90,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
     const f = fold(q);
     let ranked = false;
     if (no) {
-      const slug = articles ? articleSlug(no) : null;
+      const slug = articleSlug(no);
       l = l.filter((e) => e.slug === slug);
     } else if (f) {
       // every word starts a word of the product's name, type, category or keywords
@@ -116,7 +110,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
     }
     if (!limit && !ranked) l = [...l].sort((a, b) => a.name.localeCompare(b.name, "sv") || a.variant.localeCompare(b.variant, "sv"));
     return limit ? l.slice(0, limit) : l;
-  }, [cat, q, limit, no, articles]);
+  }, [cat, q, limit, no]);
 
   const view = cat + "|" + q;
   const n = limit ? list.length : more.view === view ? more.n : PAGE;
@@ -155,9 +149,7 @@ export function Catalog({ limit, search }: { limit?: number; search?: boolean })
       </motion.div>
       {list.length === 0 && (
         <div className="empty">
-          {no && !articles ? (
-            <p>Looking up that article number</p>
-          ) : no ? (
+          {no ? (
             <p>No guide for that article number yet. Try the name on the box.</p>
           ) : (
             <>

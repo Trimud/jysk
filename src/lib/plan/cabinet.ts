@@ -121,6 +121,7 @@ export function doorSteps(b: PlanBuilder, p: CabinetParams, W: number, H: number
     const sgn = nd === 2 && i === 1 ? 1 : -1;
     return { x: sgn * (W / 2 - 22), sgn };
   };
+  doors.forEach((d, i) => b.openDoor(d, hingeX(i).sgn));
   b.step(
     {
       title: nd > 1 ? "Press the hinges into the doors" : "Press the hinges into the door",

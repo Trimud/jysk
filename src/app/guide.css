@@ -1176,6 +1176,15 @@
   line-height: 1.45;
   color: var(--ink-3);
 }
+/* the colour row sits under the sizes: keep the two rows apart */
+.chips.sizes + .colours {
+  margin-top: 14px;
+}
+.colours-note {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
 
 /* ================= tools ================= */
 

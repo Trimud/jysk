@@ -1,14 +1,12 @@
-import { PRODUCTS, catalogEntry, toSpec, type CatalogEntry } from "./catalog";
+import { PRODUCTS, articleSlug, catalogEntry, toSpec, type CatalogEntry } from "./catalog";
 import { fold } from "./fold";
-import { articleNo, articleSlug, isGuardedName, loadArticles } from "./ikea";
+import { articleNo, isGuardedName } from "./ikea";
 import { KIND_DEFAULT_SIZE, KIND_LABELS, specFor, type Kind } from "./products";
 import type { Archetype, ProductSpec } from "./types";
 
 export { fold };
-export { articleNo, articlesReady, ikeaType, ikeaTypes, isIkeaName, loadArticles } from "./ikea";
-
-// the server answers /api/guide with whatever is loaded, so it keeps the article numbers at hand
-if (typeof window === "undefined") loadArticles().catch(() => {});
+export { articleNo, ikeaType } from "./ikea";
+export { articleSlug };
 
 export function slugify(s: string) {
   return fold(s).replace(/\s+/g, "-").slice(0, 60) || "product";
@@ -212,7 +210,7 @@ export function searchCatalog(q: string, limit = 8): Hit[] {
   return hits.slice(0, limit);
 }
 
-/** Best confident match, or null. Article numbers work once loadArticles() has run (it always has on the server). */
+/** Best confident match, or null. */
 export function matchCatalog(q: string): ProductSpec | null {
   const [a, b] = searchCatalog(q, 2);
   if (!a || a.score < 50) return null;

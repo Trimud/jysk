@@ -3,6 +3,7 @@ import type {
   HwKind,
   HwType,
   Item,
+  Opening,
   PartItem,
   PartMaterial,
   PartPiece,
@@ -174,6 +175,8 @@ export class PlanBuilder {
   parts: PartType[] = [];
   hw = new Map<string, HwType>();
   items: Item[] = [];
+  /** what opens on the finished piece (drawers, doors), for the preview */
+  opens: Opening[] = [];
   map = new Map<string, Item>();
   steps: Step[] = [];
   private n = 0;
@@ -231,6 +234,21 @@ export class PlanBuilder {
     this.items.push(it);
     this.map.set(key, it);
     return key;
+  }
+
+  /** A drawer on the finished piece: these parts slide out of the front (+z), about two thirds of its depth. */
+  openDrawer(parts: string[], depth: number) {
+    this.opens.push({ parts, slide: [0, 0, Math.round(depth * 0.66)] });
+  }
+
+  /** A door on the finished piece, hinged on its left (sgn -1) or right (sgn 1) edge: it swings about 100° out of the
+   *  front (+z) about that edge of its back face, both read from where the door was placed.
+   *  ponytail: assumes the door stands unrotated, facing +z (every builder places them so). */
+  openDoor(key: string, sgn: number) {
+    const it = this.partItem(key);
+    const [w, , t] = this.parts.find((p) => p.id === it.ref)!.size;
+    const [x, , z] = it.final.pos;
+    this.opens.push({ parts: [key], hinge: { at: [x + (sgn * w) / 2, 0, z - t / 2], axis: [0, 1, 0], angle: sgn * 1.75 } });
   }
 
   partItem(key: string) {
@@ -490,7 +508,7 @@ export class PlanBuilder {
 
     const hardware = [...this.hw.values()].sort((a, b) => (a.notIncluded ? 1 : 0) - (b.notIncluded ? 1 : 0));
 
-    return { spec: this.spec, parts: used, hardware, items: this.items, steps: this.steps, tools };
+    return { spec: this.spec, parts: used, hardware, items: this.items, steps: this.steps, tools, ...(this.opens.length ? { opens: this.opens } : {}) };
   }
 }
 

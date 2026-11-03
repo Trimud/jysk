@@ -78,6 +78,7 @@ export function buildDrawers(b: PlanBuilder, s: ProductSpec) {
     }
   // top row first reads naturally, but build the bottom one first so later drawers are hidden by it
   drawers.sort((a, b2) => a.ys - b2.ys || a.x - b2.x);
+  for (const d of drawers) b.openDrawer([d.front, ...d.sides, d.back, d.bottom], dd);
 
   f.prepSides();
 

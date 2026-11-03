@@ -245,7 +245,7 @@ export interface ProductSpec {
   drawers?: Partial<DrawersParams>;
   table?: Partial<TableParams>;
   bed?: Partial<BedParams>;
-  cabinet?: Partial<CabinetParams>;
+  cabinet?: Partial<Omit<CabinetParams, "doors">> & { doors?: number }; // any count as given; builders draw up to 2
   seat?: Partial<SeatParams>;
   sofa?: Partial<SofaParams>;
   custom?: CustomParams;
@@ -254,6 +254,8 @@ export interface ProductSpec {
   watchOut?: string[];
   source: "catalog" | "ai" | "guess" | "scan";
   slug?: string;
+  manual?: string; // the maker's own assembly manual (PDF)
+  colours?: Colour[]; // every colour this guide covers
   variants?: { label: string; slug: string }[];
   siblings?: { label: string; slug: string }[];
   row?: { n: number; join?: boolean; of?: string; slide?: number; units?: RowUnit[] }; // several identical units side by side, built one after another, with sliding doors across them all
@@ -266,7 +268,7 @@ export interface RowUnit {
   at?: [number, number]; // cm, the middle of its footprint (x, z); otherwise side by side from the left, backs in line
   turn?: boolean; // stands with its back to the left-hand wall
   corner?: boolean; // the add-on unit that fills the corner
-  cabinet?: Partial<CabinetParams>;
+  cabinet?: Partial<Omit<CabinetParams, "doors">> & { doors?: number }; // any count as given; builders draw up to 2
   shelf?: Partial<ShelfParams>;
 }
 
@@ -459,6 +461,20 @@ export interface ToolNeed {
   why?: string;
 }
 
+/** Something on the finished piece that opens: a drawer slides out, a door swings on its hinge edge. Assembled frame, mm. */
+/** A colour a product comes in: its name, its article number, and the panels' colour in the drawing (hex, no #). */
+export interface Colour {
+  name: string;
+  sku: string;
+  hex?: string;
+}
+
+export interface Opening {
+  parts: string[]; // part instance keys that move together; clicking any of them opens it
+  slide?: Vec3; // a drawer: how far it comes out
+  hinge?: { at: Vec3; axis: Vec3; angle: number }; // a door: a point on its hinge line, the line's direction, radians open
+}
+
 export interface Plan {
   spec: ProductSpec;
   parts: PartType[];
@@ -466,4 +482,5 @@ export interface Plan {
   items: Item[];
   steps: Step[];
   tools: ToolNeed[];
+  opens?: Opening[];
 }

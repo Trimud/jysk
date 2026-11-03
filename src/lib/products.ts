@@ -90,7 +90,7 @@ export type X = {
   cols?: 1 | 2;
   knobs?: "none" | "knob" | "bar";
   plinth?: boolean;
-  doors?: 0 | 1 | 2;
+  doors?: number;
   shelves?: number;
   c?: number;
   m?: number;

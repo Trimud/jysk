@@ -1,14 +1,13 @@
 import type { Kind, X } from "./products";
+import type { Colour } from "./types";
 import { fold } from "./fold";
-// ponytail: IKEA data removed in Phase 0; scripts/jysk will generate the JYSK equivalents in Phase 1
+// ponytail: IKEA's name data was removed in Phase 0; these lookups find nothing until JYSK has an equivalent
 const IKEA_GUARD = "";
 
 /**
- * IKEA's public product data, compacted by scripts/ikea/build.ts:
- * - rows we can draw (src/data/ikea-rows.ts), one per line: name|kind|variant|w|h|d|params|keywords|slug
- * - real names we can't draw that look like a typo of one we can (src/data/ikea-guard.ts, small)
- * - every IKEA family name with its main product types (src/data/ikea-names.ts), loaded on demand
- * - article numbers per slug (src/data/ikea-items.ts), loaded only when someone types a number
+ * Catalog rows (src/data/jysk-rows.ts, written by scripts/jysk/build.ts), one per line:
+ * name|kind|variant|w|h|d|params|keywords|slug|manual|colours, colours as name=article=hex (hex optional), comma separated.
+ * The IKEA name lookups below are stubs left from Bygga until they are replaced or removed.
  */
 
 export interface IkeaRow {
@@ -22,6 +21,9 @@ export interface IkeaRow {
   keywords?: string[];
   /** only stored when it differs from the slug the name and variant give */
   slug?: string;
+  /** the maker's own assembly manual (PDF) */
+  manual?: string;
+  colours?: Colour[];
 }
 
 const X_KEYS = ["rows", "cols", "knobs", "plinth", "doors", "shelves", "c", "m", "l", "f", "seats", "arms", "legs", "attach", "shelf", "min", "round", "seatH", "chaise", "corner", "open", "sd", "drawer", "leaves", "leaf", "under", "mats", "dtop", "rail", "slides", "n", "of", "hinge", "use", "z", "basin", "hung", "uf", "ins", "blind", "inner", "u", "v", "cu", "rock", "cat", "cast", "mods", "dr", "foot", "st", "low", "box", "t", "mirror", "up", "us", "ah", "aw", "bk", "lg", "sdp"] as const;
@@ -49,7 +51,7 @@ export function decodeX(s: string): X {
 }
 
 export function encodeRow(r: IkeaRow): string {
-  const cells = [r.name, r.kind, r.variant, r.w, r.h, r.d, encodeX(r.x), (r.keywords ?? []).join(" "), r.slug ?? ""].map(String);
+  const cells = [r.name, r.kind, r.variant, r.w, r.h, r.d, encodeX(r.x), (r.keywords ?? []).join(" "), r.slug ?? "", r.manual ?? "", (r.colours ?? []).map((c) => [c.name, c.sku, c.hex ?? ""].join("=")).join(",")].map(String);
   for (const c of cells) if (/[|\n`\\]|\$\{/.test(c)) throw new Error(`can't store ${JSON.stringify(c)}`);
   while (cells.length && !cells[cells.length - 1]) cells.pop();
   return cells.join("|");
@@ -59,8 +61,8 @@ export function decodeRows(text: string): IkeaRow[] {
   const out: IkeaRow[] = [];
   for (const line of text.split("\n")) {
     if (!line) continue;
-    const [name, kind, variant, w, h, d, x = "", kw = "", slug = ""] = line.split("|");
-    out.push({ name, kind: kind as Kind, variant, w: Number(w), h: Number(h), d: Number(d), x: decodeX(x), keywords: kw ? kw.split(" ") : undefined, slug: slug || undefined });
+    const [name, kind, variant, w, h, d, x = "", kw = "", slug = "", manual = "", colours = ""] = line.split("|");
+    out.push({ name, kind: kind as Kind, variant, w: Number(w), h: Number(h), d: Number(d), x: decodeX(x), keywords: kw ? kw.split(" ") : undefined, slug: slug || undefined, manual: manual || undefined, colours: colours ? colours.split(",").map((c) => { const [n, sku, hex] = c.split("="); return { name: n, sku, ...(hex ? { hex } : {}) }; }) : undefined });
   }
   return out;
 }
@@ -111,45 +113,10 @@ export async function ikeaType(name: string): Promise<string | null> {
 
 /* ---------- article numbers ---------- */
 
-let items: Map<string, string> | null = null;
-let loading: Promise<void> | null = null;
-
-/** "802.758.87", "80275887", "802 758 87" or the "S" combination form, as 8 digits. */
+/** A JYSK article number, "3670661" (spaces allowed), or a jysk.co.uk/product-lookup/3670661 link, as 7 digits. */
 export function articleNo(q: string): string | null {
-  const m = q.trim().match(/^s?\s*(\d{3})[\s.\-]*(\d{3})[\s.\-]*(\d{2})$/i);
-  if (m) return m[1] + m[2] + m[3];
-  // a product link from any IKEA site ends in its article number: .../p/idanaes-sideboard-white-80496025/
-  const link = q.match(/ikea\.[a-z.]+\/.*\/p\/[^?#\s]*?-s?(\d{8})\b/i);
+  const d = q.replace(/\s/g, "");
+  if (/^\d{7}$/.test(d)) return d;
+  const link = q.match(/jysk\.[a-z.]+\/product-lookup\/(\d{7})\b/i);
   return link ? link[1] : null;
-}
-
-/** Loads the article number index (a separate chunk, so pages don't pay for it until someone types digits). */
-export function loadArticles(): Promise<void> {
-  loading ??= Promise.resolve({ IKEA_ITEMS: "" }).then(({ IKEA_ITEMS }) => {
-    const map = new Map<string, string>();
-    for (const line of IKEA_ITEMS.split("\n")) {
-      const [slug, list] = line.split("|");
-      if (list) for (const no of list.split(" ")) if (!map.has(no)) map.set(no, slug);
-    }
-    items = map;
-  });
-  return loading;
-}
-
-export function articlesReady() {
-  return items !== null;
-}
-
-/** The slug printed under this article number; undefined while the index is still loading. */
-export function articleSlug(no: string): string | null | undefined {
-  if (!items) return undefined;
-  return items.get(no) ?? null;
-}
-
-/** Article numbers for a slug (needs loadArticles first). */
-export function articlesFor(slug: string): string[] {
-  if (!items) return [];
-  const out: string[] = [];
-  for (const [no, s] of items) if (s === slug) out.push(no);
-  return out;
 }

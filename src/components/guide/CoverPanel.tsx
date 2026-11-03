@@ -19,7 +19,9 @@ export default function CoverPanel({
   onResume,
   onReview,
   onOwnSteps,
-}: {
+  colour,
+  onColour,
+}: Readonly<{
   plan: Plan;
   via: "catalog" | "ai" | "guess" | "scan";
   resume: Progress | null;
@@ -30,11 +32,13 @@ export default function CoverPanel({
   onReview: () => void;
   /** A typical build stands in for this product: a key gets it worked out properly. */
   onOwnSteps?: { text: string; act: () => void };
-}) {
+  /** the colour shown in the drawing, and picking another */
+  colour?: string | null;
+  onColour?: (name: string) => void;
+}>) {
   const s = plan.spec;
   const t = totals(plan);
   const resumable = resume && (resume.phase !== "cover" || resume.step > 0) && resume.phase !== "done";
-  const official = "https://jysk.co.uk/"; // ponytail: Phase 1 links the product's own JYSK PDF manual;
   const tools = plan.tools.filter((x) => !x.optional && !x.included).map((x) => TOOL_INFO[x.id].name.replace("Phillips ", ""));
   return (
     <div className="pane cover">
@@ -65,6 +69,19 @@ export default function CoverPanel({
                 </Link>
               );
             })}
+          </div>
+        )}
+
+        {s.colours && s.colours.length > 1 && (
+          <div className="colours">
+            <div className="chips sizes" role="group" aria-label="Colour">
+              {s.colours.map((c) => (
+                <button key={c.sku} type="button" className={"chip" + (c.name === colour ? " on" : "")} title={`Article ${c.sku}`} aria-pressed={c.name === colour} onClick={() => onColour?.(c.name)}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            <p className="colours-note">Same steps in every colour</p>
           </div>
         )}
 
@@ -185,8 +202,8 @@ export default function CoverPanel({
         )}
         <div className="cover-links">
           {via !== "scan" && (
-            <a className="official" href={official} target="_blank" rel="noreferrer">
-              Find the manual on jysk.co.uk <IExternal size={15} />
+            <a className="official" href={s.manual ?? "https://jysk.co.uk/"} target="_blank" rel="noreferrer">
+              {s.manual ? "JYSK's assembly manual (PDF)" : "Find the manual on jysk.co.uk"} <IExternal size={15} />
             </a>
           )}
           <Link className="official" href={`/build/${s.slug}/print`}>

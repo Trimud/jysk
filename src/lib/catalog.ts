@@ -81,13 +81,20 @@ for (const row of decodeRows(JYSK_ROWS)) {
   used.add(slug);
   if (SAME[slug]) continue;
   const r = fixed(row, slug);
-  JYSK.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, family: fold(r.name), kind: r.kind, keywords: r.keywords, ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}) });
+  JYSK.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, manual: r.manual, colours: r.colours, family: fold(r.name), kind: r.kind, keywords: [...(r.keywords ?? []), ...(r.colours ?? []).map((c) => c.sku)], ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}) });
 }
 
 /** Every product we can draw offline: hand-checked entries first, then the wider index, then JYSK's catalog. */
 export const PRODUCTS: Entry[] = [...BASE, ...JYSK];
 
 const BY_SLUG = new Map(PRODUCTS.map((e) => [e.slug, e]));
+/** Article numbers (one per colour) to the guide that covers them. */
+const BY_ARTICLE = new Map(PRODUCTS.flatMap((e) => (e.colours ?? []).map((c) => [c.sku, e.slug] as const)));
+
+/** The guide for a JYSK article number, or null. */
+export function articleSlug(no: string): string | null {
+  return BY_ARTICLE.get(no) ?? null;
+}
 const BY_FAMILY = new Map<string, Entry[]>();
 for (const e of PRODUCTS) {
   const list = BY_FAMILY.get(e.family);

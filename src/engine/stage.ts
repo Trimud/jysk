@@ -5,6 +5,8 @@ import { Drawable, hwDrawable, partDrawable, wallDrawable } from "./drawable";
 import { INK, INK_OLD } from "./materials";
 
 /** Part names can come from a shared scan link: never let them through as markup. */
+/** A pointer that moves no more than this (px) between down and up is a tap, not a drag. */
+const TAP_PX = 4;
 const esc = (t: string) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export type StageMode =
@@ -22,6 +24,8 @@ export interface StageOptions {
   loop?: boolean;
   onIntroDone?: () => void;
   onHover?: (ref: string | null) => void;
+  /** something was opened or closed on the preview: is anything open now */
+  onOpen?: (anyOpen: boolean) => void;
   onUserView?: (changed: boolean) => void;
   margins?: { t: number; r: number; b: number; l: number };
 }
@@ -79,6 +83,13 @@ export class Stage {
   hws: HNode[] = [];
   /** X-ray preview: see-through panels with every fitting showing, the wall brackets' too. */
   private xray = false;
+  /** The product's colour on its board panels (null: the drawing's own white). */
+  private finish: THREE.Color | null = null;
+  /** what opens on the preview (drawers, doors): its parts, how it moves, how far open it is (0..1) and where it's going */
+  private opens: { slide?: THREE.Vector3; hinge?: { at: THREE.Vector3; axis: THREE.Vector3; angle: number }; k: number; to: number }[] = [];
+  /** part key -> the opening it moves with */
+  private openOf = new Map<string, number>();
+  private openQ = new THREE.Quaternion();
   /** Fittings that stick out of the finished piece (knobs, glides, nail heads on the back). The preview shows only these:
    *  the rest sit inside, and drawn anyway they show through gaps or, as a sliver, through a face at a grazing angle. */
   private outside = new Set<HNode>();
@@ -297,7 +308,10 @@ export class Stage {
       const node = new THREE.Group();
       node.add(d.root);
       node.userData.key = it.key;
-      d.meshes.forEach((m) => (m.userData.ref = it.ref));
+      d.meshes.forEach((m) => {
+        m.userData.ref = it.ref;
+        m.userData.key = it.key;
+      });
       this.root.add(node);
       const [sx, sy, sz] = type.size;
       const corners: THREE.Vector3[] = [];
@@ -326,6 +340,10 @@ export class Stage {
     }
     this.computeExtents();
     this.computeArrangements();
+    this.applyFinish();
+    const v = (a: Vec3) => new THREE.Vector3(...a);
+    this.opens = (plan.opens ?? []).map((o) => ({ slide: o.slide && v(o.slide), hinge: o.hinge && { at: v(o.hinge.at), axis: v(o.hinge.axis).normalize(), angle: o.hinge.angle }, k: 0, to: 0 }));
+    this.openOf = new Map((plan.opens ?? []).flatMap((o, i) => o.parts.map((k) => [k, i] as const)));
     // ponytail: "sticks out" means 3 mm off its surface lies outside the box round all the panels; a fitting on an inner
     // face of an open frame (a bolt on a bench's middle rail) counts as inside. Upgrade: test against the panels themselves
     const box = new THREE.Box3().setFromPoints(this.extents.get("final") ?? []);
@@ -511,6 +529,27 @@ export class Stage {
     this.xray = on;
   }
 
+  /** Opens (or closes) everything that opens on the preview. */
+  openAll(open: boolean) {
+    for (const o of this.opens) o.to = open ? 1 : 0;
+    this.opts.onOpen?.(open);
+  }
+
+  private toggleOpen(i: number) {
+    this.opens[i].to = this.opens[i].to ? 0 : 1;
+    this.opts.onOpen?.(this.opens.some((o) => o.to > 0));
+  }
+
+  setFinish(hex: string | null) {
+    // taken as-is: the face shader writes its colour straight out, so a colour converted to linear would show too dark
+    this.finish = hex ? new THREE.Color().setStyle(hex, THREE.LinearSRGBColorSpace) : null;
+    this.applyFinish();
+  }
+
+  private applyFinish() {
+    for (const p of this.parts) p.d.faces.forEach((f, i) => f.uniforms.uColor.value.copy(this.finish && p.d.mats[i] === "board" ? this.finish : p.d.base[i]));
+  }
+
   setHighlight(refs: string[] | null) {
     this.highlight = refs && refs.length ? new Set(refs) : null;
   }
@@ -664,6 +703,8 @@ export class Stage {
       this.prepareMode();
     }
     this.frameDt = dt;
+    // drawers and doors ease towards open or shut in about half a second
+    for (const o of this.opens) if (o.k !== o.to) o.k = o.to > o.k ? Math.min(o.to, o.k + dt / 0.45) : Math.max(o.to, o.k - dt / 0.45);
     if (this.carryT < 1) this.carryT = dt === 0 ? 1 : Math.min(1, this.carryT + dt / 0.42);
     this.updateRoot(dt);
     this.updateItems();
@@ -847,6 +888,16 @@ export class Stage {
         const fin = this.finalXf.get(p)!;
         node.position.copy(fin.p);
         node.quaternion.copy(fin.q);
+        const oi = m.kind === "assembled" ? this.openOf.get(p.item.key) : undefined;
+        if (oi !== undefined && this.opens[oi].k > 0) {
+          const o = this.opens[oi], e = easeInOut(o.k);
+          if (o.slide) node.position.addScaledVector(o.slide, e);
+          if (o.hinge) {
+            const q = this.openQ.setFromAxisAngle(o.hinge.axis, o.hinge.angle * e);
+            node.position.sub(o.hinge.at).applyQuaternion(q).add(o.hinge.at);
+            node.quaternion.premultiply(q);
+          }
+        }
         // x-ray: faint panels that don't hide what's behind them, so the fittings inside show
         const x = m.kind === "assembled" && this.xray;
         this.styleDrawable(p.d, { opacity: x ? 0.16 : 1, ink: true, tint: hover || lit ? 0.6 : 0, width: x ? 1.3 : 1.9, depth: x ? false : undefined });
@@ -1420,13 +1471,18 @@ export class Stage {
         this.userEl += dy * 0.005;
         this.userEl = Math.max(-0.4, Math.min(0.95, this.userEl));
       }
-      if (Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > 4 && this.autoReset) {
+      if (Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > TAP_PX && this.autoReset) {
         this.autoReset = false;
         this.opts.onUserView?.(true);
       }
       this.setHover(null);
     });
     const up = (e: PointerEvent) => {
+      // a tap, not a drag, on the preview opens or closes what it lands on
+      if (e.type === "pointerup" && this.pointers.size === 1 && this.mode.kind === "assembled" && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) <= TAP_PX) {
+        const i = this.openAt(e.clientX, e.clientY);
+        if (i !== undefined) this.toggleOpen(i);
+      }
       this.pointers.delete(e.pointerId);
       if (this.pointers.size === 0) this.dragging = false;
       this.pinch0 = 0;
@@ -1454,16 +1510,29 @@ export class Stage {
   }
 
   private ray = new THREE.Raycaster();
+  private pick(x: number, y: number) {
+    const r = this.el.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.camera);
+    const meshes: THREE.Object3D[] = [];
+    for (const p of this.parts) if (p.node.visible && p.d.opacity > 0.5) meshes.push(...p.d.meshes);
+    return this.ray.intersectObjects(meshes, false)[0]?.object;
+  }
+  /** The opening under the pointer on the preview, if any. */
+  private openAt(x: number, y: number) {
+    return this.openOfHit(this.pick(x, y));
+  }
+  private openOfHit(obj?: THREE.Object3D) {
+    return this.mode.kind === "assembled" && obj ? this.openOf.get(obj.userData.key as string) : undefined;
+  }
   private hoverAt(x: number, y: number) {
     if (!this.plan || matchMedia("(hover: none)").matches) return;
     const r = this.el.getBoundingClientRect();
-    const nx = ((x - r.left) / r.width) * 2 - 1, ny = -((y - r.top) / r.height) * 2 + 1;
-    this.ray.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
-    const meshes: THREE.Object3D[] = [];
-    for (const p of this.parts) if (p.node.visible && p.d.opacity > 0.5) meshes.push(...p.d.meshes);
-    const hit = this.ray.intersectObjects(meshes, false)[0];
-    const ref = (hit?.object.userData.ref as string) ?? null;
+    const obj = this.pick(x, y);
+    const ref = (obj?.userData.ref as string) ?? null;
     this.setHover(ref);
+    // a hand over what opens
+    const cursor = this.openOfHit(obj) !== undefined ? "pointer" : "";
+    if (this.renderer.domElement.style.cursor !== cursor) this.renderer.domElement.style.cursor = cursor;
     if (this.tooltip) {
       const type = ref ? this.plan.parts.find((p) => p.id === ref) : null;
       if (type && !type.extra) {
