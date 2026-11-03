@@ -4,8 +4,8 @@ import { AI_ENABLED } from "@/lib/site";
 /** Add to home screen: opens straight into the search, full screen, in the page's own colours. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Monta: build JYSK furniture, step by step",
-    short_name: "Monta",
+    name: "assemble.help: JYSK assembly, step by step",
+    short_name: "assemble.help",
     description: `JYSK furniture assembly in 3D, step by step${AI_ENABLED ? ", read out loud" : ""}.`,
     start_url: "/",
     display: "standalone",

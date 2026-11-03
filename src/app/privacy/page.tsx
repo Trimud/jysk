@@ -5,7 +5,7 @@ import { GITHUB_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy and terms",
-  description: "What Monta keeps, what it sends where, and the terms for using the guides.",
+  description: "What assemble.help keeps, what it sends where, and the terms for using the guides.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -30,7 +30,7 @@ export default function Privacy() {
           <li>The product name you search for, to find or draft its guide.</li>
           <li>Questions and photos you send from the help panel, and photos of a box label you search with. Photos are resized in your browser first, which also removes location data.</li>
           <li>The text of a voice line that has no recording yet, to record it.</li>
-          <li>While the voice is on, short bits of sound from your mic each time someone talks, so it can hear you say &ldquo;next&rdquo;. They are turned into text, and Monta keeps neither.</li>
+          <li>While the voice is on, short bits of sound from your mic each time someone talks, so it can hear you say &ldquo;next&rdquo;. They are turned into text, and we keep neither.</li>
           <li>Feedback you send, from the Feedback button or &ldquo;This step doesn&apos;t match my box&rdquo;: what you write, the product and step you were on, and your browser and device type (&ldquo;Safari on iPhone&rdquo;). An email address goes with it only if you type one, so we can reply. It&apos;s kept in our feedback database until we&apos;ve dealt with it.</li>
           <li>Your IP address, held in memory for a few minutes to stop abuse, then dropped.</li>
         </ul>
@@ -62,9 +62,9 @@ export default function Privacy() {
 
         <h2>Terms of use</h2>
         <ul>
-          <li>Monta is free and comes as it is, with no warranty. The guides are generated drawings, not JYSK&apos;s instructions, and some are drafted by AI. Always check each step against the paper manual in the box.</li>
+          <li>assemble.help is free and comes as it is, with no warranty. The guides are generated drawings, not JYSK&apos;s instructions, and some are drafted by AI. Always check each step against the paper manual in the box.</li>
           <li>You build at your own risk. Take care with heavy parts and get a second person when a step says so. Fix tall furniture to the wall with the fittings that come with it.</li>
-          <li>Monta is an independent, unofficial project. It is not affiliated with, sponsored or endorsed by JYSK A/S or any JYSK company. JYSK and JYSK product names are trademarks of their owners, used here only to say which product a guide is for.</li>
+          <li>assemble.help is an independent, unofficial project. It is not affiliated with, sponsored or endorsed by JYSK A/S or any JYSK company. JYSK and JYSK product names are trademarks of their owners, used here only to say which product a guide is for.</li>
         </ul>
 
         <h2>Questions</h2>

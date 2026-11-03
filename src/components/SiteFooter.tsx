@@ -41,7 +41,7 @@ export default function SiteFooter() {
       </div>
 
       <div className="foot-base">
-        <p>Monta is an independent, unofficial project. It is not affiliated with, sponsored or endorsed by JYSK A/S or any JYSK company. JYSK and JYSK product names are trademarks of their owners.</p>
+        <p>assemble.help is an independent, unofficial project. It is not affiliated with, sponsored or endorsed by JYSK A/S or any JYSK company. JYSK and JYSK product names are trademarks of their owners.</p>
         {AI_ENABLED && (
         <a className="foot-powered" href="https://togetherai.link/" target="_blank" rel="noreferrer">
           <span>Powered by</span>

@@ -210,7 +210,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="guide shell">
       <header className="topbar">
-        <Link href="/" className="home-btn" aria-label="Monta home">
+        <Link href="/" className="home-btn" aria-label="assemble.help home">
           <LogoMark size={34} />
         </Link>
         <div className="tb-title">
@@ -762,7 +762,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
     const s = plan.spec;
     // the cover keeps the page's own title; steps and the end say where you are
     document.title =
-      phase === "steps" ? `Step ${step + 1} of ${steps.length}, ${s.name} | Monta` : phase === "done" ? `Built: ${s.name} | Monta` : `${s.name} ${s.variant.toLowerCase()}: assembly step by step | Monta`;
+      phase === "steps" ? `Step ${step + 1} of ${steps.length}, ${s.name} | assemble.help` : phase === "done" ? `Built: ${s.name} | assemble.help` : `${s.name} ${s.variant.toLowerCase()}: assembly step by step | assemble.help`;
   }, [phase, step, steps.length, plan.spec]);
 
   const mode: StageMode = useMemo(() => {
@@ -784,7 +784,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   return (
     <div className="guide" data-phase={phase} data-voice={voiceOn ? "on" : undefined}>
       <header className="topbar">
-        <Link href="/" className="home-btn" aria-label="Monta home">
+        <Link href="/" className="home-btn" aria-label="assemble.help home">
           <LogoMark size={34} />
         </Link>
         <div className="tb-title">

@@ -185,7 +185,7 @@ export default function KeyModal({
         </div>
 
         <h2 id="key-title">{copy.title(name)}</h2>
-        <p className="key-sub">Monta&apos;s AI runs on your own Together AI key.</p>
+        <p className="key-sub">The AI here runs on your own Together AI key.</p>
 
         <ul className="key-feats">
           {copy.features.map((f) => {
@@ -304,7 +304,7 @@ export default function KeyModal({
           )}
         </p>
         <p className="key-safe">
-          <ILock size={13} /> Stays in this browser. Monta never stores it.
+          <ILock size={13} /> Stays in this browser. We never store it.
         </p>
 
         {skip && (

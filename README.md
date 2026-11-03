@@ -1,4 +1,4 @@
-<h1 align="center">Monta</h1>
+<h1 align="center">assemble.help</h1>
 
 <p align="center">Type the name or article number of a JYSK product and follow every assembly step in 3D, with the parts, screws and tools for each one.</p>
 

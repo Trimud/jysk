@@ -7,7 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 const DIR = import.meta.dirname;
 const CACHE = path.join(DIR, "cache");
-const UA = "MontaCatalog/0.1 (+https://monta.online)";
+const UA = "AssembleHelp/0.1 (+https://assemble.help)";
 
 export interface Facts {
   url: string;

@@ -131,7 +131,7 @@ export function rateLimited(bucket: string, max = 20, windowMs = 60_000) {
 }
 
 /** Only for trying the app locally: stands in for the key in .env.local. Never accepted in production. */
-export const DEV_KEY = "monta-dev-mock-key-000000";
+export const DEV_KEY = "assemble-dev-mock-key-000000";
 
 export function isDevKey(req: Request) {
   return process.env.NODE_ENV !== "production" && req.headers.get("x-together-key")?.trim() === DEV_KEY;

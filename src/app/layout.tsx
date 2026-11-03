@@ -16,17 +16,16 @@ const figtree = Figtree({
   display: "swap",
 });
 
-const description = `Type the JYSK product name or article number from the box. Monta shows every assembly step in 3D, with the parts, screws and tools for each one${AI_ENABLED ? ", and reads it out loud" : ""}. Not affiliated with JYSK.`;
+const description = `Type the JYSK product name or article number from the box. assemble.help shows every assembly step in 3D, with the parts, screws and tools for each one${AI_ENABLED ? ", and reads it out loud" : ""}. Not affiliated with JYSK.`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  // "Monta" alone is also an EV charging company: every title says what this one is
-  title: { default: "Monta: build JYSK furniture, step by step", template: "%s | Monta, JYSK assembly guides" },
+  title: { default: "assemble.help: JYSK assembly, step by step", template: "%s | assemble.help" },
   description,
-  applicationName: "Monta",
-  appleWebApp: { capable: true, title: "Monta", statusBarStyle: "default" },
-  openGraph: { type: "website", siteName: "Monta", title: "Monta: build JYSK furniture, step by step", description, url: "/" },
-  twitter: { card: "summary_large_image", title: "Monta: build JYSK furniture, step by step", description },
+  applicationName: "assemble.help",
+  appleWebApp: { capable: true, title: "assemble.help", statusBarStyle: "default" },
+  openGraph: { type: "website", siteName: "assemble.help", title: "assemble.help: JYSK assembly, step by step", description, url: "/" },
+  twitter: { card: "summary_large_image", title: "assemble.help: JYSK assembly, step by step", description },
 };
 
 export const viewport: Viewport = {

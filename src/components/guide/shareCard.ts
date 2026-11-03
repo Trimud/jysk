@@ -2,7 +2,7 @@
 
 import type { Plan } from "@/lib/types";
 import { shot } from "@/engine/thumbs";
-import { RING, SOCKET } from "../Logo";
+import { RING, SOCKET, STEM } from "../Logo";
 
 const W = 1080;
 const H = 1350;
@@ -40,29 +40,31 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number, size: num
   } while (ctx.measureText(text).width > max && s > 40);
 }
 
-/** The logo as the header draws it: "monta" in white on the blue block, its o the bolt. `top` is the block's top edge. */
-function logo(ctx: CanvasRenderingContext2D, x: number, top: number, size: number, family: string, brand: string) {
+/** The logo as the header draws it: "assemble.help" in white on the blue block, its a the bolt. `top` is the block's top edge. */
+function logo(ctx: CanvasRenderingContext2D, x: number, top: number, size: number, family: string, brand: string, soft: string) {
   ctx.font = `800 ${size}px ${family}`;
   ctx.letterSpacing = `${-0.04 * size}px`;
-  const m = ctx.measureText("m");
-  const o = 0.56 * size;
+  const [aw, ah] = [0.58 * size, 0.56 * size];
   const [padX, padT, padB] = [0.36 * size, 0.2 * size, 0.26 * size];
-  const oX = x + padX + m.width + 0.035 * size;
-  const w = padX * 2 + m.width + 0.035 * size + o + 0.01 * size + ctx.measureText("nta").width;
+  const rest = ctx.measureText("ssemble");
+  const w = padX * 2 + aw + 0.015 * size + rest.width + ctx.measureText(".help").width;
   round(ctx, x, top, w, padT + size + padB, size / 8);
   ctx.fillStyle = brand;
   ctx.fill();
   // the baseline of a line box one em tall, as the CSS sets it
-  const base = top + padT + (size - m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2 + m.fontBoundingBoxAscent;
+  const base = top + padT + (size - rest.fontBoundingBoxAscent - rest.fontBoundingBoxDescent) / 2 + rest.fontBoundingBoxAscent;
+  const sX = x + padX + aw + 0.015 * size;
   ctx.fillStyle = "#fff";
-  ctx.fillText("m", x + padX, base);
-  ctx.fillText("nta", oX + o + 0.01 * size, base);
+  ctx.fillText("ssemble", sX, base);
   ctx.save();
-  ctx.translate(oX, base + 0.02 * size - o);
-  ctx.scale(o / 32, o / 32);
+  ctx.translate(x + padX, base + 0.02 * size - ah);
+  ctx.scale(aw / 33, ah / 32);
   ctx.fill(new Path2D(RING), "evenodd");
+  ctx.fill(new Path2D(STEM));
   ctx.fill(new Path2D(SOCKET));
   ctx.restore();
+  ctx.fillStyle = soft;
+  ctx.fillText(".help", sX + rest.width, base);
   ctx.letterSpacing = "0px";
 }
 
@@ -79,6 +81,7 @@ export async function buildCard(plan: Plan, key: string, stat: string): Promise<
     const display = cssVar("--font-figtree", "system-ui, sans-serif");
     const body = display;
     const brand = cssVar("--brand", "#1d4f91");
+    const soft = cssVar("--on-brand", "#dce6f3");
 
     ctx.fillStyle = "#edf1f6";
     ctx.fillRect(0, 0, W, H);
@@ -131,7 +134,7 @@ export async function buildCard(plan: Plan, key: string, stat: string): Promise<
     ctx.moveTo(110, 1236);
     ctx.lineTo(W - 110, 1236);
     ctx.stroke();
-    logo(ctx, 110, 1247, 32, display, brand);
+    logo(ctx, 110, 1247, 32, display, brand, soft);
     ctx.fillStyle = "#536177";
     ctx.font = `500 26px ${body}`;
     const host = location.host.replace(/^www\./, "");

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { spellOut } from "../shorthand";
 import { TogetherStamp } from "./factory";
 import { AI_ENABLED } from "../site";
+import { RING, SOCKET, STEM } from "@/components/Logo";
 
 /**
  * The share cards, in the site's own look: warm paper, ink type in the
@@ -18,10 +19,12 @@ import { AI_ENABLED } from "../site";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
-const PAGE = "#f5f4f0";
-const INK = "#121212";
-const INK_2 = "#55534e";
-const ACCENT = "#ffd21f";
+const PAGE = "#edf1f6";
+const INK = "#0f1c2e";
+const INK_2 = "#2f3d52";
+const ACCENT = "#bcd3f1";
+const BRAND = "#1d4f91";
+const ON_BRAND = "#dce6f3";
 const PAD = 72;
 
 // read once when the module loads, not per request: that keeps the site card static, so it is drawn at build time
@@ -39,22 +42,17 @@ export async function drawing(name: string) {
   return `data:image/png;base64,${(await readFile(file)).toString("base64")}`;
 }
 
-/** The logo mark: an Allen bolt head seen from above. */
-function Mark({ size }: { size: number }) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size}>
-      <circle cx="16" cy="16" r="15.5" fill={INK} />
-      <path d="M16 6.2 L24.5 11.1 L24.5 20.9 L16 25.8 L7.5 20.9 L7.5 11.1 Z" fill={ACCENT} stroke={ACCENT} strokeWidth="2.2" strokeLinejoin="round" />
-      <path d="M16 11.2 L20.2 13.6 L20.2 18.4 L16 20.8 L11.8 18.4 L11.8 13.6 Z" fill={INK} stroke={INK} strokeWidth="1.4" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
+/** The logo: "assemble.help" in white on the blue block, its a the bolt (paths shared with the site's Logo). */
 function Logo() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-      <Mark size={46} />
-      <span style={{ fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.045em", paddingBottom: 4 }}>monta</span>
+    <div style={{ display: "flex", alignItems: "flex-end", alignSelf: "flex-start", padding: "8px 15px 11px", borderRadius: 4, background: BRAND, color: "#fff", fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1 }}>
+      <svg viewBox="0 0 33 32" width={23} height={22.4} style={{ marginBottom: 1, marginRight: 1 }}>
+        <path fillRule="evenodd" d={RING} fill="#fff" />
+        <path d={STEM} fill="#fff" />
+        <path d={SOCKET} fill="#fff" />
+      </svg>
+      <span>ssemble</span>
+      <span style={{ color: ON_BRAND }}>.help</span>
     </div>
   );
 }
@@ -69,7 +67,7 @@ function Powered() {
         <TogetherStamp height={25} color={INK} />
       </div>
       )}
-      <span style={{ fontSize: 15, color: "#8a877f" }}>Unofficial guide. Not affiliated with JYSK.</span>
+      <span style={{ fontSize: 15, color: INK_2 }}>Unofficial guide. Not affiliated with JYSK.</span>
     </div>
   );
 }
@@ -119,7 +117,7 @@ export function siteCard() {
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 600, height: "100%", padding: `${PAD - 8}px 0 ${PAD - 12}px ${PAD}px` }}>
         <Logo />
         <div style={{ display: "flex", flexDirection: "column", fontFamily: "Display", fontWeight: 800, fontSize: H, lineHeight: 1, letterSpacing: "-0.045em" }}>
-          <span>Build JYSK furniture,</span>
+          <span>JYSK assembly,</span>
           <span style={{ marginTop: 4 }}>step by step.</span>
         </div>
         <Powered />

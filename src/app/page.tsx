@@ -17,12 +17,12 @@ import { AI_ENABLED, SCAN_ENABLED, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
-// "Monta" is also an EV charging company: say plainly what this site is, and that it isn't JYSK
+// say plainly what this site is, and that it isn't JYSK
 const SITE_LD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Monta",
-  alternateName: "Monta JYSK assembly guides",
+  name: "assemble.help",
+  alternateName: "assemble.help: JYSK assembly guides",
   url: SITE_URL,
   description: "Free step-by-step 3D assembly guides for JYSK furniture. An independent project, not affiliated with JYSK.",
 };

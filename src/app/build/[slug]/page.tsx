@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { type: "article", siteName: "Monta", title, description, url },
+    openGraph: { type: "article", siteName: "assemble.help", title, description, url },
     twitter: { card: "summary_large_image", title, description },
     // drafts for names we don't know shouldn't fill search results
     robots: s ? undefined : { index: false },
