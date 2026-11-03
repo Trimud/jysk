@@ -368,6 +368,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   const [introPlayed, setIntroPlayed] = useState(false);
   const [paused, setPaused] = useState(false);
   const [slow, setSlow] = useState(false);
+  const [xray, setXray] = useState(false);
   const [moved, setMoved] = useState(false);
   const [stamp, setStamp] = useState(0);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -824,6 +825,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
             highlight={highlight}
             paused={paused}
             speed={slow ? 0.5 : 1}
+            xray={phase === "cover" && xray}
             options={{ callout: true, interactive: true }}
             onReady={(h) => (stage.current = h)}
             onIntroDone={() => setIntroPlayed(true)}
@@ -884,6 +886,13 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
             )}
           </AnimatePresence>
 
+          {phase === "cover" && (introPlayed || resume) && (
+            <div className="stage-ctl right">
+              <button className={"pill-btn float" + (xray ? " on" : "")} onClick={() => setXray(!xray)} aria-pressed={xray}>
+                X-ray
+              </button>
+            </div>
+          )}
           {phase === "steps" && (
             <div className="stage-ctl">
               <button className="icon-btn float" onClick={() => stage.current?.replay()} aria-label="Replay animation" data-tip="Replay (R)">

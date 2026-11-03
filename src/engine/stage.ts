@@ -77,6 +77,11 @@ export class Stage {
   plan: Plan | null = null;
   parts: PNode[] = [];
   hws: HNode[] = [];
+  /** X-ray preview: see-through panels with every fitting showing, the wall brackets' too. */
+  private xray = false;
+  /** Fittings that stick out of the finished piece (knobs, glides, nail heads on the back). The preview shows only these:
+   *  the rest sit inside, and drawn anyway they show through gaps or, as a sliver, through a face at a grazing angle. */
+  private outside = new Set<HNode>();
   byKey = new Map<string, PNode>();
   mode: StageMode = { kind: "assembled" };
   opts: StageOptions;
@@ -305,7 +310,7 @@ export class Stage {
     for (const it of plan.items) {
       if (it.kind !== "hw") continue;
       const ht = hwTypes.get(it.ref)!;
-      const d = hwDrawable(ht.kind, ht.len, ht.dia);
+      const d = hwDrawable(ht.kind, ht.len, ht.dia, ht.flush);
       const holder = new THREE.Group();
       const inner = new THREE.Group();
       holder.add(inner);
@@ -321,6 +326,15 @@ export class Stage {
     }
     this.computeExtents();
     this.computeArrangements();
+    // ponytail: "sticks out" means 3 mm off its surface lies outside the box round all the panels; a fitting on an inner
+    // face of an open frame (a bolt on a bench's middle rail) counts as inside. Upgrade: test against the panels themselves
+    const box = new THREE.Box3().setFromPoints(this.extents.get("final") ?? []);
+    this.outside = new Set(this.hws.filter((h) => {
+      if (!h.parent) return false;
+      const f = h.parent.item.final;
+      const out = new THREE.Vector3(...h.item.pos).addScaledVector(new THREE.Vector3(...h.item.dir).normalize(), -3).applyQuaternion(quatFromEuler(f.rot)).add(new THREE.Vector3(...f.pos));
+      return !box.containsPoint(out);
+    }));
     this.finalXf.clear();
     for (const p of this.parts) this.finalXf.set(p, { p: new THREE.Vector3(...p.item.final.pos), q: quatFromEuler(p.item.final.rot) });
     this.typeFirst.clear();
@@ -491,6 +505,10 @@ export class Stage {
   }
   setSpeed(s: number) {
     this.speed = s;
+  }
+
+  setXray(on: boolean) {
+    this.xray = on;
   }
 
   setHighlight(refs: string[] | null) {
@@ -707,12 +725,12 @@ export class Stage {
     this.root.updateMatrixWorld(true);
   }
 
-  private styleDrawable(d: Drawable, o: { opacity: number; ink: boolean; tint: number; width: number }) {
+  private styleDrawable(d: Drawable, o: { opacity: number; ink: boolean; tint: number; width: number; depth?: boolean }) {
     d.opacity = o.opacity;
     for (const f of d.faces) {
       f.uniforms.uOpacity.value = o.opacity;
       f.uniforms.uTintAmt.value = o.tint;
-      f.depthWrite = o.opacity > 0.05;
+      f.depthWrite = o.depth ?? o.opacity > 0.05;
     }
     const col = o.ink ? INK : INK_OLD;
     const lw = this.opts.offscreen ? o.width * 1.15 : o.width;
@@ -829,7 +847,9 @@ export class Stage {
         const fin = this.finalXf.get(p)!;
         node.position.copy(fin.p);
         node.quaternion.copy(fin.q);
-        this.styleDrawable(p.d, { opacity: 1, ink: true, tint: hover || lit ? 0.6 : 0, width: 1.9 });
+        // x-ray: faint panels that don't hide what's behind them, so the fittings inside show
+        const x = m.kind === "assembled" && this.xray;
+        this.styleDrawable(p.d, { opacity: x ? 0.16 : 1, ink: true, tint: hover || lit ? 0.6 : 0, width: x ? 1.3 : 1.9, depth: x ? false : undefined });
       }
     }
 
@@ -839,8 +859,8 @@ export class Stage {
       let vis = false;
       if (m.kind === "step") {
         vis = it.step <= sIdx && (h.parent ? visibleParts.has(h.parent) : it.scene === scene);
-      } else if (m.kind === "assembled") vis = !!h.parent && !this.plan?.steps[it.step]?.wall;
-      else if (m.kind === "intro") vis = t > this.stepEnd - 0.7 && !!h.parent && !this.plan?.steps[it.step]?.wall;
+      } else if (m.kind === "assembled") vis = !!h.parent && (this.xray || (!it.wall && this.outside.has(h)));
+      else if (m.kind === "intro") vis = t > this.stepEnd - 0.7 && !it.wall && this.outside.has(h);
       h.holder.visible = vis;
       if (!vis) continue;
       const isNew = m.kind === "step" && it.step === sIdx;

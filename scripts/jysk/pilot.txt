@@ -1,0 +1,4 @@
+# JYSK UK product pages to fetch (npm run jysk:fetch), one URL per line, built in this order.
+# Pilot only: the full range waits for the Phase 3 legal check (UK database right).
+https://jysk.co.uk/storage/chest-drawers/4-drawer-chest-limfjorden-beige
+https://jysk.co.uk/storage/wardrobes/wardrobe-limfjorden-120x200-2-doors-3-drawers-beige

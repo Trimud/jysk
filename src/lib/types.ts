@@ -340,6 +340,7 @@ export interface HwType {
   dia: number;
   qty: number;
   notIncluded?: boolean;
+  flush?: boolean;
 }
 
 export interface Hole {
@@ -384,6 +385,7 @@ export interface HwItem {
   delay: number;
   scale?: number;
   preset?: boolean;
+  wall?: boolean; // fixes it to the wall (a bracket and its screws): kept out of the preview
 }
 
 export type Item = PartItem | HwItem;

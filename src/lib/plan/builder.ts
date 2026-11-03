@@ -17,7 +17,7 @@ import type {
   Vec3,
   WarnId,
 } from "../types";
-import { rotate, toLocal, unrotate } from "./math";
+import { add, mul, neg, rotate, toLocal, unrotate } from "./math";
 
 const LETTERS = "ABCDEFGHJKLMNPRSTUVWXYZ";
 
@@ -27,6 +27,7 @@ export interface HwDef {
   dia: number;
   notIncluded?: boolean;
   name?: string; // the fitting's own name when the kind's general one doesn't fit ("Catch", "Knob bolt")
+  flush?: boolean; // a bolt whose head sinks level with the surface (a connector screw)
 }
 
 export const HW = {
@@ -166,6 +167,7 @@ export interface FitOpts {
   hole?: number | false;
   mateHole?: number;
   scale?: number;
+  wall?: boolean; // fixes it to the wall: kept out of the preview (defaults to the step's own `wall`)
 }
 
 export class PlanBuilder {
@@ -243,7 +245,7 @@ export class PlanBuilder {
   }
 
   hwType(def: HwDef) {
-    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}${def.name ? "-" + def.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : ""}`;
+    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}${def.flush ? "-f" : ""}${def.name ? "-" + def.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : ""}`;
     if (!this.hw.has(id)) {
       this.hw.set(id, {
         id,
@@ -254,6 +256,7 @@ export class PlanBuilder {
         dia: def.dia,
         qty: 0,
         notIncluded: def.notIncluded,
+        flush: def.flush,
       });
     }
     return id;
@@ -332,6 +335,18 @@ export class PlanBuilder {
     return at;
   }
 
+  /** How far `at` reaches into a part along `dir` (mm, 0 when it isn't in the part). */
+  private depth(key: string, at: Vec3, dir: Vec3): number {
+    const it = this.partItem(key);
+    const size = this.parts.find((p) => p.id === it.ref)?.size;
+    if (!size) return 0;
+    const l = toLocal(at, it.final.pos, it.final.rot);
+    const n = unrotate(dir, it.final.rot);
+    let t = 0;
+    while (t < 2000 && [0, 1, 2].every((i) => Math.abs(l[i] + n[i] * (t + 0.5)) <= size[i] / 2 + 0.5)) t++;
+    return t;
+  }
+
   stage(key: string, pos: Vec3, rot: Vec3, from?: Vec3) {
     const it = this.partItem(key);
     const s = this.step_;
@@ -352,6 +367,14 @@ export class PlanBuilder {
       if (r > 0) p.holes.push({ p: pos, n: [-dir[0], -dir[1], -dir[2]], r });
     }
     if (o.mate) this.hole(o.mate, this.entry(o.mate, o.at, o.dir, def.len), o.dir, o.mateHole ?? Math.max(holeR(def), 3));
+    // a dowel is drawn 12 mm into its part and the rest out (a cam bolt ~23 mm out): when that is more than the part it
+    // goes into, start it deeper in its own part, so its end stays inside (an edge-drilled dowel into a 16 mm face)
+    if (o.on && o.mate && (def.kind === "dowel" || def.kind === "camScrew")) {
+      const room = this.depth(o.mate, o.at, neg(o.dir));
+      const spare = this.depth(o.on, o.at, o.dir) - (def.kind === "dowel" ? 12 : 11) - 2;
+      const k = room > 0 ? Math.min(Math.max(0, (def.kind === "dowel" ? def.len - 12 : 23) - (room - 2)), Math.max(0, spare)) : 0;
+      if (k > 0) pos = add(pos, mul(dir, k));
+    }
     const travel = o.travel ?? defaultTravel(def);
     const extra = def.kind === "cam" ? 0.7 : o.spin ? 0.35 : 0;
     const it: HwItem = {
@@ -369,6 +392,7 @@ export class PlanBuilder {
       turn: o.turn ?? (def.kind === "cam" ? Math.PI * 0.75 : undefined),
       delay: this.slot(DUR.hw + extra),
       scale: o.scale,
+      ...((o.wall ?? s.wall) ? { wall: true } : {}),
     };
     this.items.push(it);
     this.map.set(key, it);
@@ -470,7 +494,7 @@ export class PlanBuilder {
   }
 }
 
-function holeR(def: HwDef) {
+export function holeR(def: HwDef) {
   switch (def.kind) {
     case "dowel":
       return 4;

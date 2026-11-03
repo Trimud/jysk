@@ -212,7 +212,7 @@ const cyl = (r: number, h: number, seg = 18) => () => new THREE.CylinderGeometry
  * Hardware is modelled along +Y with the origin on the surface it goes into.
  * Everything below y = 0 ends up inside the panel.
  */
-export function hwDrawable(kind: HwKind, len: number, dia: number) {
+export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false) {
   const d = new Drawable();
   const metal = FACE.hwMetal, wood = FACE.hwWood, plastic = FACE.hwPlastic;
   const r = dia / 2;
@@ -254,8 +254,9 @@ export function hwDrawable(kind: HwKind, len: number, dia: number) {
       break;
     case "bolt":
       addSolid(d, `bolt:${len}:${dia}`, cyl(r, len, 12), metal, { hull: "cyl", position: [0, -len / 2, 0] });
-      addSolid(d, `bolt:head:${dia}`, cyl(dia * 0.85, 5, 18), metal, { hull: "cyl", position: [0, 2.5, 0] });
-      addSolid(d, `bolt:hex:${dia}`, cyl(dia * 0.4, 0.6, 6), FACE.hwMetal, { position: [0, 5.2, 0] });
+      // a flush head (a connector screw) sinks level with the surface instead of standing on it
+      addSolid(d, `bolt:head:${dia}`, cyl(dia * 0.85, 5, 18), metal, { hull: "cyl", position: [0, flush ? -2.5 : 2.5, 0] });
+      addSolid(d, `bolt:hex:${dia}`, cyl(dia * 0.4, 0.6, 6), FACE.hwMetal, { position: [0, flush ? 0.3 : 5.2, 0] });
       break;
     case "plate":
       addSolid(d, "plate", () => new THREE.BoxGeometry(70, 3, 70), metal, { position: [0, 1.5, 0] });

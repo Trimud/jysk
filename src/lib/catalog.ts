@@ -2,8 +2,7 @@ import type { ProductSpec } from "./types";
 import { ROWS, specFor, type Kind, type X } from "./products";
 import { fold } from "./fold";
 import { decodeRows, type IkeaRow } from "./ikea";
-// ponytail: IKEA rows removed in Phase 0; src/data/jysk-rows.ts replaces this in Phase 1
-const IKEA_ROWS = "";
+import { JYSK_ROWS } from "@/data/jysk-rows";
 import { FIXES, SAME } from "@/data/fixes";
 
 type Entry = Omit<ProductSpec, "source" | "slug" | "variants" | "siblings"> & {
@@ -64,7 +63,7 @@ const CATEGORY_KIND: Record<string, Kind> = {
 /** Hand made entries, apart from those that are the same product as another guide (src/data/fixes.ts SAME). */
 export const BASE: Entry[] = [...CATALOG.map((c) => ({ ...c, checked: true, kind: CATEGORY_KIND[c.category] })), ...GENERATED].filter((e) => !SAME[e.slug]);
 
-/** A row from IKEA's listings with its correction from src/data/fixes.ts, when it has one. */
+/** A catalog row with its correction from src/data/fixes.ts, when it has one. */
 function fixed(r: IkeaRow, slug: string): IkeaRow & { listed?: string } {
   const f = FIXES[slug];
   if (!f) return r;
@@ -74,19 +73,19 @@ function fixed(r: IkeaRow, slug: string): IkeaRow & { listed?: string } {
   return { ...r, kind: f.kind ?? r.kind, variant: f.variant ?? r.variant, w, h, d, x, ...(f.variant ? { listed: r.variant } : {}) };
 }
 
-/** Rows generated from IKEA's product data (scripts/ikea/build.ts). Hand made entries always win. */
-const IKEA: Entry[] = [];
-for (const row of decodeRows(IKEA_ROWS)) {
+/** Rows generated from JYSK's product pages (scripts/jysk/build.ts). Hand made entries always win. */
+const JYSK: Entry[] = [];
+for (const row of decodeRows(JYSK_ROWS)) {
   const slug = row.slug ?? baseSlug(row.name, row.variant);
   if (used.has(slug)) continue;
   used.add(slug);
   if (SAME[slug]) continue;
   const r = fixed(row, slug);
-  IKEA.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, family: fold(r.name), kind: r.kind, keywords: r.keywords, ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}) });
+  JYSK.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, family: fold(r.name), kind: r.kind, keywords: r.keywords, ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}) });
 }
 
-/** Every product we can draw offline: hand-checked entries first, then the wider index, then IKEA's catalog. */
-export const PRODUCTS: Entry[] = [...BASE, ...IKEA];
+/** Every product we can draw offline: hand-checked entries first, then the wider index, then JYSK's catalog. */
+export const PRODUCTS: Entry[] = [...BASE, ...JYSK];
 
 const BY_SLUG = new Map(PRODUCTS.map((e) => [e.slug, e]));
 const BY_FAMILY = new Map<string, Entry[]>();

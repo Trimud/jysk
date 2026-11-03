@@ -23,12 +23,9 @@
 # misc
 .DS_Store
 
-# raw IKEA responses (scripts/ikea/fetch.ts)
-/scripts/ikea/cache/
-# IKEA's raw product listings stay local: npm run ikea:fetch rebuilds them
-/scripts/ikea/facts*.json
-# the measurements on IKEA's product pages (npm run ikea:measure)
-/scripts/ikea/measures.json
+# raw JYSK pages and the facts read from them stay local: npm run jysk:fetch rebuilds them
+/scripts/jysk/cache/
+/scripts/jysk/facts.json
 *.pem
 
 # feedback saved in development (src/lib/feedback.ts)
@@ -56,3 +53,4 @@ next-env.d.ts
 
 # local agent sessions and worktrees
 .claude/
+.gstack/

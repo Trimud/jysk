@@ -912,6 +912,10 @@
   gap: 8px;
   z-index: 6;
 }
+.stage-ctl.right {
+  left: auto;
+  right: 14px;
+}
 .drag-hint,
 .sheet-caption {
   position: absolute;
@@ -3020,6 +3024,10 @@ button.pic:disabled {
     left: 10px;
     bottom: 10px;
     gap: 6px;
+  }
+  .stage-ctl.right {
+    left: auto;
+    right: 10px;
   }
   .stage-ctl .icon-btn,
   .stage-ctl .pill-btn {

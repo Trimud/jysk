@@ -23,7 +23,8 @@ export default function StageView({
   onUserView,
   paused,
   speed,
-}: {
+  xray,
+}: Readonly<{
   plan: Plan | null;
   mode: StageMode;
   highlight?: string[] | null;
@@ -35,7 +36,8 @@ export default function StageView({
   onUserView?: (changed: boolean) => void;
   paused?: boolean;
   speed?: number;
-}) {
+  xray?: boolean;
+}>) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
   const cbs = useRef({ onIntroDone, onHover, onUserView, onReady });
@@ -43,9 +45,9 @@ export default function StageView({
     cbs.current = { onIntroDone, onHover, onUserView, onReady };
   });
   const modeKey = JSON.stringify(mode);
-  const latest = useRef({ plan, mode, highlight });
+  const latest = useRef({ plan, mode, highlight, xray });
   useEffect(() => {
-    latest.current = { plan, mode, highlight };
+    latest.current = { plan, mode, highlight, xray };
   });
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function StageView({
         s.setMode(m);
       }
       s.setHighlight(h ?? null);
+      s.setXray(!!latest.current.xray);
       cbs.current.onReady?.({
         replay: () => s?.replay(),
         resetView: () => s?.resetView(),
@@ -103,6 +106,9 @@ export default function StageView({
   useEffect(() => {
     stage.current?.setPaused(!!paused);
   }, [paused]);
+  useEffect(() => {
+    stage.current?.setXray(!!xray);
+  }, [xray]);
   useEffect(() => {
     stage.current?.setSpeed(speed ?? 1);
   }, [speed]);
