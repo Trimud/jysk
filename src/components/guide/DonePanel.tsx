@@ -131,7 +131,7 @@ function ShareCard({ plan, slug, stat, spent }: { plan: Plan; slug: string; stat
     track("share", { product: plan.spec.name, image: !!file });
     try {
       if (file && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], text: `${text} ${url}` });
-      else if (navigator.share) await navigator.share({ title: "Bygga", text, url });
+      else if (navigator.share) await navigator.share({ title: "Monta", text, url });
       else {
         await navigator.clipboard.writeText(`${text} ${url}`);
         setCopied(true);

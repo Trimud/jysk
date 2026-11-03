@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 /*
- * Everything the site loads comes from itself: scripts, fonts (next/font), the voice clips and analytics
- * (Plausible is proxied under /pl, see the rewrites below).
+ * Everything the site loads comes from itself: scripts, fonts (next/font), the voice clips and analytics.
  * Inline scripts stay allowed because the pages are prerendered and can't carry a per-request nonce.
  */
 const CSP = [
@@ -80,13 +79,6 @@ const nextConfig: NextConfig = {
         source: "/voice/:voice/manifest.json",
         headers: [{ key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=3600" }],
       },
-    ];
-  },
-  async rewrites() {
-    // Plausible's script and its event endpoint, served from our own domain
-    return [
-      { source: "/pl/script.js", destination: "https://plausible.io/js/script.js" },
-      { source: "/pl/event", destination: "https://plausible.io/api/event" },
     ];
   },
   async redirects() {

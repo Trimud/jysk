@@ -17,12 +17,12 @@ export function LogoMark({ size = 32, className }: { size?: number; className?: 
 }
 
 export function Wordmark({ className }: { className?: string }) {
-  return <span className={"wordmark " + (className ?? "")}>bygga</span>;
+  return <span className={"wordmark " + (className ?? "")}>monta</span>;
 }
 
 export default function Logo({ href = "/", compact, size = 26 }: { href?: string; compact?: boolean; size?: number }) {
   return (
-    <Link href={href} className="logo" aria-label="Bygga home">
+    <Link href={href} className="logo" aria-label="Monta home">
       <LogoMark size={size} />
       {!compact && <Wordmark />}
     </Link>

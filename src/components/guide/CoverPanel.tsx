@@ -34,7 +34,7 @@ export default function CoverPanel({
   const s = plan.spec;
   const t = totals(plan);
   const resumable = resume && (resume.phase !== "cover" || resume.step > 0) && resume.phase !== "done";
-  const official = `https://www.ikea.com/search/?q=${encodeURIComponent(s.name)}`;
+  const official = "https://jysk.co.uk/"; // ponytail: Phase 1 links the product's own JYSK PDF manual;
   const tools = plan.tools.filter((x) => !x.optional && !x.included).map((x) => TOOL_INFO[x.id].name.replace("Phillips ", ""));
   return (
     <div className="pane cover">
@@ -186,14 +186,14 @@ export default function CoverPanel({
         <div className="cover-links">
           {via !== "scan" && (
             <a className="official" href={official} target="_blank" rel="noreferrer">
-              Find the manual on ikea.com <IExternal size={15} />
+              Find the manual on jysk.co.uk <IExternal size={15} />
             </a>
           )}
           <Link className="official" href={`/build/${s.slug}/print`}>
             <IPrint size={15} /> Print this guide
           </Link>
         </div>
-        <p className="cover-note">Not affiliated with IKEA. Check each step against the paper manual in the box.</p>
+        <p className="cover-note">Not affiliated with JYSK. Check each step against the paper manual in the box.</p>
       </div>
       <div className="pane-foot">
         {resumable ? (

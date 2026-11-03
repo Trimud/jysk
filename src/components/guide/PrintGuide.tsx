@@ -142,7 +142,7 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
         </div>
         <footer className="pp-foot">
           <span>Follow it in 3D, read out loud: {url}</span>
-          <span>Not affiliated with IKEA. Check each step against the paper manual.</span>
+          <span>Not affiliated with JYSK. Check each step against the paper manual.</span>
         </footer>
       </section>
 

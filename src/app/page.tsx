@@ -42,7 +42,7 @@ export default function Home() {
             <IArrowOut size={14} className="tg-go" />
           </a>
           <h1>
-            Build IKEA furniture,
+            Build JYSK furniture,
             <br />
             step by step.
           </h1>
@@ -61,7 +61,7 @@ export default function Home() {
             <Link href="/scan" className="scan-link">
               <IScan size={17} />
               <span>
-                Not from IKEA? <u>Scan its paper manual</u>
+                Not from JYSK? <u>Scan its paper manual</u>
               </span>
             </Link>
           )}

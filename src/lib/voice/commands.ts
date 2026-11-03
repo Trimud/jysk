@@ -30,7 +30,7 @@ const PHRASES: Record<Kind, string[]> = {
 const LOOKUP = new Map<string, Kind>();
 for (const [k, list] of Object.entries(PHRASES) as [Kind, string[]][]) for (const p of list) LOOKUP.set(p, k);
 
-const FILLER = new Set(["um", "uh", "er", "erm", "hmm", "okay", "ok", "alright", "right", "so", "please", "now", "then", "hey", "bygga", "thanks", "thank", "you", "and", "yeah", "yes"]);
+const FILLER = new Set(["um", "uh", "er", "erm", "hmm", "okay", "ok", "alright", "right", "so", "please", "now", "then", "hey", "monta", "thanks", "thank", "you", "and", "yeah", "yes"]);
 
 const NUM: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, for: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,

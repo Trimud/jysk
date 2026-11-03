@@ -210,7 +210,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="guide shell">
       <header className="topbar">
-        <Link href="/" className="home-btn" aria-label="Bygga home">
+        <Link href="/" className="home-btn" aria-label="Monta home">
           <LogoMark size={34} />
         </Link>
         <div className="tb-title">
@@ -269,8 +269,8 @@ function NotFound({
               </h1>
               <p className="sub">
                 We can&apos;t draw {what.replace(/s$/, "")}s step by step yet, so trust the paper manual for this one.{" "}
-                <a href={`https://www.ikea.com/search/?q=${encodeURIComponent(name)}`} target="_blank" rel="noreferrer">
-                  Find it on ikea.com
+                <a href={`https://jysk.co.uk/`} target="_blank" rel="noreferrer">
+                  Find it on jysk.co.uk
                 </a>
                 . If it looks like one of these, a typical build can still help.
               </p>
@@ -334,7 +334,7 @@ function NotFound({
         <Link href="/scan" className="scan-link nf-scan">
           <IScan size={17} />
           <span>
-            Not from IKEA? <u>Scan its paper manual</u>
+            Not from JYSK? <u>Scan its paper manual</u>
           </span>
         </Link>
       )}
@@ -755,7 +755,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
     const s = plan.spec;
     // the cover keeps the page's own title; steps and the end say where you are
     document.title =
-      phase === "steps" ? `Step ${step + 1} of ${steps.length}, ${s.name} | Bygga` : phase === "done" ? `Built: ${s.name} | Bygga` : `${s.name} ${s.variant.toLowerCase()}: assembly step by step | Bygga`;
+      phase === "steps" ? `Step ${step + 1} of ${steps.length}, ${s.name} | Monta` : phase === "done" ? `Built: ${s.name} | Monta` : `${s.name} ${s.variant.toLowerCase()}: assembly step by step | Monta`;
   }, [phase, step, steps.length, plan.spec]);
 
   const mode: StageMode = useMemo(() => {
@@ -777,7 +777,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   return (
     <div className="guide" data-phase={phase} data-voice={voiceOn ? "on" : undefined}>
       <header className="topbar">
-        <Link href="/" className="home-btn" aria-label="Bygga home">
+        <Link href="/" className="home-btn" aria-label="Monta home">
           <LogoMark size={34} />
         </Link>
         <div className="tb-title">

@@ -84,7 +84,7 @@ export default function Compare() {
         <h2 className="sec-title" id="compare-title">
           The paper manual, explained
         </h2>
-        <p className="cmp-sub">A KALLAX step redrawn in the style of the paper booklet, next to the same step on Bygga.</p>
+        <p className="cmp-sub">A shelf step redrawn in the style of the paper booklet, next to the same step on Monta.</p>
       </div>
 
       <div className="cmp-pair" style={{ gridTemplateColumns: `${VB.paper.w}fr ${VB.bygga.w}fr` }}>
@@ -104,7 +104,7 @@ export default function Compare() {
         </figure>
 
         <figure className="cmp-card bygga">
-          <figcaption className="cmp-tag bygga">On Bygga</figcaption>
+          <figcaption className="cmp-tag bygga">On Monta</figcaption>
           <div className="cmp-art" style={{ aspectRatio: `${VB.bygga.w} / ${VB.bygga.h}` }}>
             <svg viewBox={`${VB.bygga.x} ${VB.bygga.y} ${VB.bygga.w} ${VB.bygga.h}`} aria-hidden="true">
               <Scene style="bygga" />
@@ -145,7 +145,7 @@ export default function Compare() {
         <ul className="cmp-facts">
           <li>
             <IBox size={18} />
-            {PRODUCT_COUNT.toLocaleString("en-US")} IKEA products
+            {PRODUCT_COUNT.toLocaleString("en-US")} JYSK products
           </li>
           <li>
             <ISound size={18} />

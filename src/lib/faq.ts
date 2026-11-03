@@ -6,7 +6,7 @@ export interface Faq {
 }
 
 const COMMON: Faq[] = [
-  { q: "A part is missing or broken", a: "Note the number printed on the panel or the bag. IKEA stores and customer service usually replace small fittings for free, and you can keep building the steps that don't need it." },
+  { q: "A part is missing or broken", a: "Note the number printed on the panel or the bag. JYSK customer service can help with replacement fittings, and you can keep building the steps that don't need it." },
   { q: "I think I did an earlier step wrong", a: "Open the overview, jump back to that step and watch it again. Most fittings come out easily if you haven't locked the cams yet." },
 ];
 

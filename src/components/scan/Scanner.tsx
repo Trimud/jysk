@@ -171,7 +171,7 @@ export default function Scanner() {
     <div className="scan">
       <header className="scan-head">
         <h1>Scan a paper manual</h1>
-        <p className="lead">For furniture that isn&apos;t from IKEA. Photograph the manual and Together AI turns it into a step by step guide in 3D.</p>
+        <p className="lead">For furniture that isn&apos;t from JYSK. Photograph the manual and Together AI turns it into a step by step guide in 3D.</p>
       </header>
 
       <AnimatePresence mode="wait" initial={false}>

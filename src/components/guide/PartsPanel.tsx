@@ -181,7 +181,7 @@ export default function PartsPanel({
               <b>
                 {nMissing} {nMissing === 1 ? "thing" : "things"} missing
               </b>
-              <span>You can still build the steps that don&apos;t need {nMissing === 1 ? "it" : "them"}. Spare fittings are usually free at IKEA.</span>
+              <span>You can still build the steps that don&apos;t need {nMissing === 1 ? "it" : "them"}. JYSK customer service can help with spare fittings.</span>
               <button className="btn link inline" onClick={onMissingHelp}>
                 How to get spare parts
               </button>

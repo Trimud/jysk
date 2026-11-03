@@ -53,12 +53,12 @@ function Logo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
       <Mark size={46} />
-      <span style={{ fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.045em", paddingBottom: 4 }}>bygga</span>
+      <span style={{ fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.045em", paddingBottom: 4 }}>monta</span>
     </div>
   );
 }
 
-/** The stamp, and the line that travels with every card: these guides are not IKEA's. */
+/** The stamp, and the line that travels with every card: these guides are not JYSK's. */
 function Powered() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
@@ -66,7 +66,7 @@ function Powered() {
         <span>Powered by</span>
         <TogetherStamp height={25} color={INK} />
       </div>
-      <span style={{ fontSize: 15, color: "#8a877f" }}>Unofficial guide. Not affiliated with IKEA.</span>
+      <span style={{ fontSize: 15, color: "#8a877f" }}>Unofficial guide. Not affiliated with JYSK.</span>
     </div>
   );
 }
@@ -116,7 +116,7 @@ export function siteCard() {
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 600, height: "100%", padding: `${PAD - 8}px 0 ${PAD - 12}px ${PAD}px` }}>
         <Logo />
         <div style={{ display: "flex", flexDirection: "column", fontFamily: "Display", fontWeight: 800, fontSize: H, lineHeight: 1, letterSpacing: "-0.045em" }}>
-          <span>Build IKEA furniture,</span>
+          <span>Build JYSK furniture,</span>
           <span style={{ marginTop: 4 }}>step by step.</span>
         </div>
         <Powered />

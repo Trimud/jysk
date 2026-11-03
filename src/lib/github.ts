@@ -8,7 +8,7 @@ export async function getStars(): Promise<number | null> {
   cacheLife("hours");
   try {
     const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}`, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "bygga" },
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "monta" },
       signal: AbortSignal.timeout(4000),
     });
     if (!r.ok) return null;
