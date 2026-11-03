@@ -240,7 +240,8 @@ export function guessSpec(q: string): ProductSpec | null {
 }
 
 export const FEATURED = PRODUCTS.filter((e) => e.featured);
-export const POPULAR = ["kallax-2x2", "billy-80x202", "malm-3-drawers", "lack-side-table", "linnmon-adils-desk", "malm-bed-160", "brimnes-wardrobe", "hemnes-3-drawers", "frosta-stool"]
+// ponytail: emptied in Phase 0; the Phase 2 pilot lists JYSK bestsellers here
+export const POPULAR = ([] as string[])
   .map((s) => PRODUCTS.find((e) => e.slug === s)!)
   .filter(Boolean);
 export const PRODUCT_COUNT = new Set(PRODUCTS.map((p) => fold(p.name) + "|" + p.category)).size;

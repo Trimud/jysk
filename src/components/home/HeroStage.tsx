@@ -9,13 +9,17 @@ import { buildPlan } from "@/lib/plan";
 import type { StageMode } from "@/engine/stage";
 import { IArrowRight } from "../art/Icons";
 
-const SHOW = ["kallax-2x2", "malm-3-drawers", "bissa-shoe-cabinet-2-compartments", "lack-coffee-table", "kivik-3-seat-sofa", "billy-80x202"];
+// ponytail: emptied in Phase 0; the Phase 2 pilot picks JYSK products to show here
+const SHOW: string[] = [];
 const HOLD = 3200;
 
 /** A manual page that keeps building furniture by itself. Tabs pick what it builds. */
 export default function HeroStage() {
   const [i, setI] = useState(0);
-  const plans = useMemo(() => SHOW.map((s) => buildPlan(catalogSpec(s)!)), []);
+  const plans = useMemo(() => SHOW.flatMap((s) => {
+    const spec = catalogSpec(s);
+    return spec ? [buildPlan(spec)] : [];
+  }), []);
   const plan = plans[i];
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mode: StageMode = useMemo(() => ({ kind: "intro", dims: true }), []);
@@ -31,6 +35,8 @@ export default function HeroStage() {
     if (timer.current) clearTimeout(timer.current);
     setI(k);
   };
+
+  if (!plan) return null;
 
   return (
     <div className="hero-visual">

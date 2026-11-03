@@ -14,7 +14,6 @@ import { peekShot, shot, type Shot } from "@/engine/thumbs";
 import Thumb from "../Thumb";
 import Drawing from "../Drawing";
 import { Figure, ScaleFigure } from "../art/Figure";
-import { fmtMin } from "../guide/CoverPanel";
 import { IArrowRight, IBed, IBox, ICheck, IClock, IClose, ILibrary, IPeople, IWall } from "../art/Icons";
 
 interface Row {
@@ -322,11 +321,9 @@ function BuiltCard({ r, onRemove }: { r: Row; onRemove: () => void }) {
 /* ---------- empty ---------- */
 
 // times come from the catalog, so they can't drift from the guides
-const STARTERS = [
-  { slug: "lack-side-table", note: (s: ProductSpec) => `${fmtMin(s.minutes)}, a good first build` },
-  { slug: "kallax-2x2", note: (s: ProductSpec) => `${s.category}, ${fmtMin(s.minutes)}` },
-  { slug: "malm-3-drawers", note: (s: ProductSpec) => `${s.category}, ${fmtMin(s.minutes)}` },
-].flatMap(({ slug, note }) => {
+const STARTERS = ([
+  // ponytail: emptied in Phase 0; the Phase 2 pilot adds JYSK starter builds
+] as { slug: string; note: (s: ProductSpec) => string }[]).flatMap(({ slug, note }) => {
   const s = catalogSpec(slug);
   return s ? [{ slug, name: s.name, note: note(s) }] : [];
 });

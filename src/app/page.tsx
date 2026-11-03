@@ -17,13 +17,8 @@ import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
-const QUICK = [
-  { slug: "kallax-2x2", label: "KALLAX" },
-  { slug: "bissa-shoe-cabinet-2-compartments", label: "BISSA" },
-  { slug: "malm-3-drawers", label: "MALM" },
-  { slug: "poang-armchair", label: "POÄNG" },
-  { slug: "billy-80x202", label: "BILLY" },
-];
+// ponytail: refilled with JYSK bestsellers in the Phase 2 pilot
+const QUICK: { slug: string; label: string }[] = [];
 
 export default function Home() {
   return (
@@ -50,6 +45,7 @@ export default function Home() {
           </h1>
           <p className="lead">Type the name from the box. Each step plays in 3D and is read out loud, with the parts, screws and tools it needs.</p>
           <HeroSearch />
+          {QUICK.length > 0 && (
           <div className="quick">
             <span>Try</span>
             {QUICK.map((q) => (
@@ -58,6 +54,7 @@ export default function Home() {
               </Link>
             ))}
           </div>
+          )}
           <Resume />
           {SCAN_ENABLED && (
             <Link href="/scan" className="scan-link">
