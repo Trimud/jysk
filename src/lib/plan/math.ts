@@ -5,6 +5,13 @@ export const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] -
 export const mul = (a: Vec3, k: number): Vec3 => [a[0] * k, a[1] * k, a[2] * k];
 export const neg = (a: Vec3): Vec3 => [-a[0], -a[1], -a[2]];
 
+/** 0, 1, … k-1. */
+export const range = (k: number) => Array.from({ length: k }, (_, i) => i);
+/** k evenly spaced values from a to c (their middle when k is 1). */
+export const spread = (a: number, c: number, k: number) => range(k).map((i) => (k === 1 ? (a + c) / 2 : a + ((c - a) * i) / (k - 1)));
+/** Left (-1) for the first of a pair, right (1) for the second. */
+export const sg = (i: number) => (i === 0 ? -1 : 1);
+
 function rx(v: Vec3, a: number): Vec3 {
   const c = Math.cos(a), s = Math.sin(a);
   return [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c];

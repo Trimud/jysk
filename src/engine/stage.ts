@@ -83,8 +83,8 @@ export class Stage {
   hws: HNode[] = [];
   /** X-ray preview: see-through panels with every fitting showing, the wall brackets' too. */
   private xray = false;
-  /** The product's colour on its board panels (null: the drawing's own white). */
-  private finish: THREE.Color | null = null;
+  /** The chosen colour's tones ("Light oak+White": oak, then white); none: the drawing's own white. */
+  private finish: THREE.Color[] = [];
   /** what opens on the preview (drawers, doors): its parts, how it moves, how far open it is (0..1) and where it's going */
   private opens: { slide?: THREE.Vector3; hinge?: { at: THREE.Vector3; axis: THREE.Vector3; angle: number }; k: number; to: number }[] = [];
   /** part key -> the opening it moves with */
@@ -540,14 +540,22 @@ export class Stage {
     this.opts.onOpen?.(this.opens.some((o) => o.to > 0));
   }
 
-  setFinish(hex: string | null) {
+  /** The chosen colour's tones, hex without #, in its name's order. */
+  setFinish(tones: string[] = []) {
     // taken as-is: the face shader writes its colour straight out, so a colour converted to linear would show too dark
-    this.finish = hex ? new THREE.Color().setStyle(hex, THREE.LinearSRGBColorSpace) : null;
+    this.finish = tones.map((t) => new THREE.Color().setStyle("#" + t, THREE.LinearSRGBColorSpace));
     this.applyFinish();
   }
 
+  /** Board and wood panels take their part's tone (the first unless the part says), a metal frame the second. */
   private applyFinish() {
-    for (const p of this.parts) p.d.faces.forEach((f, i) => f.uniforms.uColor.value.copy(this.finish && p.d.mats[i] === "board" ? this.finish : p.d.base[i]));
+    const [first, second] = this.finish;
+    for (const p of this.parts)
+      p.d.faces.forEach((f, i) => {
+        const m = p.d.mats[i];
+        const c = !first ? undefined : m === "board" || m === "wood" ? (this.finish[p.d.tones[i] ?? p.type.tone ?? 0] ?? first) : m === "metal" ? (second ?? first) : undefined;
+        f.uniforms.uColor.value.copy(c ?? p.d.base[i]);
+      });
   }
 
   setHighlight(refs: string[] | null) {
@@ -1303,10 +1311,16 @@ export class Stage {
       this.dimsEl.setAttribute("class", "dims");
       this.overlay!.appendChild(this.dimsEl);
     }
-    const fin = this.extents.get("final") ?? [];
+    // what's in the box, as drawn (not a mattress or the wall): the arrows and their numbers measure the same thing
+    const fin = this.parts.filter((p) => !p.type.extra).flatMap((p) => this.corners(p, p.item.final.pos, p.item.final.rot));
     if (!fin.length) return;
     const box = new THREE.Box3().setFromPoints(fin);
-    const size = this.plan!.spec.size;
+    const cm = (a: number, b: number) => Math.round((b - a) / 10);
+    // the maker's own size when the drawing agrees (within rounding and the glides); the drawing's when it doesn't
+    // (a table drawn extended)
+    const own = this.plan!.spec.size;
+    const pick = (drawn: number, given: number) => (Math.abs(drawn - given) <= 2 ? given : drawn);
+    const size = { w: pick(cm(box.min.x, box.max.x), own.w), h: pick(cm(box.min.y, box.max.y), own.h), d: pick(cm(box.min.z, box.max.z), own.d) };
     const k = easeInOut(clamp01((this.t - 0.2) / 0.9));
     const sz = Math.max(box.max.x - box.min.x, box.max.y - box.min.y);
     const off = sz * 0.07;

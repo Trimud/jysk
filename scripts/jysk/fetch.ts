@@ -37,8 +37,9 @@ function parse(url: string, html: string): Facts {
     const j = JSON.parse(m[1]);
     return Array.isArray(j) ? j : [j];
   });
-  const g = groups.find((j) => j["@type"] === "ProductGroup");
-  if (!g) throw new Error(`no ProductGroup JSON-LD: ${url}`);
+  // a product with variants is a ProductGroup; one without (a sofa in one fabric) is a plain Product
+  const g = groups.find((j) => j["@type"] === "ProductGroup") ?? groups.find((j) => j["@type"] === "Product");
+  if (!g) throw new Error(`no Product JSON-LD: ${url}`);
   // spec rows and resources sit in the page's Next.js payload as escaped JSON
   // ponytail: regex over the unescaped payload; a spec text with a quote or "]" is cut short. JSON.parse the array before Phase 3
   const flat = html.replace(/\\"/g, '"');
@@ -49,7 +50,8 @@ function parse(url: string, html: string): Facts {
   for (const [, k, v] of list.matchAll(/\{"name":"([^"]+)","text":"([^"]*)"\}/g)) specs[k] ??= v;
   const manual = flat.match(/"title":"Assembly instruction","urls":\["([^"]+)"/)?.[1];
   type V = { size?: string; sku: string; color: string };
-  const colours = [g as V, ...(g.hasVariant ?? []).filter((v: V) => v.size === g.size && v.sku !== g.sku)].map((v: V) => ({ name: v.color, sku: v.sku }));
+  // a plain Product may name no colour of its own: its spec row does
+  const colours = [{ ...g, color: (g.color ?? specs["Colour"] ?? "").replace(/\s*,\s*/g, "+") } as V, ...(g.hasVariant ?? []).filter((v: V) => v.size === g.size && v.sku !== g.sku)].map((v: V) => ({ name: v.color, sku: v.sku }));
   // the page's own address, so a product-lookup/<sku> link in pilot.txt still gives the product's slug
   const page = new URL(g.offers?.url ?? url, "https://jysk.co.uk").href;
   return { url: page, slug: new URL(page).pathname.split("/").pop()!, family: g.productGroupID, name: g.name, category: g.category, colours, specs, manual };

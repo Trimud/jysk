@@ -60,14 +60,14 @@ export function buildModular(b: PlanBuilder, s: ProductSpec) {
   const drawers: Drawer[] = slots.map(([c, r]) => {
     const ys = slotY(r), x = colX(c);
     const sy = ys + 24 + sh / 2;
-    return {
+    return b.drawer({
       x,
       ys,
       front: b.place(frT, [x, ys + slotH / 2, D / 2 - t / 2]),
       sides: [b.place(dsT, [x - bw / 2 + 6, sy, D / 2 - t - dd / 2]), b.place(dsT, [x + bw / 2 - 6, sy, D / 2 - t - dd / 2])],
       back: b.place(dbT, [x, ys + 24 + 22 + (sh - 22) / 2, D / 2 - t - dd + 6]),
       bottom: b.place(dbtT, [x, ys + 24 + 9, D / 2 - t - dd / 2 - 2]),
-    };
+    }, dd);
   });
   const runnerY = (ys: number) => ys + 14;
   const runnerZ = D / 2 - t - runLen / 2 - 8;

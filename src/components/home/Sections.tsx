@@ -24,7 +24,7 @@ export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[]
     kinds: ["cabinet", "sideboard", "tv", "shoe", "shoerack", "wallcab", "kitchen", "cabrow", "slidecab", "mixed", "cornercab", "sinkcab", "appliance", "washstand"],
   },
   { id: "tables", label: "Tables", kinds: ["dining", "coffee", "side", "bar", "console", "trolley", "dropleaf", "gateleg", "conftable"] },
-  { id: "desks", label: "Desks", kinds: ["desk", "cornerdesk"] },
+  { id: "desks", label: "Desks", kinds: ["desk", "cornerdesk", "deskdraw", "boxdesk"] },
   { id: "beds", label: "Beds", kinds: ["bed", "daybed", "bunk", "loft", "cot"] },
   { id: "seating", label: "Chairs", kinds: ["chair", "stool", "bench", "backbench", "office", "conference", "highchair", "junior", "lounge"] },
   { id: "sofas", label: "Sofas", kinds: ["sofa", "armchair", "corner", "usofa", "section", "chaise", "swivel", "lounger"] },
@@ -36,11 +36,14 @@ export const CATS: { id: string; label: string; kinds?: Kind[]; tag?: string }[]
 const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
 const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "storage", table: "tables", bed: "beds", seat: "seating", sofa: "sofas", custom: "storage" };
 
-const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) =>
-  (!c.kinds && !c.tag) ||
-  (!!e.kind && !!c.kinds?.includes(e.kind)) ||
-  (!!e.kind && !LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id) ||
-  (!!c.tag && !!e.keywords?.includes(c.tag));
+const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
+  if (!c.kinds && !c.tag) return true;
+  if (c.tag && e.keywords?.includes(c.tag)) return true;
+  // a clothes rail makes it a wardrobe, whatever kind builds it (a wardrobe with drawers is the "mixed" kind)
+  if (!c.tag && e.cabinet?.rail) return c.id === "wardrobes";
+  if (!e.kind) return false;
+  return !!c.kinds?.includes(e.kind) || (!LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id);
+};
 
 /** Cards added per "Show more": a multiple of the 2 and 3 column grids. */
 const PAGE = 24;

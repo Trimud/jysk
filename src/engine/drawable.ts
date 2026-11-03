@@ -16,6 +16,8 @@ export class Drawable {
   base: THREE.Color[] = [];
   /** a part's material per face (parts only), so a product colour can go on its board panels */
   mats: string[] = [];
+  /** a piece's own tone per face, where it has one */
+  tones: (number | undefined)[] = [];
   opacity = 1;
 }
 
@@ -111,6 +113,7 @@ export function partDrawable(p: PartType, holes: Hole[]) {
       else if (mat === "soft") addSolid(d, `soft:${qx}:${qy}:${qz}`, () => roundedBox(qx, qy, qz, Math.min(42, qy / 2.4, qx / 3, qz / 3)), c, { hull: "box", half: [qx / 2, qy / 2, qz / 2], edges: false, ...at });
       else addSolid(d, `box:${qx}:${qy}:${qz}`, () => new THREE.BoxGeometry(qx, qy, qz), c, at);
       d.mats.push(mat);
+      d.tones.push(q.tone);
     }
   } else if (p.shape === "cyl") {
     addSolid(d, `cyl:${sx}:${sy}`, () => new THREE.CylinderGeometry(sx / 2, sx / 2, sy, 32), color, { hull: "cyl" });

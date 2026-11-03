@@ -5,3 +5,15 @@ https://jysk.co.uk/storage/wardrobes/wardrobe-limfjorden-120x200-2-doors-3-drawe
 # other sizes, by article number (beige)
 https://jysk.co.uk/product-lookup/3670662
 https://jysk.co.uk/product-lookup/3670665
+# more pilot products: top of JYSK's bookcase and desk listings, and the LIMFJORDEN bed
+https://jysk.co.uk/storage/bookshelves-and-room-dividers/shelving-unit-trappedal-5-shelves-warm-oak-colour-black
+https://jysk.co.uk/office/desks/desk-abbetved-48x120-light-oak-colour-white
+https://jysk.co.uk/bedroom/beds/bed-bases-slats-frames/bed-frames/bed-frame-limfjorden-double-3-drawers-white
+# one product per empty browse tab: top of JYSK's listing (sofas: no ranking on that page)
+https://jysk.co.uk/dining-room/sideboards/sideboard-jenslev-2-doors-4-drawers-wild-natoak-colour
+https://jysk.co.uk/dining-room/dining-tables/dining-table-marstrand-d110-110x200-white-natural
+# ISLEV, top of the chairs, is sold assembled: the next chair to build
+https://jysk.co.uk/dining-room/dining-chairs/dining-chair-jegind-natural-wood-black
+https://jysk.co.uk/living-room/sofas/sofa-dalshuse-3-seater-beige-fabric
+https://jysk.co.uk/bedroom/beds/childrens-beds/bed-frame-w-storage-billund-euro-single-white-concrete-color
+https://jysk.co.uk/garden/garden-furniture/garden-tables/composite-garden-tables/garden-table-maderup-w90xl150-black

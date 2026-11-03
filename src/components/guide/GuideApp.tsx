@@ -829,10 +829,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
             paused={paused}
             speed={slow ? 0.5 : 1}
             xray={phase === "cover" && xray}
-            finish={(() => {
-              const hex = plan.spec.colours?.find((c) => c.name === colour)?.hex;
-              return hex && "#" + hex;
-            })()}
+            finish={plan.spec.colours?.find((c) => c.name === colour)?.tones}
             options={{ callout: true, interactive: true }}
             onReady={(h) => (stage.current = h)}
             onIntroDone={() => setIntroPlayed(true)}

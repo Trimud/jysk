@@ -285,6 +285,7 @@ export interface PartPiece {
   pos: Vec3; // mm, from the centre of the part
   rot?: Vec3;
   material?: PartMaterial;
+  tone?: number; // which of a colour's tones this piece takes, when it differs from its part's (a table top's apron)
 }
 
 export interface PartType {
@@ -295,7 +296,8 @@ export interface PartType {
   shape: "box" | "cyl";
   material: PartMaterial;
   qty: number;
-  extra?: boolean; // not in the box (e.g. mattress)
+  extra?: boolean;
+  tone?: number; // which of a colour's tones it takes, 0 by default (1: the white drawer front of a "Light oak+White" desk) // not in the box (e.g. mattress)
   pieces?: PartPiece[]; // drawn as these boxes and cylinders instead of one
 }
 
@@ -462,11 +464,12 @@ export interface ToolNeed {
 }
 
 /** Something on the finished piece that opens: a drawer slides out, a door swings on its hinge edge. Assembled frame, mm. */
-/** A colour a product comes in: its name, its article number, and the panels' colour in the drawing (hex, no #). */
+/** A colour a product comes in: its name ("Light oak+White"), its article number, and how each named colour looks in the
+ *  drawing, in the name's order (hex, no #). A part takes `tones[part.tone ?? 0]`; a metal frame takes the second. */
 export interface Colour {
   name: string;
   sku: string;
-  hex?: string;
+  tones?: string[];
 }
 
 export interface Opening {

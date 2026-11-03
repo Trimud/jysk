@@ -1,6 +1,6 @@
 import type { ProductSpec, StepKind, ToolId, Vec3 } from "../../types";
 import { HW, type FitOpts, type HwDef, type PlanBuilder, type StepDef } from "../builder";
-import { add, mul, sub } from "../math";
+import { add, mul, neg, sub } from "../math";
 import type { Family } from "./family";
 
 /**
@@ -49,8 +49,7 @@ function kit(b: PlanBuilder) {
   };
   /** Shows a loose part in a side scene: where it ends up, moved by `off`, arriving from `from`. */
   const show = (k: string, from?: Vec3, off: Vec3 = [0, 0, 0]) => {
-    const f = b.partItem(k).final;
-    b.stage(k, add(f.pos, off), f.rot, from);
+    b.stageAround([k], neg(off), from);
     b.then(0.12);
   };
   /** Adds parts to the build, arriving from `from`. */

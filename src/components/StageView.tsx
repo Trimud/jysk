@@ -41,8 +41,8 @@ export default function StageView({
   paused?: boolean;
   speed?: number;
   xray?: boolean;
-  /** colour of the board panels (hex), or none for the drawing's own white */
-  finish?: string;
+  /** the chosen colour's tones (hex, no #), or none for the drawing's own white */
+  finish?: string[];
 }>) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
@@ -76,7 +76,7 @@ export default function StageView({
       }
       s.setHighlight(h ?? null);
       s.setXray(!!latest.current.xray);
-      s.setFinish(latest.current.finish ?? null);
+      s.setFinish(latest.current.finish);
       cbs.current.onReady?.({
         replay: () => s?.replay(),
         resetView: () => s?.resetView(),
@@ -118,9 +118,10 @@ export default function StageView({
   useEffect(() => {
     stage.current?.setXray(!!xray);
   }, [xray]);
+  const finishKey = finish?.join("/");
   useEffect(() => {
-    stage.current?.setFinish(finish ?? null);
-  }, [finish]);
+    stage.current?.setFinish(latest.current.finish);
+  }, [finishKey]);
   useEffect(() => {
     stage.current?.setSpeed(speed ?? 1);
   }, [speed]);

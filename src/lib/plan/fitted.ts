@@ -128,7 +128,7 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
     for (let r = 0; r < n; r++) {
       const ys = lo + r * slotH;
       const sy = ys + 24 + sh / 2;
-      drawers.push({
+      drawers.push(b.drawer({
         ys,
         slotH,
         sh,
@@ -136,7 +136,7 @@ export function buildFitted(b: PlanBuilder, s: ProductSpec) {
         sides: [b.place(dsT, [-bw / 2 + 6, sy, zBox]), b.place(dsT, [bw / 2 - 6, sy, zBox])],
         back: b.place(dbT, [0, ys + 24 + 22 + (sh - 22) / 2, D / 2 - dd + 6]),
         bottom: b.place(dbtT, [0, ys + 24 + 9, zBox - 2]),
-      });
+      }, dd));
     }
   });
 

@@ -117,13 +117,13 @@ export function buildDayBed(b: PlanBuilder, s: ProductSpec) {
       const x = (crossX(i) + crossX(i + 1)) / 2;
       const zBox = zf - 9 - dd / 2;
       const sy = yd + 20 + sh / 2;
-      drawers.push({
+      drawers.push(b.drawer({
         x,
         front: b.place(frT, [x, yd + fh / 2, zf]),
         sides: [b.place(sdT, [x - bw / 2 + 6, sy, zBox]), b.place(sdT, [x + bw / 2 - 6, sy, zBox])],
         back: b.place(bkT, [x, yd + 20 + 22 + (sh - 22) / 2, zf - 9 - dd + 6]),
         bottom: b.place(btT, [x, yd + 20 + 9, zBox - 2]),
-      });
+      }, dd));
     }
   }
   const drawerKeys = (d: Drawer) => [d.front, d.sides[0], d.sides[1], d.back, d.bottom];

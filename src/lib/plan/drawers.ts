@@ -67,18 +67,17 @@ export function buildDrawers(b: PlanBuilder, s: ProductSpec) {
       const x = colX(c);
       const zBack = D / 2 - t - dd;
       const sy = ys + 24 + sh / 2;
-      drawers.push({
+      drawers.push(b.drawer({
         x,
         ys,
         front: b.place(frT, [x, ys + slotH / 2, D / 2 - t / 2]),
         sides: [b.place(dsT, [x - bw / 2 + 6, sy, D / 2 - t - dd / 2]), b.place(dsT, [x + bw / 2 - 6, sy, D / 2 - t - dd / 2])],
         back: b.place(dbT, [x, ys + 24 + 22 + (sh - 22) / 2, zBack + 6]),
         bottom: b.place(dbtT, [x, ys + 24 + 9, D / 2 - t - dd / 2 - 2]),
-      });
+      }, dd));
     }
   // top row first reads naturally, but build the bottom one first so later drawers are hidden by it
   drawers.sort((a, b2) => a.ys - b2.ys || a.x - b2.x);
-  for (const d of drawers) b.openDrawer([d.front, ...d.sides, d.back, d.bottom], dd);
 
   f.prepSides();
 

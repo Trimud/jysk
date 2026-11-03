@@ -62,13 +62,13 @@ export function buildDeskDrawers(b: PlanBuilder, s: ProductSpec) {
   const zBox = zFront - ft - dd / 2;
   const drawers = Array.from({ length: n }, (_, i) => {
     const x = cx(i), sy = ry - 10 + sh / 2;
-    return {
+    return b.drawer({
       x,
       front: b.place(frT, [x, yr, zFront - ft / 2]),
       sides: [b.place(dsT, [x - bw / 2 + 6, sy, zBox]), b.place(dsT, [x + bw / 2 - 6, sy, zBox])] as [string, string],
       back: b.place(dbT, [x, sy + 11, zBox - dd / 2 + 6]),
       bottom: b.place(dbtT, [x, ry - 10 + 9, zBox - 2]),
-    };
+    }, dd);
   });
 
   b.step(

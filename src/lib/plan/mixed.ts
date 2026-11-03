@@ -60,15 +60,14 @@ export function buildMixed(b: PlanBuilder, s: ProductSpec) {
     const ys = dLo + r * slotH; // bottom of its slot
     const sy = ys + 24 + sh / 2;
     const zBox = D / 2 - dd / 2;
-    drawers.push({
+    drawers.push(b.drawer({
       ys,
       front: b.place(frT, [0, frontLo + 2 + r * (fh + 4) + fh / 2, fz]),
       sides: [b.place(dsT, [-bw / 2 + 6, sy, zBox]), b.place(dsT, [bw / 2 - 6, sy, zBox])],
       back: b.place(dbT, [0, ys + 24 + 22 + (sh - 22) / 2, D / 2 - dd + 6]),
       bottom: b.place(dbtT, [0, ys + 24 + 9, zBox - 2]),
-    });
+    }, dd));
   }
-  for (const d of drawers) b.openDrawer([d.front, ...d.sides, d.back, d.bottom], dd);
 
   /* ---------- steps: the carcass ---------- */
   f.prepSides();

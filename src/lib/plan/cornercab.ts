@@ -416,14 +416,14 @@ function blind(b: PlanBuilder, s: ProductSpec) {
     const bw = inW - 26;
     const sy = ys + 24 + sh / 2;
     const sideT = b.part("Drawer side", [12, sh, dd]);
-    dr = {
+    dr = b.drawer({
       ys,
       sh,
       front: b.place(b.part("Drawer front", [doorW - 4, fh, t]), [W / 2 - doorW / 2, H - 2 - fh / 2, D / 2 + t / 2]),
-      sides: [b.place(sideT, [bxc - bw / 2 + 6, sy, zBox]), b.place(sideT, [bxc + bw / 2 - 6, sy, zBox])],
+      sides: [b.place(sideT, [bxc - bw / 2 + 6, sy, zBox]), b.place(sideT, [bxc + bw / 2 - 6, sy, zBox])] as [string, string],
       back: b.place(b.part("Drawer back", [bw - 24, sh - 22, 12]), [bxc, ys + 24 + 22 + (sh - 22) / 2, D / 2 - dd + 6]),
       bottom: b.place(b.part("Drawer bottom", [bw - 10, 3, dd - 8], { material: "fiber" }), [bxc, ys + 24 + 9, zBox - 2]),
-    };
+    }, dd);
   }
 
   const dh = r1(H - base - 4 - bandH);

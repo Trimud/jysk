@@ -1,6 +1,6 @@
 import type { ProductSpec, Vec3 } from "../../types";
 import { HW, PlanBuilder, type FitOpts, type HwDef, type StepDef } from "../builder";
-import { sub } from "../math";
+import { range, sg, spread } from "../math";
 import type { Family } from "./family";
 
 /*
@@ -41,7 +41,6 @@ const ZF = 218, ZB = -240; // front and back edges of the sides (458 deep); fron
 const RZ = ZF - 24 - 16; // rails stand 24 mm in from the front edge, 32 deep
 const PZ = ZB + 2.5 + 8; // the plinth stands at the back, against the back panel
 const n = 4;
-const range = (k: number) => Array.from({ length: k }, (_, i) => i);
 const fb = (i: number) => 92 + 223 * i; // bottom of drawer front i (205 high, 18 mm finger-grip gap above)
 const yb = (i: number) => fb(i) + 3; // underside of drawer box i
 // rail centres: one at the bottom, one under each drawer above, one under the top
@@ -52,8 +51,6 @@ const DBZ = DZB + 6; // drawer back centre
 
 const topBoltZ = [120, ZB + 50], topDowelZ = [60, ZB + 110]; // cam bolts and dowels between the top and what it sits on
 const runZ = ZF - 5 - 225; // cabinet runner centres
-const sg = (i: number) => (i === 0 ? -1 : 1);
-const spread = (a: number, c: number, k: number) => range(k).map((i) => (k === 1 ? (a + c) / 2 : a + ((c - a) * i) / (k - 1)));
 
 function build(b: PlanBuilder, s: ProductSpec) {
   if (s.archetype !== "drawers" || !/chest/i.test(s.variant)) return false;
@@ -623,28 +620,24 @@ function drawerSteps(b: PlanBuilder, slots: { i: number; cx: number; fx: number 
   const d0 = drawers[0];
   const f0 = new Map(fitsOf(d0).map(([def, list]) => [def, list]));
   const c0: Vec3 = [d0.cx, d0.y + 80, ZF - 225];
-  const stage = (k: string, from: Vec3) => {
-    const it = b.partItem(k);
-    b.stage(k, sub(it.final.pos, c0), it.final.rot, from);
-  };
   const dstep = (title: string, detail: string, body: () => void, o: Pick<StepDef, "tools" | "kind" | "pose">) =>
     b.step({ title, detail, tools: o.tools, scene: "drawer", pose: o.pose ?? "-z", repeat: drawers.length, kind: o.kind }, body);
 
   dstep("Screw four cam bolts into each drawer front", "Lay the front face down on something soft.", () => {
-    stage(d0.front, [0, 0, -160]);
+    b.stageAround([d0.front], c0, [0, 0, -160]);
     b.then(0.15);
     b.fits(G, f0.get(G)!, 0.1);
   }, { tools: ["screwdriver"], kind: "cams" });
   dstep("Tap two dowels into the front end of each drawer side", "8 mm dowels. The sides are a left (6) and a right (7) one.", () => {
     b.stagger(0.25);
-    for (const sd of d0.sides) stage(sd, [0, 0, -300]);
+    b.stageAround(d0.sides, c0, [0, 0, -300]);
     b.then(0.15);
     b.fits(A, f0.get(A)!, 0.08);
   }, { tools: ["hammer"], kind: "dowels" });
   dstep("Stand the sides on the front and lock them", "Grooves inwards. Turn the small 12 mm cam locks, not the big ones.", () => b.fits(E, f0.get(E)!, 0.12), { tools: ["flathead"], kind: "cams" });
-  dstep("Slide the bottom in", "Down the grooves until it reaches the front.", () => stage(d0.bottom, [0, 0, -420]), { kind: "drawer" });
+  dstep("Slide the bottom in", "Down the grooves until it reaches the front.", () => b.stageAround([d0.bottom], c0, [0, 0, -420]), { kind: "drawer" });
   dstep("Tap two thin dowels into each end of the drawer back", "The 6 mm dowels this time.", () => {
-    stage(d0.back, [0, 0, -260]);
+    b.stageAround([d0.back], c0, [0, 0, -260]);
     b.then(0.15);
     b.fits(B, f0.get(B)!, 0.08);
   }, { tools: ["hammer"], kind: "dowels" });
