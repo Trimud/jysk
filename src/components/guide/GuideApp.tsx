@@ -37,7 +37,7 @@ import { getUserKey, keyHeaders, useUserKey } from "@/lib/userKey";
 import KeyModal, { type KeyTrouble, type KeyWhy } from "../KeyModal";
 import { decodeSpec } from "@/lib/scan/share";
 import { track } from "@vercel/analytics";
-import { SCAN_ENABLED } from "@/lib/site";
+import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
 
 type Via = "catalog" | "ai" | "guess" | "scan";
 
@@ -189,7 +189,7 @@ export default function GuideApp({ slug, query, step, kind }: { slug: string; qu
   // a typical build, not yet started, can still be swapped for one worked out with the person's key
   const trouble = result?.trouble;
   const ownSteps =
-    via === "guess" && !initial && mounted && !loadProgress(slug)
+    AI_ENABLED && via === "guess" && !initial && mounted && !loadProgress(slug)
       ? !ai
         ? { text: `Add your Together AI key for ${plan.spec.name}'s own steps`, act: () => setAskKey("") }
         : trouble === "key"
@@ -283,7 +283,7 @@ function NotFound({
           )}
         </div>
       </div>
-      {!what && (!ai || trouble) && (
+      {AI_ENABLED && !what && (!ai || trouble) && (
         <div className="nf-ai">
           <ISparkle size={18} />
           <span>
@@ -727,7 +727,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key.toLowerCase() !== "v" || e.metaKey || e.ctrlKey || e.repeat || phase !== "steps" || help || overview || askKey || t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") return;
+      if (!AI_ENABLED || e.key.toLowerCase() !== "v" || e.metaKey || e.ctrlKey || e.repeat || phase !== "steps" || help || overview || askKey || t?.tagName === "INPUT" || t?.tagName === "TEXTAREA") return;
       // the key field opens focused: the "v" mustn't land in it
       e.preventDefault();
       if (voiceOn) stopVoice();
@@ -803,7 +803,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
           >
             {sound ? <ISound /> : <ISoundOff />}
           </button>
-          {phase === "steps" && (
+          {AI_ENABLED && phase === "steps" && (
             <button className={"voice-btn" + (voiceOn ? " on" : "")} onClick={() => (voiceOn ? stopVoice() : turnOnVoice())} aria-pressed={voiceOn} aria-label={voiceOn ? "Turn voice off" : "Turn voice on"} data-tip="Voice (V)">
               <IMic size={18} />
               <span>{voiceOn ? "Voice on" : "Voice"}</span>
@@ -1025,7 +1025,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
                   onNext={next}
                   onBack={back}
                   onHover={setHl}
-                  offer={!voiceOn && offer && (step === 0 || usedVoice) ? { again: usedVoice, listen: canListen || (mounted && micSupported() && !skippedKey()), onStart: turnOnVoice, onDismiss: () => setOffer(false) } : null}
+                  offer={AI_ENABLED && !voiceOn && offer && (step === 0 || usedVoice) ? { again: usedVoice, listen: canListen || (mounted && micSupported() && !skippedKey()), onStart: turnOnVoice, onDismiss: () => setOffer(false) } : null}
                 />
               )}
               {phase === "done" && <DonePanel plan={plan} slug={slug} finish={finish} onReview={back} />}

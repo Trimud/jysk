@@ -13,7 +13,7 @@ import { HwArt } from "@/components/art/Hardware";
 import { IArrowOut, IArrowRight, IScan } from "@/components/art/Icons";
 import { TogetherMark } from "@/components/art/Together";
 import { PRODUCT_COUNT } from "@/lib/search";
-import { SCAN_ENABLED } from "@/lib/site";
+import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
@@ -32,6 +32,7 @@ export default function Home() {
 
       <section className="hero">
         <div className="hero-copy">
+          {AI_ENABLED && (
           <a className="tg-pill" href="https://togetherai.link/" target="_blank" rel="noreferrer">
             <span className="tg-badge">
               <TogetherMark size={16} />
@@ -41,6 +42,7 @@ export default function Home() {
             </span>
             <IArrowOut size={14} className="tg-go" />
           </a>
+          )}
           <h1>
             Build JYSK furniture,
             <br />

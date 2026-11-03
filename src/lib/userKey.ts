@@ -1,11 +1,14 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { AI_ENABLED } from "./site";
 
 /** The person's own Together AI key. It lives only in this browser and rides along with AI requests: every AI feature runs on it. */
 const K = "bygga:together-key";
 
 export function getUserKey(): string {
+  // with AI off, a key saved earlier is ignored, so nothing calls Together
+  if (!AI_ENABLED) return "";
   try {
     return localStorage.getItem(K) ?? "";
   } catch {

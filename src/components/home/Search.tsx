@@ -8,6 +8,7 @@ import Drawing from "../Drawing";
 import { keyHeaders } from "@/lib/userKey";
 import { IArrowRight, ICamera, ISearch, ISparkle } from "../art/Icons";
 import KeyModal, { type KeyTrouble } from "../KeyModal";
+import { AI_ENABLED } from "@/lib/site";
 
 const EXAMPLES = ["KALLAX", "MALM 3 drawers", "802.758.87", "BILLY bookcase", "LACK side table", "HEMNES chest", "IDÅSEN desk"];
 
@@ -147,9 +148,11 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
           autoFocus={autoFocus}
           enterKeyHint="go"
         />
+        {AI_ENABLED && (
         <button type="button" className={"cam-btn" + (reading ? " busy" : "")} onClick={() => (ai ? file.current?.click() : setAskKey(""))} aria-label="Search with a photo of the box label" title="Snap the box label">
           <ICamera size={22} />
         </button>
+        )}
         <button type="submit" className="go-btn" aria-label="Find assembly steps">
           <IArrowRight size={22} strokeWidth={2.4} />
         </button>

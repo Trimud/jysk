@@ -3,7 +3,7 @@ import Logo from "./Logo";
 import { Crew } from "./art/Figure";
 import { IArrowOut } from "./art/Icons";
 import { TogetherWordmark } from "./art/Together";
-import { GITHUB_URL, SCAN_ENABLED } from "@/lib/site";
+import { AI_ENABLED, GITHUB_URL, SCAN_ENABLED } from "@/lib/site";
 
 const CREW = [
   { name: "Hassan", handle: "nutlope" },
@@ -56,10 +56,12 @@ export default function SiteFooter() {
 
       <div className="foot-base">
         <p>Monta is an independent, unofficial project. It is not affiliated with, sponsored or endorsed by JYSK A/S or any JYSK company. JYSK and JYSK product names are trademarks of their owners.</p>
+        {AI_ENABLED && (
         <a className="foot-powered" href="https://togetherai.link/" target="_blank" rel="noreferrer">
           <span>Powered by</span>
           <TogetherWordmark height={19} className="tg-word" />
         </a>
+        )}
       </div>
     </footer>
   );

@@ -11,6 +11,7 @@ import { HwArt } from "../art/Hardware";
 import Thumb from "../Thumb";
 import type { KeyTrouble, KeyWhy } from "../KeyModal";
 import { keyHeaders } from "@/lib/userKey";
+import { AI_ENABLED } from "@/lib/site";
 
 interface Msg {
   role: "user" | "assistant";
@@ -301,6 +302,8 @@ export default function HelpSheet({
           </div>
           {index >= 0 && <Report plan={plan} index={index} />}
 
+          {AI_ENABLED && (
+          <>
           <div className="ask-head">
             <ISparkle size={18} />
             <b>Ask about this step</b>
@@ -344,7 +347,10 @@ export default function HelpSheet({
               );
             })}
           </div>
+          </>
+          )}
         </div>
+        {AI_ENABLED && (
         <form
           className="ask-bar"
           onSubmit={(e) => {
@@ -374,6 +380,7 @@ export default function HelpSheet({
             }}
           />
         </form>
+        )}
       </motion.aside>
     </motion.div>
   );

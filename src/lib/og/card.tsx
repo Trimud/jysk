@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { spellOut } from "../shorthand";
 import { TogetherStamp } from "./factory";
+import { AI_ENABLED } from "../site";
 
 /**
  * The share cards, in the site's own look: warm paper, ink type in the
@@ -62,10 +63,12 @@ function Logo() {
 function Powered() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
+      {AI_ENABLED && (
       <div style={{ display: "flex", alignItems: "center", gap: 11, fontSize: 20, color: INK_2 }}>
         <span>Powered by</span>
         <TogetherStamp height={25} color={INK} />
       </div>
+      )}
       <span style={{ fontSize: 15, color: "#8a877f" }}>Unofficial guide. Not affiliated with JYSK.</span>
     </div>
   );
