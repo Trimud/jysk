@@ -9,7 +9,7 @@ export default function SiteFooter() {
       <div className="foot-card">
         <div className="foot-brand">
           <Logo size={30} />
-          <p>Assembly guides for JYSK furniture you can turn around and follow with your hands full. Free, open source and not affiliated with JYSK.</p>
+          <p>Assembly guides for JYSK furniture you can turn around and follow with your hands full. Free and not affiliated with JYSK.</p>
         </div>
 
         <nav className="foot-cols" aria-label="Footer">

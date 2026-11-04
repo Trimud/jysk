@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { GITHUB_URL, pageMeta } from "@/lib/site";
+import { pageMeta } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta("Privacy and terms", "What assemble.help keeps, what it sends where, and the terms for using the guides.", "/privacy");
 
@@ -65,13 +65,7 @@ export default function Privacy() {
         </ul>
 
         <h2>Questions</h2>
-        <p>
-          Open an issue on{" "}
-          <a href={`${GITHUB_URL}/issues`} target="_blank" rel="noreferrer">
-            GitHub
-          </a>{" "}
-          and we&apos;ll answer there.
-        </p>
+        <p>Use the Feedback button at the top of any guide. Leave your email address in it if you&apos;d like a reply.</p>
       </main>
       <SiteFooter />
     </div>

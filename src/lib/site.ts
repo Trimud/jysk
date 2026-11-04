@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 
-export const GITHUB_REPO = process.env.NEXT_PUBLIC_GITHUB_REPO ?? "Trimud/jysk";
-export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
-
 /** Where the site lives, for share cards, the sitemap and absolute links. */
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://assemble.help").replace(/\/$/, "");
 
