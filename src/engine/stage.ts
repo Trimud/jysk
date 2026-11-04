@@ -115,6 +115,8 @@ export class Stage {
   labels = new Map<string, HTMLDivElement>();
   squareEls: SVGElement[] = [];
   dimsEl?: SVGGElement;
+  /** The side of x the height stands on (-1 or 1), chosen once per product so it never jumps mid-swing. */
+  private dimSide?: { plan: unknown; x: number };
 
   // view state
   w = 1;
@@ -1348,7 +1350,7 @@ export class Stage {
       }
     }
     const kids = this.dimsEl.children;
-    const line = (i: number, a: THREE.Vector3Tuple, b: THREE.Vector3Tuple, o: THREE.Vector3Tuple, label: string, side: number) => {
+    const line = (i: number, a: THREE.Vector3Tuple, b: THREE.Vector3Tuple, o: THREE.Vector3Tuple, label: string, side: number, seen = 1) => {
       const a0 = P(...a), b0 = P(...b);
       const a1 = P(a[0] + o[0], a[1] + o[1], a[2] + o[2]), b1 = P(b[0] + o[0], b[1] + o[1], b[2] + o[2]);
       const mx = (a1.x + b1.x) / 2, my = (a1.y + b1.y) / 2;
@@ -1360,18 +1362,17 @@ export class Stage {
       const lx = mx - uy * 16 * side, ly = my + ux * 16 * side;
       const [e, d, t] = [kids[i * 3], kids[i * 3 + 1], kids[i * 3 + 2]] as SVGElement[];
       e.setAttribute("d", ext);
-      e.style.opacity = String(k * 0.6);
+      e.style.opacity = String(k * 0.6 * seen);
       // the arrow heads grow in with the line instead of popping on at the end
       const hs = clamp01((k - 0.85) / 0.15);
       d.setAttribute("d", `M${ax} ${ay} L${bx} ${by} ${hs > 0 ? head(ax, ay, hs) + head(bx, by, -hs) : ""}`);
+      d.style.opacity = String(seen);
       t.setAttribute("x", String(lx));
       t.setAttribute("y", String(ly + 5));
-      t.style.opacity = String(clamp01((k - 0.6) / 0.4));
+      t.style.opacity = String(clamp01((k - 0.6) / 0.4) * seen);
       if (t.textContent !== label) t.textContent = label;
     };
     const { min, max } = box;
-    line(0, [min.x, min.y, max.z], [max.x, min.y, max.z], [0, -off * 0.2, off], `${Math.round(size.w)} cm`, 1);
-    line(1, [max.x, min.y, max.z], [max.x, min.y, min.z], [off, -off * 0.2, 0], `${Math.round(size.d)} cm`, 1);
     // the height stands at the taller end (a bed's headboard, at the back); a bed's lower foot board gets its own
     // height, as drawn: the maker's page doesn't give it
     let back = -Infinity, front = -Infinity; // the top of each end
@@ -1381,8 +1382,23 @@ export class Stage {
     }
     const s = back > front + 1 ? -1 : 1; // which end is taller: -1 the back, 1 the front
     const [hi, lo, low] = s < 0 ? [min.z, max.z, front] : [max.z, min.z, back];
-    line(2, [min.x, min.y, hi], [min.x, max.y, hi], [-off, 0, s * off * 0.3], `${Math.round(size.h)} cm`, -1);
-    if (this.plan!.spec.archetype === "bed" && max.y - low > 50) line(3, [min.x, min.y, lo], [min.x, low, lo], [-off, 0, -s * off * 0.3], `${cm(min.y, low)} cm`, -1);
+    // a line along an edge is behind the product when no face meeting at that edge turns toward the camera: it then
+    // runs through the drawing, so it fades out there and back in as the turntable swings or the view is dragged
+    const view = this.camera.getWorldDirection(new THREE.Vector3()).negate().applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()).invert());
+    const facing = (xSign: number, zSign: number) => Math.max(xSign * view.x, zSign * view.z);
+    const shown = (f: number) => clamp01((f + 0.05) / 0.2);
+    // the width along the front, the depth down the right (the floor's underside never faces the camera)
+    line(0, [min.x, min.y, max.z], [max.x, min.y, max.z], [0, -off * 0.2, off], `${Math.round(size.w)} cm`, 1, shown(view.z));
+    line(1, [max.x, min.y, max.z], [max.x, min.y, min.z], [off, -off * 0.2, 0], `${Math.round(size.d)} cm`, 1, shown(view.x));
+    // of the taller end's two corners, the one facing the camera when the product first shows (a chair's back right,
+    // not its far back left); picked once, then only faded
+    if (this.dimSide?.plan !== this.plan) this.dimSide = { plan: this.plan, x: facing(-1, s) >= facing(1, s) ? -1 : 1 };
+    const sx = this.dimSide.x, xs = sx < 0 ? min.x : max.x;
+    // a corner shows its height only on the outline (one of its faces toward the camera): with neither it is
+    // behind the product, with both it is the near corner and the line would cross the product's front
+    const seen = (zSign: number) => shown(facing(sx, zSign)) * (1 - shown(Math.min(sx * view.x, zSign * view.z)));
+    line(2, [xs, min.y, hi], [xs, max.y, hi], [sx * off, 0, s * off * 0.3], `${Math.round(size.h)} cm`, sx, seen(s));
+    if (this.plan!.spec.archetype === "bed" && max.y - low > 50) line(3, [xs, min.y, lo], [xs, low, lo], [sx * off, 0, -s * off * 0.3], `${cm(min.y, low)} cm`, sx, seen(-s));
     else for (const e of [...kids].slice(9)) (e as SVGElement).style.opacity = "0";
     this.dimsEl.style.opacity = "1";
   }
