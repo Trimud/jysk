@@ -13,7 +13,7 @@ function device(ua: string) {
 
 /**
  * Feedback from the guides: "Did this match your box?", "This step doesn't match my box" and the Feedback button.
- * Saved by src/lib/feedback.ts, so wrong guides can be found and fixed.
+ * Emailed by src/lib/feedback.ts, so wrong guides can be found and fixed.
  */
 export async function POST(req: Request) {
   if (!fromApp(req)) return Response.json({ error: "forbidden" }, { status: 403 });

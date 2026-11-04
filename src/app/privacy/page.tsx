@@ -48,8 +48,8 @@ export default function Privacy() {
             .
           </li>
           <li>
-            <b>Upstash</b> stores the feedback you send, in a database run for us through Vercel. See their{" "}
-            <a href="https://upstash.com/trust/privacy.pdf" target="_blank" rel="noreferrer">
+            <b>Brevo</b> (France) delivers the feedback you send to us by email. See their{" "}
+            <a href="https://www.brevo.com/legal/privacypolicy/" target="_blank" rel="noreferrer">
               privacy policy
             </a>
             .

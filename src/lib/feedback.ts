@@ -3,11 +3,10 @@ import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 /**
- * Where feedback goes. With a Redis on Upstash (Vercel's marketplace sets KV_REST_API_URL and KV_REST_API_TOKEN, or
- * UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN), every entry is kept in the list `feedback`, newest first, and
- * counted per guide in the hash `feedback:slugs`. In development without one it goes to .feedback/feedback.jsonl.
- * Every entry is logged as well (grep for [feedback]), so nothing is lost while the store is being set up.
- * Read it back with `npm run feedback`.
+ * Where feedback goes. With BREVO_API_KEY and FEEDBACK_TO set, every entry is emailed to FEEDBACK_TO through Brevo,
+ * from feedback@mail.assemble.help, with Reply-To set to the sender's address when they left one. In development
+ * without them it goes to .feedback/feedback.jsonl. Every entry is logged as well (grep for [feedback]), so nothing
+ * is lost if a send fails.
  */
 
 export interface FeedbackEntry {
@@ -28,34 +27,38 @@ export interface FeedbackEntry {
   device?: string;
 }
 
-/** The newest entries kept; older ones fall off the end. */
-const KEEP = 20_000;
+const FROM = { name: "assemble.help feedback", email: "feedback@mail.assemble.help" };
 
-function redis() {
-  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
-}
-
-export function feedbackStore(): "redis" | "file" | "log" {
-  if (redis()) return "redis";
-  return process.env.NODE_ENV === "production" ? "log" : "file";
+/** "MARSTRAND: doesn't match, step 3" or "Idea: ..." for the inbox list. */
+function subject(e: FeedbackEntry) {
+  const head = e.kind === "match" ? `${e.name ?? e.slug}: ${e.match ? "matches" : "doesn't match"}` : `${e.topic ?? "Feedback"}`;
+  const where = e.step ? `, step ${e.step}` : e.phase ? `, ${e.phase}` : "";
+  const note = e.note ? `: ${e.note.replace(/\s+/g, " ").slice(0, 60)}` : "";
+  return `${head}${where}${note}`;
 }
 
 export async function saveFeedback(entry: FeedbackEntry): Promise<boolean> {
   console.info("[feedback]", JSON.stringify(entry));
-  const db = redis();
-  if (db) {
-    const json = JSON.stringify(entry);
-    const cmds = [["LPUSH", "feedback", json], ["LTRIM", "feedback", "0", String(KEEP - 1)], ...(entry.slug ? [["HINCRBY", "feedback:slugs", entry.slug, "1"]] : [])];
-    const r = await fetch(`${db.url}/pipeline`, {
+  const key = process.env.BREVO_API_KEY;
+  const to = process.env.FEEDBACK_TO;
+  if (key && to) {
+    const { note, ...rest } = entry;
+    const fields = Object.entries(rest).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}`);
+    const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
-      headers: { Authorization: `Bearer ${db.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(cmds),
+      headers: { "api-key": key, "Content-Type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        sender: FROM,
+        to: [{ email: to }],
+        ...(entry.email ? { replyTo: { email: entry.email } } : {}),
+        subject: subject(entry),
+        // ponytail: plain text only, so visitor input never becomes HTML in the inbox.
+        textContent: [note ?? "(no note)", "", ...fields].join("\n"),
+      }),
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     }).catch(() => null);
-    if (!r?.ok) console.error("[feedback] store failed", r?.status ?? "network");
+    if (!r?.ok) console.error("[feedback] send failed", r?.status ?? "network", r && (await r.text().catch(() => "")));
     return !!r?.ok;
   }
   if (process.env.NODE_ENV !== "production") {
