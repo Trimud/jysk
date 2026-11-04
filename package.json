@@ -12,8 +12,8 @@
     "voice:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/voice/listen-check.ts",
     "jysk:discover": "node --experimental-transform-types --no-warnings scripts/jysk/discover.ts",
     "jysk:fetch": "node --experimental-transform-types --no-warnings scripts/jysk/fetch.ts",
-    "jysk:build": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts",
-    "jysk:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts",
+    "jysk:build": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts && npm run -s qa:overlaps -- --jysk",
+    "jysk:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts && npm run -s qa:overlaps -- --jysk",
     "families": "node scripts/families.mjs",
     "qa:overlaps": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/qa/overlaps.ts"
   },

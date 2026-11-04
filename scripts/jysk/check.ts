@@ -1,4 +1,4 @@
-// Every JYSK row must turn into a guide that draws: npm run jysk:check (exits 1 on any failure)
+// Every JYSK row must turn into a guide that draws: npm run jysk:check (exits 1 on any failure), then npm run qa:overlaps checks their models
 import { JYSK_ROWS } from "@/data/jysk-rows";
 import { decodeRows } from "@/lib/ikea";
 import { baseSlug, catalogSpec } from "@/lib/catalog";
