@@ -14,7 +14,8 @@
     "jysk:fetch": "node --experimental-transform-types --no-warnings scripts/jysk/fetch.ts",
     "jysk:build": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts",
     "jysk:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts",
-    "families": "node scripts/families.mjs"
+    "families": "node scripts/families.mjs",
+    "qa:overlaps": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/qa/overlaps.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
