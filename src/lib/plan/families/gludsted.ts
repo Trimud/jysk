@@ -1,7 +1,7 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
 import type { FitOpts, HwDef, PlanBuilder } from "../builder";
 import { rod } from "./_seat";
-import { box, ladder } from "./_metal";
+import { ladder } from "./_metal";
 import type { Family } from "./family";
 
 /*
@@ -42,13 +42,17 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   const braces = [b.place(r.type, r.mid), b.place(r.type, r.mid, [0, Math.PI, 0])];
   const mid: Vec3 = [0, (y0 + y1) / 2, zb];
 
-  // the oval glass: a straight middle and a round end each side
+  // the oval glass, one piece: a straight middle and a round end each side, traced as one outline (the corners
+  // rounded off fully, so the points read as a smooth curve, not facets)
   const flat = W - GD;
-  const glass = b.compound(
-    "Glass shelf",
-    [box([flat, GT, GD], [0, 0, 0]), ...[-1, 1].map((g): PartPiece => ({ shape: "cyl", size: [GD, GT, GD], pos: [(g * flat) / 2, 0, 0] }))],
-    { material: "glass", label: "1" },
+  const oval: [number, number][] = [-1, 1].flatMap((g) =>
+    Array.from({ length: 13 }, (_, i): [number, number] => {
+      const a = -Math.PI / 2 + (i * Math.PI) / 12;
+      return [g * (flat / 2 + (GD / 2) * Math.cos(a)), g * (GD / 2) * Math.sin(a)];
+    }),
   );
+  const piece: PartPiece = { shape: "slab", size: [W, GT, GD], pos: [0, 0, 0], outline: oval, round: 1000 };
+  const glass = b.compound("Glass shelf", [piece], { material: "glass", label: "1" });
   const shelves = LEVELS.map((y) => b.place(glass.type, [0, y + 3 + GT / 2, 0]));
 
   /* ---------- fittings, where they end up ---------- */
