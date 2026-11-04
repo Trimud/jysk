@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import GuideApp from "@/components/guide/GuideApp";
-import { catalogSpec } from "@/lib/catalog";
+import { catalogEntry, catalogSpec } from "@/lib/catalog";
+import { crumbsOf, type Crumb } from "@/lib/categories";
 import { buildPlan } from "@/lib/plan";
 import { TOOL_INFO } from "@/components/art/Tools";
 import { SITE_URL } from "@/lib/site";
@@ -47,12 +48,22 @@ async function Inner({ params, searchParams }: Props) {
   const step = typeof sp.step === "string" ? Number(sp.step) : undefined;
   const kind = typeof sp.kind === "string" ? sp.kind : undefined;
   const s = catalogSpec(decodeURIComponent(slug));
+  const e = catalogEntry(decodeURIComponent(slug));
+  const crumbs = e ? crumbsOf(e) : [];
   return (
     <>
       {s && <HowTo slug={s.slug ?? slug} spec={s} />}
-      <GuideApp slug={decodeURIComponent(slug)} query={q} kind={kind} step={step && step > 0 ? Math.floor(step) : undefined} />
+      {s && crumbs.length > 0 && <Trail crumbs={crumbs} name={`${s.name} ${s.variant}`} url={`${SITE_URL}/build/${s.slug ?? slug}`} />}
+      <GuideApp slug={decodeURIComponent(slug)} query={q} kind={kind} step={step && step > 0 ? Math.floor(step) : undefined} crumbs={crumbs} />
     </>
   );
+}
+
+/** The guide's place in the catalogue as schema.org BreadcrumbList, so search results show the path to it. */
+function Trail({ crumbs, name, url }: Readonly<{ crumbs: Crumb[]; name: string; url: string }>) {
+  const items = [{ name: "All guides", item: `${SITE_URL}/browse` }, ...crumbs.map((c) => ({ name: c.label, item: SITE_URL + c.href })), { name, item: url }];
+  const ld = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items.map((x, i) => ({ "@type": "ListItem", position: i + 1, ...x })) };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />;
 }
 
 /** The guide as schema.org HowTo, so search engines and answer engines can quote its steps and tools. */

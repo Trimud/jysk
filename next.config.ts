@@ -29,6 +29,22 @@ const SECURITY = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" },
 ];
 
+// the furniture tabs that came before JYSK's categories (/browse/beds), each sent to the nearest category
+const TABS: Record<string, string> = {
+  beds: "/bedroom/beds",
+  drawers: "/storage/chest-drawers",
+  wardrobes: "/storage/wardrobes",
+  shelves: "/storage/bookshelves-and-room-dividers",
+  cabinets: "/dining-room/cabinets",
+  tables: "/dining-room/dining-tables",
+  desks: "/office/desks",
+  chairs: "/dining-room/dining-chairs",
+  sofas: "/living-room/sofas",
+  hall: "/hall",
+  kids: "/bedroom/beds/childrens-beds",
+  garden: "/garden",
+};
+
 const nextConfig: NextConfig = {
   // AGENTS.md is ours (it keeps the same advice, without the dashes the managed block brings)
   agentRules: false,
@@ -40,6 +56,7 @@ const nextConfig: NextConfig = {
     "/twitter-image": ["./src/lib/og/*.woff", "./public/og/hero-bygga.png", "./public/og/hero-paper.png"],
     "/build/*/opengraph-image*": ["./src/lib/og/*.woff", "./public/og/*.png"],
     "/build/*/twitter-image*": ["./src/lib/og/*.woff", "./public/og/*.png"],
+    "/share/*": ["./src/lib/og/*.woff", "./public/og/*.png"],
   },
   async headers() {
     return [
@@ -57,7 +74,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/build/:slug/:img(opengraph-image|twitter-image)",
+        source: "/:img(build/[^/]+/opengraph-image|build/[^/]+/twitter-image|share/.*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400" },
           // Next sets its own Cache-Control on dynamic images; Vercel's CDN reads this one first
@@ -82,8 +99,9 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
+    const tabs = Object.entries(TABS).map(([tab, destination]) => ({ source: `/browse/${tab}`, destination, permanent: true }));
     // the manual scanner is parked for v2: old links land on the search instead
-    return process.env.NEXT_PUBLIC_SCAN === "1" ? [] : [{ source: "/scan", destination: "/", permanent: false }];
+    return process.env.NEXT_PUBLIC_SCAN === "1" ? tabs : [...tabs, { source: "/scan", destination: "/", permanent: false }];
   },
 };
 

@@ -6,6 +6,8 @@ import HeroStage from "@/components/home/HeroStage";
 import { HeroSearch } from "@/components/home/HomeClient";
 import Resume from "@/components/home/Resume";
 import { Catalog } from "@/components/home/Sections";
+import CatTiles from "@/components/home/CatTiles";
+import { ROOMS } from "@/lib/categories";
 import Compare from "@/components/home/Compare";
 import { Figure } from "@/components/art/Figure";
 import { ToolArt } from "@/components/art/Tools";
@@ -150,6 +152,7 @@ export default function Home() {
             All {PRODUCT_COUNT.toLocaleString("en-US")} products <IArrowRight size={15} />
           </Link>
         </div>
+        <CatTiles nodes={ROOMS} />
         <Catalog limit={9} />
       </section>
 

@@ -1088,6 +1088,33 @@
 
 /* ================= cover ================= */
 
+/* where the guide sits in the catalogue: All guides / Storage / Chest of Drawers */
+.cover-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cover-crumbs li:not(:last-child)::after {
+  content: "/";
+  margin: 0 7px;
+  color: var(--line-2);
+  font-weight: 400;
+}
+.cover-crumbs a {
+  color: var(--ink-3);
+  text-decoration: none;
+}
+.cover-crumbs a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .product-name {
   font-family: var(--display);
   font-size: clamp(46px, 4.4vw, 64px);

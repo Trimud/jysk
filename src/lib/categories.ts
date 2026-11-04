@@ -1,88 +1,78 @@
-import { KIND_ARCH, type Kind } from "./products";
-import type { CatalogEntry } from "./catalog";
-import type { Archetype } from "./types";
+import { PRODUCTS, type CatalogEntry } from "./catalog";
+import { fold } from "./fold";
 
 /**
- * Tabs over the kinds of furniture, each id also its address (/browse/beds). A JYSK product joins a tab by JYSK's own
- * product type (the last crumb of its path), limited to `arch` where one JYSK type holds two kinds of thing (bar stools
- * and bar tables); anything without a path goes by the kind that draws it. Kids and Garden cut across them, by keyword.
+ * JYSK's own category tree, built from each guide's breadcrumb (Bedroom > Beds > Children's Beds) and addressed the way
+ * jysk.co.uk addresses it (/bedroom/beds/childrens-beds), so a JYSK address works here with only the domain changed.
+ * Only categories with a guide in them exist. The root is /browse, every guide.
  */
-export type Cat = { id: string; label: string; types?: string[]; arch?: Archetype[]; kinds?: Kind[]; tag?: string };
+export type CatNode = { href: string; label: string; parent?: CatNode; children: CatNode[]; guides: CatalogEntry[] };
 
-export const CATS: Cat[] = [
-  { id: "all", label: "All" },
-  {
-    id: "beds",
-    label: "Beds",
-    types: ["Bed Frames", "Children's Beds", "Folding Beds", "Divan Bed Bases"],
-    kinds: ["bed", "daybed", "bunk", "loft", "cot"],
-  },
-  { id: "drawers", label: "Drawers", types: ["Chest of Drawers", "Bedside Tables"], kinds: ["chest", "nightstand", "changing"] },
-  { id: "wardrobes", label: "Wardrobes", types: ["Wardrobes", "Clothes Rails"], kinds: ["wardrobe", "sliding", "cornerrobe", "clothesrack"] },
-  {
-    id: "shelves",
-    label: "Shelves",
-    types: ["Bookshelves and Room Dividers", "Shelves", "Misc.", "Bathroom Storage"],
-    kinds: ["cube", "bookcase", "open", "wallshelf", "bookrow", "divider"],
-  },
-  {
-    id: "cabinets",
-    label: "Cabinets",
-    types: ["Sideboards", "Cabinets", "TV Units"],
-    kinds: ["cabinet", "sideboard", "tv", "shoe", "shoerack", "wallcab", "kitchen", "cabrow", "slidecab", "mixed", "cornercab", "sinkcab", "appliance", "washstand"],
-  },
-  {
-    id: "tables",
-    label: "Tables",
-    types: ["Dining Tables", "Coffee Tables & Side Tables", "Console Tables", "Bar Stools & Bar Tables"],
-    arch: ["table"],
-    kinds: ["dining", "coffee", "side", "bar", "console", "trolley", "dropleaf", "gateleg", "conftable"],
-  },
-  { id: "desks", label: "Desks", types: ["Desks", "Standing Desks"], kinds: ["desk", "cornerdesk", "deskdraw", "boxdesk"] },
-  {
-    id: "chairs",
-    label: "Chairs",
-    types: ["Dining Chairs", "Office Chairs", "Gaming Chairs", "Bar Stools & Bar Tables"],
-    arch: ["seat"],
-    kinds: ["chair", "stool", "bench", "backbench", "office", "conference", "highchair", "junior", "lounge"],
-  },
-  {
-    id: "sofas",
-    label: "Sofas",
-    types: ["Sofas", "Sofa Beds", "Armchairs", "Modular Sofas", "Pouffes"],
-    kinds: ["sofa", "armchair", "corner", "usofa", "section", "chaise", "swivel", "lounger"],
-  },
-  { id: "hall", label: "Hall", types: ["Coat & Shoe Racks", "Coat Racks", "Coat Stands", "Hallway Benches", "Shoe Storage"], kinds: ["hatrack", "coatstand"] },
-  { id: "kids", label: "Kids", kinds: ["kidstable", "kidschair", "junior", "highchair", "cot", "changing"], tag: "kids" },
-  { id: "garden", label: "Garden", tag: "outdoor" },
-];
+// JYSK's slug for a category name: lower case, apostrophes dropped, words joined by dashes. JYSK's exceptions are listed
+// here; npm run jysk:check fails on a new one (it checks every address against scripts/jysk/range.txt)
+const SLUG: Record<string, string> = { "Chest of Drawers": "chest-drawers" };
+export const catSlug = (name: string) => SLUG[name] ?? fold(name.replace(/['’]/g, "")).replace(/\s+/g, "-");
 
-/** The tabs with a page of their own, /browse/<id> ("all" is /browse itself). */
-export const TABS = CATS.filter((c) => c.id !== "all");
+/** JYSK names that read oddly on their own. */
+const LABEL: Record<string, string> = { "Misc.": "Other storage" };
 
-/** The category in a sentence: "wardrobes", or "garden furniture" for a tab that cuts across the types. */
-export const catNoun = (c: (typeof CATS)[number]) => c.label.toLowerCase() + (c.tag ? " furniture" : c.id === "hall" ? " furniture" : "");
+/** The rooms in the order a shop walks them; one not named here goes after these. */
+const ROOM_ORDER = ["/bedroom", "/living-room", "/dining-room", "/office", "/storage", "/hall", "/bathroom", "/garden"];
 
-/** JYSK type names that read oddly on their own, as the filters show them. */
-export const TYPE_LABEL: Record<string, string> = { "Misc.": "Other storage", "Bookshelves and Room Dividers": "Bookcases and room dividers" };
+export const ROOT: CatNode = { href: "", label: "All guides", children: [], guides: PRODUCTS };
+for (const e of PRODUCTS) {
+  let at = ROOT;
+  for (const name of e.path ?? []) {
+    const href = at.href + "/" + catSlug(name);
+    let c = at.children.find((x) => x.href === href);
+    if (!c) at.children.push((c = { href, label: LABEL[name] ?? name, parent: at, children: [], guides: [] }));
+    c.guides.push(e);
+    at = c;
+  }
+}
+const rank = (href: string) => ROOM_ORDER.indexOf(href) + 1 || 99;
+ROOT.children.sort((a, b) => rank(a.href) - rank(b.href));
+// below the rooms, the biggest categories first
+const sortDown = (n: CatNode) => n.children.forEach((c) => (c.children.sort((a, b) => b.guides.length - a.guides.length || a.label.localeCompare(b.label)), sortDown(c)));
+sortDown(ROOT);
 
-// a kind no tab names yet still lands in the tab for its furniture type
-const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
-// JYSK types two tabs share (bar stools and bar tables): there the kind of thing decides
-const SHARED = new Set(CATS.flatMap((c) => c.types ?? []).filter((t, i, all) => all.indexOf(t) !== i));
-const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "cabinets", table: "tables", bed: "beds", seat: "chairs", sofa: "sofas", custom: "cabinets" };
+export const ROOMS = ROOT.children;
 
-/** Whether a guide belongs under a tab. */
-export const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
-  if (!c.kinds && !c.tag && !c.types) return true;
-  if (c.tag) return !!e.keywords?.includes(c.tag) || (!!e.kind && !!c.kinds?.includes(e.kind));
-  // garden furniture lives in the Garden tab only, as it does on JYSK
-  if (e.keywords?.includes("outdoor")) return false;
-  // a JYSK product goes by JYSK's own type for it
-  const type = e.path?.[e.path.length - 1];
-  if (type) return !!c.types?.includes(type) && (!SHARED.has(type) || !c.arch || c.arch.includes(KIND_ARCH[e.kind!] ?? e.archetype));
-  // a clothes rail makes it a wardrobe, whatever kind builds it (a wardrobe with drawers is the "mixed" kind)
-  if (e.cabinet?.rail) return c.id === "wardrobes";
-  if (!e.kind) return false;
-  return !!c.kinds?.includes(e.kind) || (!LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id);
+/** Every category below the root, parents before their children. */
+export const NODES: CatNode[] = [];
+const walk = (n: CatNode) => n.children.forEach((c) => (NODES.push(c), walk(c)));
+walk(ROOT);
+const BY_HREF = new Map(NODES.map((n) => [n.href, n]));
+
+/** The category at an address ("/bedroom/beds"); "" or "/browse" is the root. */
+export const nodeAt = (href: string) => (href === "" || href === "/browse" ? ROOT : BY_HREF.get(href));
+
+/** The address a category's page lives at. */
+export const pageOf = (n: CatNode) => n.href || "/browse";
+
+/** The categories above one, the room first. */
+export const trail = (n: CatNode) => {
+  const out: CatNode[] = [];
+  for (let p = n.parent; p && p !== ROOT; p = p.parent) out.unshift(p);
+  return out;
 };
+
+/** A crumb as a page shows it: a link and its name. */
+export type Crumb = { href: string; label: string };
+
+/** The categories a guide sits in, from its JYSK breadcrumb, room first: what its page's breadcrumb links to. */
+export const crumbsOf = (e: CatalogEntry): Crumb[] => {
+  const out: Crumb[] = [];
+  let href = "";
+  for (const name of e.path ?? []) {
+    const n = nodeAt((href += "/" + catSlug(name)));
+    if (n) out.push({ href: n.href, label: n.label });
+  }
+  return out;
+};
+
+/** The category in a sentence: "bed frames", or "bedroom furniture" for a room. */
+export const catNoun = (n: CatNode) => (n.parent === ROOT ? n.label + " furniture" : n.label).toLowerCase();
+
+/** The guide whose drawing stands for a category: a featured one if it has one. */
+export const coverOf = (n: CatNode) => n.guides.find((e) => e.featured) ?? n.guides.find((e) => e.checked) ?? n.guides[0];

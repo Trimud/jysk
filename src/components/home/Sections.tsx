@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { POPULAR, PRODUCT_COUNT, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
+import { POPULAR, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
 import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
-import { CATS, catNoun, inCat } from "@/lib/categories";
-import { COLOUR_HEX, NO_FILTERS, SORTS, applyFilters, facets, sortList, type Filters, type Sort } from "@/lib/facets";
+import { nodeAt } from "@/lib/categories";
+import { NO_FILTERS, SORTS, applyFilters, facets, readFilters, sortList, writeFilters, type Filters, type Sort } from "@/lib/facets";
+import FilterBar from "./FilterBar";
 import Drawing from "../Drawing";
 import { useUserKey } from "@/lib/userKey";
 import { Dots } from "../guide/ui";
@@ -44,56 +44,23 @@ export function ProductCard({ e, i = 0 }: { e: CatalogEntry; i?: number }) {
   );
 }
 
-/** The tab an address points at: /browse/beds is "beds", /browse is "all". */
-const catOf = (path: string) => CATS.find((c) => c.id === path.split("/")[2]) ?? CATS[0];
-
-// the catalogue is fixed at build time: count each tab once
-const COUNTS = new Map(CATS.map((c) => [c.id, PRODUCTS.filter((e) => inCat(e, c)).length]));
-
-/** The /browse heading names the tab in the address, and follows it as the tabs change it. */
-export function BrowseHead() {
-  const c = catOf(usePathname());
-  const n = COUNTS.get(c.id)!;
-  const all = c.id === "all";
-  return (
-    <header className="page-head">
-      <h1>{all ? "All guides" : c.label}</h1>
-      <p className="lead">
-        {all
-          ? `${PRODUCT_COUNT.toLocaleString("en-US")} JYSK products in ${PRODUCTS.length.toLocaleString("en-US")} sizes, drawn and ready to build.`
-          : `${n} ${n === 1 ? "guide" : "guides"} for JYSK ${catNoun(c)}, drawn and ready to build.`}
-      </p>
-    </header>
-  );
-}
-
 /**
- * Category tabs plus a grid. On the home page it shows a short pick; /browse shows everything with a filter,
- * a page of cards at a time (each card's drawing renders only while it is on screen).
+ * A grid of guides. On the home page it shows a short pick; a category page (`at`, its address: "/bedroom/beds", or ""
+ * for every guide) shows all of the category's guides with a filter, a page of cards at a time (each card's drawing
+ * renders only while it is on screen).
  */
-export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: boolean }>) {
-  // on /browse the tab is the address (/browse/beds), so a link or the back button lands on it; the home page keeps it in state
-  const path = usePathname();
-  const [homeCat, setHomeCat] = useState("all");
-  const cat = search ? catOf(path).id : homeCat;
-  const setCat = (id: string) => {
-    if (!search) return setHomeCat(id);
-    // a product type or series belongs to one tab's furniture: a new tab starts without them, room and colour carry over
-    const f = { ...filters, type: "", series: "" };
-    setFilters(f);
-    window.history.pushState(null, "", (id === "all" ? "/browse" : `/browse/${id}`) + query(f, sort));
-  };
+export function Catalog({ limit, search, at = "" }: Readonly<{ limit?: number; search?: boolean; at?: string }>) {
   const [q, setQ] = useState("");
   const [more, setMore] = useState({ view: "", n: PAGE });
   const no = search ? articleNo(q) : null;
-  // the filters and sort live in the address too (/browse/tables?room=garden&colour=black), so a filtered view can be shared
+  // the filters and sort live in the address too (/dining-room/dining-tables?colour=black), so a filtered view can be shared
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [sort, setSort] = useState<Sort>("name");
   useEffect(() => {
     if (!search) return;
     const read = () => {
       const p = new URLSearchParams(window.location.search);
-      setFilters({ room: p.get("room") ?? "", type: p.get("type") ?? "", colour: p.get("colour") ?? "", series: p.get("series") ?? "" });
+      setFilters(readFilters(p));
       setSort((SORTS.find((x) => x.id === p.get("sort"))?.id ?? "name") as Sort);
     };
     read();
@@ -101,24 +68,27 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
     return () => window.removeEventListener("popstate", read);
   }, [search]);
   const query = (f: Filters, s: Sort) => {
-    const p = new URLSearchParams(Object.entries({ ...f, sort: s === "name" ? "" : s }).filter(([, v]) => v));
-    const str = p.toString();
+    const p = writeFilters(f);
+    if (s !== "name") p.set("sort", s);
+    // commas read better in an address than %2C
+    const str = p.toString().replace(/%2C/g, ",");
     return str ? "?" + str : "";
   };
-  const setFilter = (k: keyof Filters, v: string) => {
-    const f = { ...filters, [k]: v };
+  const update = (f: Filters) => {
     setFilters(f);
     window.history.replaceState(null, "", window.location.pathname + query(f, sort));
+  };
+  const toggle = (k: string, v: string) => {
+    const on = filters[k] ?? [];
+    update({ ...filters, [k]: on.includes(v) ? on.filter((x) => x !== v) : [...on, v] });
   };
   const changeSort = (v: Sort) => {
     setSort(v);
     window.history.replaceState(null, "", window.location.pathname + query(filters, v));
   };
 
-  // the tab's products before any filter: what the filters' options and counts are taken over
-  // the React Compiler memoizes these
-  const tab = CATS.find((x) => x.id === cat)!;
-  const inTab = tab.kinds || tab.tag || tab.types ? PRODUCTS.filter((e) => inCat(e, tab)) : limit ? POPULAR : PRODUCTS;
+  // the category's products before any filter: what the filters' options and counts are taken over
+  const inTab = search ? (nodeAt(at)?.guides ?? PRODUCTS) : limit ? POPULAR : PRODUCTS;
   const opts = search ? facets(inTab, filters) : null;
 
   const list = (() => {
@@ -148,15 +118,14 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
     return limit ? l.slice(0, limit) : l;
   })();
 
-  const view = cat + "|" + q + "|" + query(filters, sort);
-  const filtered = Object.values(filters).some(Boolean);
+  const view = at + "|" + q + "|" + query(filters, sort);
   const n = limit ? list.length : more.view === view ? more.n : PAGE;
   const shown = list.slice(0, n);
 
   return (
     <div className="catalog">
-      <div className="cat-bar">
-        {search && (
+      {search && (
+        <div className="cat-bar">
           <label className="cat-search">
             <ISearch size={20} />
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or article number" aria-label="Filter by name or article number" enterKeyHint="search" autoComplete="off" spellCheck={false} />
@@ -166,96 +135,9 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
               </button>
             )}
           </label>
-        )}
-        <div className="cat-tabs" role="tablist">
-          {CATS.map((c) => (
-            <button key={c.id} role="tab" aria-selected={cat === c.id} className={"cat-tab" + (cat === c.id ? " on" : "")} onClick={() => setCat(c.id)}>
-              {cat === c.id && <motion.i layoutId={"cat-bg" + (search ? "b" : "h")} className="cat-bg" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
-              <span>{c.label}</span>
-              {search && <small className="cat-n">{COUNTS.get(c.id)}</small>}
-            </button>
-          ))}
-        </div>
-      </div>
-      {opts && (
-        <div className="cat-filters">
-          {opts.rooms.length > 1 || filters.room ? (
-            <div className="cat-rooms" role="group" aria-label="Room">
-              <button type="button" className={"chip" + (!filters.room ? " on" : "")} aria-pressed={!filters.room} onClick={() => setFilter("room", "")}>
-                Every room
-              </button>
-              {opts.rooms.map((r) => (
-                <button key={r.id} type="button" className={"chip" + (filters.room === r.id ? " on" : "")} aria-pressed={filters.room === r.id} onClick={() => setFilter("room", filters.room === r.id ? "" : r.id)}>
-                  {r.label} <small>{r.n}</small>
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <div className="cat-selects">
-            <label className="fsel">
-              <span>Type</span>
-              <select value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
-                <option value="">All types</option>
-                {opts.types.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label} ({t.n})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="fsel">
-              <span>Series</span>
-              <select value={filters.series} onChange={(e) => setFilter("series", e.target.value)}>
-                <option value="">All series</option>
-                {opts.series.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label} ({t.n})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="fsel">
-              <span>Sort</span>
-              <select value={sort} onChange={(e) => changeSort(e.target.value as Sort)}>
-                {SORTS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {filtered && (
-              <button
-                type="button"
-                className="fclear"
-                onClick={() => {
-                  setFilters(NO_FILTERS);
-                  window.history.replaceState(null, "", window.location.pathname + query(NO_FILTERS, sort));
-                }}
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-          {opts.colours.length > 1 || filters.colour ? (
-            <div className="cat-colours" role="group" aria-label="Colour">
-              {opts.colours.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={"swatch" + (filters.colour === c.id ? " on" : "")}
-                  aria-pressed={filters.colour === c.id}
-                  title={`${c.label} (${c.n})`}
-                  onClick={() => setFilter("colour", filters.colour === c.id ? "" : c.id)}
-                >
-                  <i style={{ background: COLOUR_HEX[c.id] }} />
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
       )}
+      {opts && <FilterBar groups={opts} filters={filters} toggle={toggle} clear={() => update(NO_FILTERS)} sort={sort} setSort={changeSort} total={list.length} />}
       <motion.div layout className="pgrid">
         <AnimatePresence mode="popLayout">
           {shown.map((e, i) => (

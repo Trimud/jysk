@@ -8,4 +8,6 @@ export const metadata: Metadata = pageMeta(
   "/browse",
 );
 
-export default Browse;
+export default function Page() {
+  return <Browse />;
+}

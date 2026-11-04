@@ -18,6 +18,7 @@ import { HwArt } from "../art/Hardware";
 import { Figure } from "../art/Figure";
 import { ICheck, IGrid, IHelp, IMic, IPause, IPlay, IReplay, IRotate, IScan, ISound, ISoundOff, ISparkle } from "../art/Icons";
 import CoverPanel from "./CoverPanel";
+import type { Crumb } from "@/lib/categories";
 import ToolsPanel from "./ToolsPanel";
 import PartsPanel from "./PartsPanel";
 import StepPanel from "./StepPanel";
@@ -41,7 +42,7 @@ import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
 
 type Via = "catalog" | "ai" | "guess" | "scan";
 
-export default function GuideApp({ slug, query, step, kind }: { slug: string; query?: string; step?: number; kind?: string }) {
+export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{ slug: string; query?: string; step?: number; kind?: string; crumbs?: Crumb[] }>) {
   const router = useRouter();
   const mounted = useMounted();
   const picked = KIND_LABELS.some((k) => k.kind === kind) ? (kind as Kind) : null;
@@ -200,7 +201,7 @@ export default function GuideApp({ slug, query, step, kind }: { slug: string; qu
       : undefined;
   return (
     <>
-      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} />
+      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} crumbs={crumbs} />
       {draftKey}
     </>
   );
@@ -344,7 +345,7 @@ function NotFound({
 
 /* ------------------------------------------------------------------ */
 
-function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slug: string; via: Via; ai: boolean; startStep?: number; onOwnSteps?: { text: string; act: () => void } }) {
+function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<{ plan: Plan; slug: string; via: Via; ai: boolean; startStep?: number; onOwnSteps?: { text: string; act: () => void }; crumbs?: Crumb[] }>) {
   const steps = plan.steps;
   const deep = startStep ? Math.min(startStep, steps.length) - 1 : null;
   const [phase, setPhase] = useState<Phase>(deep !== null ? "steps" : "cover");
@@ -1002,6 +1003,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps }: { plan: Plan; slu
               {phase === "cover" && (
                 <CoverPanel
                   plan={plan}
+                  crumbs={crumbs}
                   colour={colour}
                   onColour={setColour}
                   via={via}

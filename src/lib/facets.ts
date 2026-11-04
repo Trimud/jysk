@@ -1,24 +1,16 @@
 import type { CatalogEntry } from "./catalog";
 import { fold } from "./fold";
-import { TYPE_LABEL } from "./categories";
 
 /**
- * The browse filters, read from JYSK's own filing of each product (its breadcrumb, src/lib/ikea.ts path):
- * the room is the first crumb, the type the last. Colours are grouped by their main word, so "Light oak" and
- * "Wild natural oak" are both Oak. Every facet is a short id that sits in the address (/browse/beds?room=bedroom).
+ * The browse filters within a category (the category itself is the address, src/lib/categories.ts). Colours are grouped
+ * by their main word, so "Light oak" and "Wild natural oak" are both Oak. Every facet is a short id that sits in the
+ * address (/bedroom/beds?colour=beige).
  */
 
 export type Facet = { id: string; label: string; n: number };
 
 export const idOf = (s: string) => fold(s).replace(/\s+/g, "-");
 
-/** The rooms in the order a shop walks them; one JYSK hasn't named here still shows, after these. */
-const ROOM_ORDER = ["bedroom", "living-room", "dining-room", "office", "storage", "hall", "bathroom", "garden", "homeware"];
-/** Room names on the filter where JYSK's department name reads oddly as a room. */
-const ROOM_LABEL: Record<string, string> = { homeware: "Kids' room" };
-
-export const roomOf = (e: CatalogEntry) => (e.path?.length ? idOf(e.path[0]) : null);
-export const typeOf = (e: CatalogEntry) => (e.path && e.path.length > 1 ? idOf(e.path[e.path.length - 1]) : null);
 export const seriesOf = (e: CatalogEntry) => idOf(e.name);
 
 /** Colour groups, most specific first: a colour name joins the first group one of its words names. */
@@ -74,44 +66,81 @@ export function sortList(l: CatalogEntry[], s: Sort): CatalogEntry[] {
   return [...l].sort(by[s]);
 }
 
-export type Filters = { room: string; type: string; colour: string; series: string };
-export const NO_FILTERS: Filters = { room: "", type: "", colour: "", series: "" };
+/** Filters by facet id, each a set of option ids: any option of a facet will do, every facet must hold (as on JYSK). */
+export type Filters = Record<string, string[]>;
+export const NO_FILTERS: Filters = {};
+
+type Def = { id: string; label: string; values: (e: CatalogEntry) => [id: string, label: string][]; rank?: (id: string) => number; swatch?: boolean };
+
+/** A fact JYSK gives for a product (src/lib/ikea.ts facts), its words as the option. */
+const fact = (id: string, label: string, numeric = false): Def => ({ id, label, values: (e) => (e.facts?.[id] ?? []).map((v) => [idOf(v), v]), rank: numeric ? (v) => parseFloat(v) : undefined });
+
+/** A measure in bands: "under 40 cm", "40 to 60 cm", "200 cm and over". */
+function bands(id: string, label: string, edges: number[], get: (e: CatalogEntry) => number, unit: (n: number) => string): Def {
+  return {
+    id,
+    label,
+    values: (e) => {
+      const v = get(e);
+      const i = edges.findIndex((x) => v < x);
+      if (i === 0) return [[`0-${edges[0]}`, `Under ${unit(edges[0])}`]];
+      if (i < 0) return [[`${edges[edges.length - 1]}-`, `${unit(edges[edges.length - 1])} and over`]];
+      return [[`${edges[i - 1]}-${edges[i]}`, `${edges[i - 1]} to ${unit(edges[i])}`]];
+    },
+    rank: (v) => parseFloat(v),
+  };
+}
+const cm = (n: number) => `${n} cm`;
+const time = (n: number) => (n < 60 ? `${n} min` : `${n / 60} h`);
+const LEVEL = ["", "Easy", "Medium", "Hard"];
+const COLOUR_ORDER = COLOURS.map(([id]) => id);
+
+/** Every filter, most telling first: the first few a category has are the buttons over its grid, the rest wait in "All filters". */
+export const DEFS: Def[] = [
+  fact("bed", "Mattress size"),
+  fact("seats", "Seats", true),
+  fact("drawers", "Drawers", true),
+  fact("doors", "Doors", true),
+  fact("shelves", "Shelves", true),
+  fact("shape", "Shape"),
+  { id: "colour", label: "Colour", swatch: true, values: (e) => coloursOf(e).map((c) => [c, COLOURS.find((x) => x[0] === c)![1]]), rank: (v) => COLOUR_ORDER.indexOf(v) },
+  bands("width", "Width", [40, 60, 80, 100, 120, 150, 200], (e) => e.size.w, cm),
+  bands("height", "Height", [50, 80, 100, 150, 200], (e) => e.size.h, cm),
+  bands("depth", "Depth", [30, 40, 50, 60, 80, 100], (e) => e.size.d, cm),
+  fact("material", "Material"),
+  fact("feature", "Feature"),
+  bands("time", "Build time", [30, 60, 120], (e) => e.minutes, time),
+  { id: "level", label: "Difficulty", values: (e) => [[String(e.difficulty), LEVEL[e.difficulty] ?? String(e.difficulty)]], rank: Number },
+  fact("parcels", "Boxes", true),
+  { id: "series", label: "Series", values: (e) => [[seriesOf(e), e.name]] },
+];
 
 /** Products that pass every filter but `skip`: what a facet's own counts are taken over, so each option shows what picking it gives. */
-export function applyFilters(l: CatalogEntry[], f: Filters, skip?: keyof Filters): CatalogEntry[] {
-  return l.filter(
-    (e) =>
-      (skip === "room" || !f.room || roomOf(e) === f.room) &&
-      (skip === "type" || !f.type || typeOf(e) === f.type) &&
-      (skip === "colour" || !f.colour || coloursOf(e).includes(f.colour)) &&
-      (skip === "series" || !f.series || seriesOf(e) === f.series),
-  );
+export function applyFilters(l: CatalogEntry[], f: Filters, skip?: string): CatalogEntry[] {
+  const on = DEFS.filter((d) => d.id !== skip && f[d.id]?.length);
+  return on.length ? l.filter((e) => on.every((d) => d.values(e).some(([id]) => f[d.id].includes(id)))) : l;
 }
 
-function count(l: CatalogEntry[], key: (e: CatalogEntry) => string | string[] | null, label: (id: string, e: CatalogEntry) => string): Facet[] {
-  const m = new Map<string, Facet>();
-  for (const e of l) {
-    const k = key(e);
-    for (const id of Array.isArray(k) ? k : k ? [k] : []) {
-      const f = m.get(id);
-      if (f) f.n++;
-      else m.set(id, { id, label: label(id, e), n: 1 });
-    }
-  }
-  return [...m.values()];
+export type FacetGroup = { id: string; label: string; swatch?: boolean; options: Facet[] };
+
+/** Each filter's options over the products in view, with how many each would give; a filter with one option is left out. */
+export function facets(l: CatalogEntry[], f: Filters): FacetGroup[] {
+  return DEFS.flatMap((d) => {
+    const m = new Map<string, Facet>();
+    for (const e of applyFilters(l, f, d.id))
+      for (const [id, label] of d.values(e)) {
+        const o = m.get(id);
+        if (o) o.n++;
+        else m.set(id, { id, label, n: 1 });
+      }
+    const options = [...m.values()].sort((a, b) => (d.rank ? d.rank(a.id) - d.rank(b.id) : 0) || a.label.localeCompare(b.label, "sv"));
+    return options.length > 1 || f[d.id]?.length ? [{ id: d.id, label: d.label, swatch: d.swatch, options }] : [];
+  });
 }
 
-/** Each filter's options over the products in view, with how many each would give. */
-export function facets(l: CatalogEntry[], f: Filters) {
-  const rooms = count(applyFilters(l, f, "room"), roomOf, (id, e) => ROOM_LABEL[id] ?? e.path![0]);
-  const rank = (id: string) => (ROOM_ORDER.indexOf(id) + 1 || 99);
-  rooms.sort((a, b) => rank(a.id) - rank(b.id) || a.label.localeCompare(b.label));
-  const types = count(applyFilters(l, f, "type"), typeOf, (_, e) => {
-    const t = e.path![e.path!.length - 1];
-    return TYPE_LABEL[t] ?? t;
-  }).sort((a, b) => a.label.localeCompare(b.label));
-  const order = COLOURS.map(([id]) => id);
-  const colours = count(applyFilters(l, f, "colour"), coloursOf, (id) => COLOURS.find((c) => c[0] === id)![1]).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-  const series = count(applyFilters(l, f, "series"), seriesOf, (_, e) => e.name).sort((a, b) => a.label.localeCompare(b.label, "sv"));
-  return { rooms, types, colours, series };
-}
+/** The filters in an address: ?colour=white,black&width=80-100. */
+export const readFilters = (p: URLSearchParams): Filters => Object.fromEntries(DEFS.flatMap((d) => (p.get(d.id) ? [[d.id, p.get(d.id)!.split(",")]] : [])));
+export const writeFilters = (f: Filters, p = new URLSearchParams()) => {
+  for (const d of DEFS) if (f[d.id]?.length) p.set(d.id, f[d.id].join(","));
+  return p;
+};

@@ -9,6 +9,7 @@ import { IArrowRight, IBox, ICheck, IClock, IExternal, IPeople, IPerson, IPrint,
 import { Dots } from "./ui";
 import { TOOL_INFO } from "../art/Tools";
 import { SCAN_ENABLED } from "@/lib/site";
+import type { Crumb } from "@/lib/categories";
 
 export default function CoverPanel({
   plan,
@@ -21,8 +22,11 @@ export default function CoverPanel({
   onOwnSteps,
   colour,
   onColour,
+  crumbs,
 }: Readonly<{
   plan: Plan;
+  /** the JYSK categories it sits in, room first (src/lib/categories.ts) */
+  crumbs?: Crumb[];
   via: "catalog" | "ai" | "guess" | "scan";
   resume: Progress | null;
   /** Finished at least once on this device. */
@@ -44,7 +48,22 @@ export default function CoverPanel({
     <div className="pane cover">
       <div className="pane-scroll">
         <header className="pane-head">
-          <p className="eyebrow">{s.brand ? `${s.brand}, ${s.category.toLowerCase()}` : s.category}</p>
+          {crumbs?.length ? (
+            <nav className="cover-crumbs" aria-label="Breadcrumb">
+              <ol>
+                <li>
+                  <Link href="/browse">All guides</Link>
+                </li>
+                {crumbs.map((c) => (
+                  <li key={c.href}>
+                    <Link href={c.href}>{c.label}</Link>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          ) : (
+            <p className="eyebrow">{s.brand ? `${s.brand}, ${s.category.toLowerCase()}` : s.category}</p>
+          )}
           <h1 className="product-name">{s.name}</h1>
           <p className="product-variant">{s.variant}</p>
           {(() => {
@@ -69,7 +88,7 @@ export default function CoverPanel({
             {chipLabels(s.variants.map((v) => v.label)).map((label, i) => {
               const v = s.variants![i];
               return (
-                <Link key={v.slug} href={`/build/${v.slug}`} className={"chip" + (v.slug === s.slug ? " on" : "")} role="listitem" replace>
+                <Link key={v.slug} href={`/build/${v.slug}`} className={"chip" + (v.slug === s.slug ? " on" : "")} role="listitem">
                   {label}
                 </Link>
               );

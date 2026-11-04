@@ -5,18 +5,17 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { listProgress } from "@/lib/store";
 import { useMounted } from "@/lib/useMounted";
+import BrowseMenu, { type MenuNode } from "./BrowseMenu";
 
-const LINKS = [
-  { href: "/browse", label: "Browse" },
-  { href: "/builds", label: "Workshop" },
-];
+const LINKS = [{ href: "/builds", label: "Workshop" }];
 
-export default function NavLinks() {
+export default function NavLinks({ rooms }: Readonly<{ rooms: MenuNode[] }>) {
   const path = usePathname();
   const mounted = useMounted();
   const builds = useMemo(() => (mounted ? listProgress().filter((p) => p.phase !== "cover").length : 0), [mounted]);
   return (
     <nav className="site-nav" aria-label="Main">
+      <BrowseMenu rooms={rooms} />
       {LINKS.map((l) => {
         const on = path === l.href;
         return (
