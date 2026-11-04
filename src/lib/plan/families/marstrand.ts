@@ -1,6 +1,6 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
 import type { FitOpts, HwDef, PlanBuilder } from "../builder";
-import { add, mul, range } from "../math";
+import { add, mul } from "../math";
 import type { Family } from "./family";
 
 /*
@@ -49,12 +49,8 @@ function build(b: PlanBuilder, s: ProductSpec) {
   );
   const m = half.mid;
   const halves = g2.map((g) => b.place(half.type, [g * (Math.abs(m[0]) + OPEN), m[1], -g * m[2]], [0, g < 0 ? 0 : Math.PI, 0]));
-  // the legs taper from 55 to 40 over 730, drawn as five short cylinders
-  const legT = b.compound(
-    "Leg",
-    range(5).map((i): PartPiece => ({ shape: "cyl", size: [40 + (15 * i) / 4, 146, 40 + (15 * i) / 4], pos: [0, -292 + 146 * i, 0] })),
-    { material: "wood", label: "2", tone: 1 },
-  ).type;
+  // the legs taper from 55 at the top to 40 at the floor over 730
+  const legT = b.compound("Leg", [{ shape: "cyl", size: [55, 730, 55], foot: 40, pos: [0, 0, 0] }], { material: "wood", label: "2", tone: 1 }).type;
   const corners = g2.flatMap((gx) => g2.map((gz) => ({ gx, gz })));
   const legs = corners.map(({ gx, gz }) => b.place(legT, [gx * (LX + OPEN), 4 + 365, gz * LZ]));
 

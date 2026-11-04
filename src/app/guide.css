@@ -1102,6 +1102,15 @@
   color: var(--ink-2);
   margin: 10px 0 18px;
 }
+.product-variant:has(+ .product-article) {
+  margin-bottom: 4px;
+}
+.product-article {
+  margin: 0 0 18px;
+  font-size: 15px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
