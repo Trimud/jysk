@@ -13,7 +13,7 @@
     "voice:check": "node --no-warnings --import ./scripts/voice/register.mjs scripts/voice/listen-check.ts",
     "jysk:discover": "node --no-warnings scripts/jysk/discover.ts",
     "jysk:fetch": "node --no-warnings scripts/jysk/fetch.ts",
-    "jysk:build": "node --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts && npm run -s qa:overlaps -- --jysk",
+    "jysk:build": "node --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts && npm run -s qa:overlaps -- --jysk && npm run -s qa:snapshots -- --changed --if-available",
     "jysk:check": "node --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts && npm run -s qa:overlaps -- --jysk",
     "families": "node scripts/families.mjs",
     "qa:snapshots": "node scripts/qa/snapshots.mjs",

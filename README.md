@@ -25,6 +25,8 @@ Not affiliated with JYSK. Guides are generated drawings: always check them again
 
 `npm run jysk:check` builds every guide, then `npm run qa:overlaps` checks each model: no parts through each other, with doors and drawers closed or open, and no fittings floating in the air. GitHub Actions runs it on every push and pull request, and Vercel runs it before every build, so a guide that fails never deploys.
 
+`npm run qa:snapshots` draws every view of the guides you changed (the finished piece, everything opened, X-ray and every step) and compares each with the drawing you last approved. Open `.qa/report.html` to see what changed, then keep it with `npm run qa:snapshots -- --approve`. It needs the dev server running (`QA_BASE` if it isn't on port 3000) and Playwright (`PLAYWRIGHT_FROM`, a folder whose `node_modules` has it). `--only`, `--family` and `--all` pick other guides; `npm run jysk:build` runs it on the families an import changed.
+
 ## Credits and license
 
 A fork of [Bygga](https://github.com/Nutlope/bygga) by its original authors, see [CREDITS.md](CREDITS.md). MIT, see [LICENSE](LICENSE).
