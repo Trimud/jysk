@@ -38,13 +38,18 @@ const GL = 7; // the glides lift the sides: 7 + 977 + 22 = 1006
 const TY = GL + 977; // underside of the top
 const SX = 392, XI = 384; // side centres and inner faces: 768 between, 800 over the sides, the top 802
 const ZF = 218, ZB = -240; // front and back edges of the sides (458 deep); fronts 22 in front, flush with the top
-const RZ = ZF - 24 - 16; // rails stand 24 mm in from the front edge, 32 deep
+const RZ = ZF - 24 - 16; // the 3 + 3 chest's front plinth: 24 mm in from the front edge
+// the rails (768 or 778 x 60 x 32) lie with their 60 face down ("This side down"): 60 deep, 32 tall, so a
+// cabinet runner fits between a rail and the drawer above it
+const R4Z = ZF - 24 - 30;
 const PZ = ZB + 2.5 + 8; // the plinth stands at the back, against the back panel
 const n = 4;
 const fb = (i: number) => 92 + 223 * i; // bottom of drawer front i (205 high, 18 mm finger-grip gap above)
-const yb = (i: number) => fb(i) + 3; // underside of drawer box i
-// rail centres: one at the bottom, one under each drawer above, one under the top
-const railY = [GL + 30, ...range(n - 1).map((i) => yb(i) + 160 + 31), TY - 30];
+// underside of drawer box i: the front's cam bolt holes sit about 68 mm up it (the manual's parts page), so the box
+// starts about 30 mm up the front, and the bottom runners clear the plinth
+const yb = (i: number) => fb(i) + 30;
+// rail centres: one at the bottom, one under each drawer above (below its runners, above the drawer under it), one under the top
+const railY = [GL + 30, ...range(n - 1).map((i) => yb(i + 1) - 42), TY - 16];
 const XS = 365; // drawer side centres: 718 back + 2 x 12 sides, 13 mm each side for the runners
 const DZB = ZF - 450; // back ends of the drawer sides
 const DBZ = DZB + 6; // drawer back centre
@@ -128,13 +133,13 @@ function build4(b: PlanBuilder) {
   const sides = [b.place(sideT("Left side", "1"), [-SX, GL + 977 / 2, (ZF + ZB) / 2]), b.place(sideT("Right side", "2"), [SX, GL + 977 / 2, (ZF + ZB) / 2])];
   const top = b.place(b.part("Top", [802, 22, 480], { label: "3" }), [0, TY + 11, 0]);
   const plinth = b.place(b.part("Plinth", [768, 88, 16], { label: "4" }), [0, GL + 44, PZ]);
-  const railT = b.part("Rail", [768, 60, 32], { label: "5a" });
-  const rails = railY.map((y) => b.place(railT, [0, y, RZ]));
+  const railT = b.part("Rail", [768, 32, 60], { label: "5a" });
+  const rails = railY.map((y) => b.place(railT, [0, y, R4Z]));
   // ponytail: the back folds in two along its middle; drawn as one board, in rebates 11 mm into the sides, top and plinth
   const back = b.place(b.part("Back panel", [790, 935, 2.5], { material: "fiber", label: "11" }), [0, TY + 11 - 935 / 2, ZB + 1.25]);
 
   // a side's joints: cam bolt in the side, dowel in the rail or plinth end, cam lock in the rail or plinth face
-  const railJ = rails.map((k, j): Joint => ({ key: k, bolt: [railY[j], RZ - 8], dowel: [railY[j], RZ + 8], cam: (g) => ({ on: k, at: [g * (XI - 25), railY[j], RZ - 16], dir: [0, 0, 1] }) }));
+  const railJ = rails.map((k, j): Joint => ({ key: k, bolt: [railY[j], R4Z - 22], dowel: [railY[j], R4Z + 10], cam: (g) => ({ on: k, at: [g * (XI - 25), railY[j], R4Z - 30], dir: [0, 0, 1] }) }));
   const plinthJ: Joint[] = [{ key: plinth, bolt: [GL + 50, PZ], dowel: [GL + 18, PZ], cam: (g) => ({ on: plinth, at: [g * (XI - 25), GL + 50, PZ + 8], dir: [0, 0, -1] }) }];
   const joints = [...railJ, ...plinthJ];
   const { dowels, cams, prepSide } = sideKit(b, { sides, top, sx: SX, xi: XI, ty: TY, rows: n, joints: () => joints, screws: "" });
@@ -147,7 +152,7 @@ function build4(b: PlanBuilder) {
     { title: "Tap a dowel into each end of the five rails", detail: "8 mm dowels, one in each end.", tools: ["hammer"], scene: "rails", kind: "dowels" },
     () => {
       b.stagger(0.12);
-      rails.forEach((k, i) => b.stage(k, [0, 16, (i - 2) * 120], [Math.PI / 2, 0, 0], [0, 120, 0]));
+      rails.forEach((k, i) => b.stage(k, [0, 16, (i - 2) * 120], [0, 0, 0], [0, 120, 0]));
       b.then(0.15);
       b.fits(A, dowels(railJ), 0.05);
     },
@@ -307,9 +312,10 @@ function build33(b: PlanBuilder) {
   const sides = [b.place(sideT("Left side", "1"), [-SX3, GL + 377, (ZF + ZB) / 2]), b.place(sideT("Right side", "3"), [SX3, GL + 377, (ZF + ZB) / 2])];
   const mid = b.place(b.part("Middle panel", [16, 666, 454], { label: "2" }), [0, TY3 - 333, ZF - 227]);
   const top = b.place(b.part("Top", [1606, 22, 480], { label: "4" }), [0, TY3 + 11, 0]);
-  const railT = b.part("Rail", [778, 60, 32], { label: "5" });
-  const ry = [yb(0) + 191, yb(1) + 191, TY3 - 30];
-  const rails = [0, 1].map((si) => ry.map((y) => b.place(railT, [sg(si) * (MX + 389), y, RZ])));
+  // rails like the 4 drawer chest's: 60 face down, under each upper drawer's runners and under the top
+  const railT = b.part("Rail", [778, 32, 60], { label: "5" });
+  const ry = [yb(1) - 42, yb(2) - 42, TY3 - 16];
+  const rails = [0, 1].map((si) => ry.map((y) => b.place(railT, [sg(si) * (MX + 389), y, R4Z])));
   const plinth = b.place(b.part("Plinth", [1572, 88, 16], { label: "12" }), [0, GL + 44, RZ + 8]);
   const foot = b.place(b.part("Middle foot", [370, 72, 16], { label: "13" }), [0, GL + 36, FZ]);
   const backRail = b.place(b.part("Back rail", [1572, 16, 88], { label: "14" }), [0, BRY, BRZ]);
@@ -319,7 +325,7 @@ function build33(b: PlanBuilder) {
 
   // a side's joints: cam bolt in the side, dowel and cam lock in the rail, plinth or back rail
   const joint = (key: string, bolt: number[], dowel: number[], cam: (g: number) => FitOpts): Joint => ({ key, bolt, dowel, cam });
-  const railJ = (si: number) => rails[si].map((k, j) => joint(k, [ry[j], RZ - 8], [ry[j], RZ + 8], (g) => ({ on: k, at: [g * (XI3 - 25), ry[j], RZ - 16], dir: [0, 0, 1] })));
+  const railJ = (si: number) => rails[si].map((k, j) => joint(k, [ry[j], R4Z - 22], [ry[j], R4Z + 10], (g) => ({ on: k, at: [g * (XI3 - 25), ry[j], R4Z - 30], dir: [0, 0, 1] })));
   const plinthJ = joint(plinth, [GL + 50, RZ + 8], [GL + 18, RZ + 8], (g) => ({ on: plinth, at: [g * (XI3 - 25), GL + 50, RZ], dir: [0, 0, 1] }));
   const backJ = joint(backRail, [BRY, BRZ - 20], [BRY, BRZ + 22], (g) => ({ on: backRail, at: [g * (XI3 - 25), BRY + 8, BRZ - 20], dir: [0, -1, 0] }));
   const joints = (si: number) => [...railJ(si), plinthJ, backJ];
@@ -339,7 +345,7 @@ function build33(b: PlanBuilder) {
       { title: `Tap a dowel into one end of the three ${lr(si)} rails`, detail: "8 mm dowels, in the end that goes against the side.", tools: ["hammer"], scene: "rails", kind: "dowels" },
       () => {
         b.stagger(0.12);
-        rails[si].forEach((k, i) => b.stage(k, [0, 16, (i - 1) * 120], [Math.PI / 2, 0, 0], [0, 120, 0]));
+        rails[si].forEach((k, i) => b.stage(k, [0, 16, (i - 1) * 120], [0, 0, 0], [0, 120, 0]));
         b.then(0.15);
         b.fits(A, dowels(railJ(si), [si]), 0.05);
       },
@@ -424,11 +430,11 @@ function build33(b: PlanBuilder) {
       kind: "cams",
     },
     () => {
-      b.fits(C60, ry.map((y) => ({ on: mid, at: [18, y, RZ + 8], dir: [1, 0, 0] as Vec3, hole: false })), 0.1);
+      b.fits(C60, ry.map((y) => ({ on: mid, at: [18, y, R4Z + 10], dir: [1, 0, 0] as Vec3, hole: false })), 0.1);
       b.then(0.1);
-      b.fits(K, ry.map((y) => ({ on: mid, at: [-31, y, RZ - 8], dir: [-1, 0, 0] as Vec3, hole: false })), 0.1);
+      b.fits(K, ry.map((y) => ({ on: mid, at: [-31, y, R4Z - 22], dir: [-1, 0, 0] as Vec3, hole: false })), 0.1);
       b.then(0.1);
-      b.fits(F, ry.map((y, j) => ({ on: rails[0][j], at: [-MX - 33, y, RZ - 16], dir: [0, 0, 1] as Vec3 })), 0.12);
+      b.fits(F, ry.map((y, j) => ({ on: rails[0][j], at: [-MX - 33, y, R4Z - 30], dir: [0, 0, 1] as Vec3 })), 0.12);
     },
   );
   railDowels(1);
@@ -438,7 +444,7 @@ function build33(b: PlanBuilder) {
       b.stagger(0.2);
       for (const k of rails[1]) b.add(k, [300, 0, 0]);
       b.then(0.15);
-      b.fits(F, ry.map((y, j) => ({ on: rails[1][j], at: [MX + 33, y, RZ - 16], dir: [0, 0, 1] as Vec3 })), 0.12);
+      b.fits(F, ry.map((y, j) => ({ on: rails[1][j], at: [MX + 33, y, R4Z - 30], dir: [0, 0, 1] as Vec3 })), 0.12);
     },
   );
 
