@@ -31,10 +31,9 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   /* ---------- parts ---------- */
 
   const legs = (y0: number, y1: number) => [-1, 1].map((g) => rod([0, y0, g * hz(y0)], [0, y1, g * hz(y1)], P));
-  const arch: PartPiece[] = Array.from({ length: 6 }, (_, i) => {
-    const a0 = (i * Math.PI) / 6, a1 = ((i + 1) * Math.PI) / 6, r = hz(APEX);
-    return rod([0, APEX + r * Math.sin(a0), r * Math.cos(a0)], [0, APEX + r * Math.sin(a1), r * Math.cos(a1)], P);
-  });
+  // the round top: one bent tube, so it reads as a smooth bend
+  const r = hz(APEX);
+  const arch: PartPiece[] = [{ shape: "arc", size: [P, r + P / 2, 2 * r + P], pos: [0, APEX + (r + P / 2) / 2, 0] }];
   const lowerPieces = [...legs(P / 2, JOIN), rod([0, P / 2, -R0], [0, P / 2, R0], P)];
   const upperPieces = [...legs(JOIN, APEX), ...arch];
   const make = (name: string, pieces: PartPiece[], label: string) => b.compound(name, pieces, { material: "metal", label });

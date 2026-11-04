@@ -278,7 +278,8 @@ export type PartMaterial = "board" | "fiber" | "wood" | "metal" | "soft" | "glas
 
 /** One box or cylinder of a part made of several (a star base, a cot side with bars), in the part's own frame. */
 export interface PartPiece {
-  shape: "box" | "cyl" | "halfcyl" | "slab"; // halfcyl: half a disc, [dia, thickness, dia / 2], flat edge at the back (-z)
+  shape: "box" | "cyl" | "halfcyl" | "slab" | "arc"; // halfcyl: half a disc, [dia, thickness, dia / 2], flat edge at the back (-z)
+  // arc: a round tube bent in a half circle standing in the y-z plane, its open ends down: [tube dia, bend radius + dia / 2, 2 x bend radius + dia]
   outline?: [number, number][]; // slab: its corners as [x, z] (mm, from pos), drawn as one board of size[1] thickness
   round?: number; // slab: corner radius
   size: Vec3; // mm, box extents or cylinder [dia, length, dia]
