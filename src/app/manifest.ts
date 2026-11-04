@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: `JYSK furniture assembly in 3D, step by step${AI_ENABLED ? ", read out loud" : ""}.`,
     start_url: "/",
     display: "standalone",
-    background_color: "#f5f4f0",
-    theme_color: "#f5f4f0",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
