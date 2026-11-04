@@ -185,7 +185,10 @@ export class PlanBuilder {
   private gap = 0;
   private cur: Step | null = null;
 
-  constructor(public spec: ProductSpec) {}
+  spec: ProductSpec;
+  constructor(spec: ProductSpec) {
+    this.spec = spec;
+  }
 
   part(name: string, size: Vec3, o: { shape?: "box" | "cyl"; material?: PartMaterial; extra?: boolean; made?: boolean; label?: string; tone?: number } = {}) {
     const id = "p" + this.parts.length;

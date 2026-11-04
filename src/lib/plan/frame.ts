@@ -48,10 +48,11 @@ export class FrameKit {
   frontRail?: string;
   pinYs: number[] = [];
 
-  constructor(
-    public b: PlanBuilder,
-    public o: FrameOpts,
-  ) {
+  b: PlanBuilder;
+  o: FrameOpts;
+  constructor(b: PlanBuilder, o: FrameOpts) {
+    this.b = b;
+    this.o = o;
     this.pose = o.lying ? "+z" : "+y";
     this.innerW = o.W - 2 * o.t;
     this.make();
