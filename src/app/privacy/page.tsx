@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { GITHUB_URL } from "@/lib/site";
+import { GITHUB_URL, pageMeta } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Privacy and terms",
-  description: "What assemble.help keeps, what it sends where, and the terms for using the guides.",
-  alternates: { canonical: "/privacy" },
-};
+export const metadata: Metadata = pageMeta("Privacy and terms", "What assemble.help keeps, what it sends where, and the terms for using the guides.", "/privacy");
 
 export default function Privacy() {
   return (

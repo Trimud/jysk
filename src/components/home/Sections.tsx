@@ -6,26 +6,13 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { POPULAR, PRODUCT_COUNT, articleNo, articleSlug, fold, kindOf, searchCatalog, searchText, slugify } from "@/lib/search";
 import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
-import { KIND_ARCH } from "@/lib/products";
-import type { Archetype } from "@/lib/types";
-import { CATS, catNoun } from "@/lib/categories";
+import { CATS, catNoun, inCat } from "@/lib/categories";
 import Drawing from "../Drawing";
 import { useUserKey } from "@/lib/userKey";
 import { Dots } from "../guide/ui";
 import { IArrowRight, IClock, IClose, ISearch } from "../art/Icons";
 
 // a kind no tab names yet still lands in the tab for its furniture type
-const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
-const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "cabinets", table: "tables", bed: "beds", seat: "chairs", sofa: "sofas", custom: "cabinets" };
-
-const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
-  if (!c.kinds && !c.tag) return true;
-  if (c.tag && e.keywords?.includes(c.tag)) return true;
-  // a clothes rail makes it a wardrobe, whatever kind builds it (a wardrobe with drawers is the "mixed" kind)
-  if (!c.tag && e.cabinet?.rail) return c.id === "wardrobes";
-  if (!e.kind) return false;
-  return !!c.kinds?.includes(e.kind) || (!LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id);
-};
 
 /** Cards added per "Show more": a multiple of the 2 and 3 column grids. */
 const PAGE = 24;

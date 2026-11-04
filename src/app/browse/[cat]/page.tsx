@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/site";
 import { notFound } from "next/navigation";
 import { TABS, catNoun } from "@/lib/categories";
 import Browse from "../Browse";
@@ -14,11 +15,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = TABS.find((x) => x.id === cat);
   if (!c) return {};
   const what = catNoun(c);
-  return {
-    title: `JYSK ${what}: assembly guides`,
-    description: `Step-by-step 3D assembly guides for JYSK ${what}: every panel, screw and tool, one step at a time. Search by name or article number.`,
-    alternates: { canonical: `/browse/${c.id}` },
-  };
+  return pageMeta(
+    `JYSK ${what}: assembly guides`,
+    `Step-by-step 3D assembly guides for JYSK ${what}: every panel, screw and tool, one step at a time. Search by name or article number.`,
+    `/browse/${c.id}`,
+  );
 }
 
 // a category that isn't a tab has no page (cacheComponents has no dynamicParams = false)
