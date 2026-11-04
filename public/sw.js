@@ -4,8 +4,8 @@
  * voice clips: cache first, they never change under the same name.
  * The API is never cached here.
  */
-const PAGES = "bygga-pages-v3";
-const FILES = "bygga-files-v3";
+const PAGES = "assemble-pages-v1";
+const FILES = "assemble-files-v1"; // renamed from bygga-*-v3: activate clears the old ones
 const KEEP = [PAGES, FILES];
 
 self.addEventListener("install", (e) => {
