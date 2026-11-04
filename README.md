@@ -6,7 +6,7 @@ Not affiliated with JYSK. Guides are generated drawings: always check them again
 
 ## Status
 
-Phase 0 of the build plan: fork and rebrand. The IKEA catalog has been removed and the JYSK catalog pipeline (`scripts/jysk`) arrives in Phase 1, so there are no guides yet.
+600 JYSK guides, built from the JYSK catalog by `scripts/jysk`. Live at [assemble.help](https://assemble.help).
 
 ## Tech stack
 
@@ -20,6 +20,10 @@ Phase 0 of the build plan: fork and rebrand. The IKEA catalog has been removed a
 1. `git clone https://github.com/Trimud/jysk.git && cd jysk && npm install`
 2. `npm run dev`, then open http://localhost:3000
 3. Before pushing: `npm run lint && npm run build`
+
+## Checks
+
+`npm run jysk:check` builds every guide, then `npm run qa:overlaps` checks each model: no parts through each other, with doors and drawers closed or open, and no fittings floating in the air. GitHub Actions runs it on every push and pull request, and Vercel runs it before every build, so a guide that fails never deploys.
 
 ## Credits and license
 
