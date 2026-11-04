@@ -169,7 +169,6 @@ export default function StepPanel({
             <button className="upnext" onClick={onNext}>
               <span className="upnext-label">Up next</span>
               <span className="upnext-body">
-                <Thumb id={id} plan={plan} mode={{ kind: "step", index: index + 1 }} w={150} h={110} className="upnext-thumb" />
                 <span className="upnext-text">
                   <b>{index + 2}</b>
                   <span>{next.title}</span>

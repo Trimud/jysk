@@ -1720,7 +1720,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px 8px 8px;
+  padding: 14px 16px;
   border-radius: 6px;
   background: var(--sunk);
   transition:
@@ -1736,12 +1736,6 @@ input[type="range"] {
 .upnext-body > svg {
   transition: transform 0.2s var(--ease);
   flex: 0 0 auto;
-}
-.upnext-thumb {
-  width: 76px;
-  flex: 0 0 auto;
-  background-color: #fff;
-  border-radius: 6px;
 }
 .upnext-text {
   flex: 1;
