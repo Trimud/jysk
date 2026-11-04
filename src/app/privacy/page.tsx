@@ -11,7 +11,7 @@ export default function Privacy() {
       <SiteHeader />
       <main className="legal">
         <h1>Privacy and terms</h1>
-        <p className="lead">Short version: no accounts, no cookies, no ads, and nothing sold. Here is exactly what goes where. Last updated October 27, 2026.</p>
+        <p className="lead">Short version: no accounts, no cookies, no ads, and nothing sold. Here is exactly what goes where. Last updated November 4, 2026.</p>
 
         <h2>On your device</h2>
         <ul>
@@ -19,7 +19,8 @@ export default function Privacy() {
           <li>Your own Together AI key, if you add one. Every AI feature runs on it, so it is sent with those requests and used for them only. It is never stored or logged on our side.</li>
           <li>Guides and voice clips you have opened, kept by the browser so they work offline.</li>
         </ul>
-        <p>Clearing this site&apos;s data in your browser deletes all of it.</p>
+        <p>Clearing this site&apos;s data in your browser deletes all of it. None of it is a cookie, and none of it tracks you: it&apos;s only there so the site remembers what you asked it to.</p>
+        <p>The font (Figtree, from Google Fonts) is served from this site, so your browser never contacts Google.</p>
 
         <h2>What reaches our server</h2>
         <ul>
@@ -27,8 +28,8 @@ export default function Privacy() {
           <li>Questions and photos you send from the help panel, and photos of a box label you search with. Photos are resized in your browser first, which also removes location data.</li>
           <li>The text of a voice line that has no recording yet, to record it.</li>
           <li>While the voice is on, short bits of sound from your mic each time someone talks, so it can hear you say &ldquo;next&rdquo;. They are turned into text, and we keep neither.</li>
-          <li>Feedback you send, from the Feedback button or &ldquo;This step doesn&apos;t match my box&rdquo;: what you write, the product and step you were on, and your browser and device type (&ldquo;Safari on iPhone&rdquo;). An email address goes with it only if you type one, so we can reply. It&apos;s kept in our feedback database until we&apos;ve dealt with it.</li>
-          <li>Your IP address, held in memory for a few minutes to stop abuse, then dropped.</li>
+          <li>Feedback you send, from the Feedback button or &ldquo;This step doesn&apos;t match my box&rdquo;: what you write, the product and step you were on, and your browser and device type (&ldquo;Safari on iPhone&rdquo;). An email address goes with it only if you type one, so we can reply. It reaches us as an email, and we delete it once we&apos;ve dealt with it.</li>
+          <li>Your IP address, counted for a few minutes by our server and by Vercel&apos;s firewall to stop abuse.</li>
         </ul>
 
         <h2>Who else sees it</h2>
