@@ -1,0 +1,21 @@
+# Every guide must build and its model must hold together: no parts through each other, closed or open, and no
+# floating fittings (scripts/jysk/check.ts, then scripts/qa/overlaps.ts). Vercel runs the same check before it deploys.
+name: QA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guides:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run -s jysk:check
