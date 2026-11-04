@@ -38,7 +38,7 @@ function entry(key: string, make: () => THREE.BufferGeometry, threshold = 30): G
   return e;
 }
 
-type HullKind = "cyl" | "radial" | "box" | null;
+type HullKind = "cyl" | "radial" | "box" | "normal" | null;
 
 export function addSolid(
   d: Drawable,
@@ -51,7 +51,10 @@ export function addSolid(
     const g = make();
     if (o.hull === "cyl") withCylHullDir(g, o.cy ?? 0);
     else if (o.hull === "box" && o.half) withBoxHullDir(g, ...o.half);
-    else if (o.hull === "radial") {
+    else if (o.hull === "normal") {
+      // the outline pushes each point out along its own surface normal: right for a bent tube, whose middle is empty
+      g.setAttribute("hullDir", g.getAttribute("normal").clone());
+    } else if (o.hull === "radial") {
       g.computeBoundingBox();
       const c = new THREE.Vector3();
       g.boundingBox!.getCenter(c);
@@ -108,6 +111,7 @@ export function partDrawable(p: PartType, holes: Hole[]) {
       const c = MAT_COLOR[mat] ?? FACE.board;
       const at = { position: q.pos, rotation: q.rot };
       if (q.shape === "slab" && q.outline?.length) addSolid(d, `slab:${qy}:${q.round ?? 0}:${q.outline.flat().map(Math.round).join(",")}`, () => slab(q.outline!, qy, q.round ?? 0), c, { hull: "radial", ...at });
+      else if (q.shape === "arc") addSolid(d, `arc:${qx}:${qz}`, () => halfRing((qz - qx) / 2, qx / 2), c, { hull: "normal", ...at });
       else if (q.shape === "halfcyl") addSolid(d, `hcyl:${qx}:${qy}`, () => halfDisc(qx, qy), c, { hull: "radial", ...at });
       else if (q.shape === "cyl") {
         const foot = q.foot ?? qx;
@@ -182,6 +186,15 @@ function slab(pts: [number, number][], h: number, r: number) {
   const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 14 });
   g.rotateX(Math.PI / 2);
   g.translate(0, h / 2, 0);
+  return g;
+}
+
+/** A tube bent in a half circle (the round top of a frame): bend radius r, tube radius t, in the y-z plane, open ends
+ *  down, centred on its box. One smooth piece, so no seam is outlined along the bend. */
+function halfRing(r: number, t: number) {
+  const g = new THREE.TorusGeometry(r, t, 16, 48, Math.PI);
+  g.rotateY(Math.PI / 2);
+  g.translate(0, -(r + t) / 2, 0);
   return g;
 }
 

@@ -18,6 +18,8 @@ type Entry = Omit<ProductSpec, "source" | "slug" | "variants" | "siblings"> & {
   us?: boolean;
   /** IKEA's listing's variant, when src/data/fixes.ts gives the product its own name (slugs.json knows it by this one) */
   listed?: string;
+  /** JYSK's breadcrumb for it, room first and product type last: the browse filters go by it */
+  path?: string[];
 };
 
 /** Hand-checked starting points for popular flat packs. Dimensions in cm. */
@@ -81,7 +83,7 @@ for (const row of decodeRows(JYSK_ROWS)) {
   used.add(slug);
   if (SAME[slug]) continue;
   const r = fixed(row, slug);
-  JYSK.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, manual: r.manual, colours: r.colours, family: fold(r.name), kind: r.kind, keywords: [...(r.keywords ?? []), ...(r.colours ?? []).map((c) => c.sku)], ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}) });
+  JYSK.push({ ...specFor(r.kind, r.name, r.variant, r.w, r.h, r.d, r.x), slug, manual: r.manual, colours: r.colours, family: fold(r.name), kind: r.kind, keywords: [...(r.keywords ?? []), ...(r.path?.length ? [r.path[r.path.length - 1]] : []), ...(r.colours ?? []).map((c) => c.sku)], ...(row.x.us ? { us: true } : row.x.cat ? { late: true } : {}), ...(r.listed ? { listed: r.listed } : {}), ...(r.path ? { path: r.path } : {}) });
 }
 
 /** Every product we can draw offline: hand-checked entries first, then the wider index, then JYSK's catalog. */
@@ -127,7 +129,8 @@ function sizeLabel(x: Entry, same: Entry[]) {
 }
 
 export function toSpec(e: Entry): ProductSpec {
-  const { family, kind, keywords, featured, checked, late, us, listed, ...rest } = e;
+  const { family, kind, keywords, featured, checked, late, us, listed, path, ...rest } = e;
+  void path;
   void listed;
   void late;
   void us;

@@ -2258,3 +2258,133 @@ html:has(.site) body {
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
 }
+
+/* browse filters: rooms as chips, type, series and sort as selects, colours as swatches */
+.cat-filters {
+  display: grid;
+  gap: 12px;
+}
+.cat-rooms,
+.cat-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip,
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--ring);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: box-shadow 0.2s, color 0.2s, background 0.2s;
+}
+.chip small {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.chip:hover,
+.swatch:hover {
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+.chip.on {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: none;
+}
+.chip.on small {
+  color: var(--on-brand);
+}
+.swatch {
+  padding: 0 12px 0 6px;
+}
+.swatch i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(15, 28, 46, 0.18);
+}
+.swatch.on {
+  box-shadow: 0 0 0 2px var(--brand);
+  color: var(--ink);
+}
+.cat-selects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.fsel {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fsel select {
+  height: 38px;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r);
+  background: var(--sunk);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  cursor: pointer;
+}
+.fsel select:focus-visible {
+  outline: 2px solid var(--brand);
+}
+.fclear {
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 720px) {
+  /* rooms and colours scroll in their own row; the selects share the width */
+  .cat-rooms,
+  .cat-colours {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .chip,
+  .swatch {
+    flex: none;
+  }
+  .cat-selects {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .fsel select {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+}

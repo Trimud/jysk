@@ -6,8 +6,8 @@ const IKEA_GUARD = "";
 
 /**
  * Catalog rows (src/data/jysk-rows.ts, written by scripts/jysk/build.ts), one per line:
- * name|kind|variant|w|h|d|params|keywords|slug|manual|colours, colours as name=article=tone/tone… (tones optional),
- * separated by ";" (a colour's name can hold a comma).
+ * name|kind|variant|w|h|d|params|keywords|slug|manual|colours|path, colours as name=article=tone/tone… (tones optional),
+ * separated by ";" (a colour's name can hold a comma); path is JYSK's breadcrumb, room first and type last, split by ">".
  * The IKEA name lookups below are stubs left from Bygga until they are replaced or removed.
  */
 
@@ -25,6 +25,8 @@ export interface IkeaRow {
   /** the maker's own assembly manual (PDF) */
   manual?: string;
   colours?: Colour[];
+  /** where JYSK files it: room first, product type last ("Bedroom>Beds>Bed frames") */
+  path?: string[];
 }
 
 const X_KEYS = ["rows", "cols", "knobs", "plinth", "doors", "shelves", "c", "m", "l", "f", "seats", "arms", "legs", "attach", "shelf", "min", "round", "seatH", "chaise", "corner", "open", "sd", "drawer", "leaves", "leaf", "under", "mats", "dtop", "rail", "slides", "n", "of", "hinge", "use", "z", "basin", "hung", "uf", "ins", "blind", "inner", "u", "v", "cu", "rock", "cat", "cast", "mods", "dr", "foot", "st", "low", "box", "t", "mirror", "up", "us", "ah", "aw", "bk", "lg", "sdp"] as const;
@@ -52,7 +54,7 @@ export function decodeX(s: string): X {
 }
 
 export function encodeRow(r: IkeaRow): string {
-  const cells = [r.name, r.kind, r.variant, r.w, r.h, r.d, encodeX(r.x), (r.keywords ?? []).join(" "), r.slug ?? "", r.manual ?? "", (r.colours ?? []).map((c) => [c.name, c.sku, ...(c.tones?.length ? [c.tones.join("/")] : [])].join("=")).join(";")].map(String);
+  const cells = [r.name, r.kind, r.variant, r.w, r.h, r.d, encodeX(r.x), (r.keywords ?? []).join(" "), r.slug ?? "", r.manual ?? "", (r.colours ?? []).map((c) => [c.name, c.sku, ...(c.tones?.length ? [c.tones.join("/")] : [])].join("=")).join(";"), (r.path ?? []).join(">")].map(String);
   for (const c of cells) if (/[|\n`\\]|\$\{/.test(c)) throw new Error(`can't store ${JSON.stringify(c)}`);
   while (cells.length && !cells[cells.length - 1]) cells.pop();
   return cells.join("|");
@@ -62,8 +64,8 @@ export function decodeRows(text: string): IkeaRow[] {
   const out: IkeaRow[] = [];
   for (const line of text.split("\n")) {
     if (!line) continue;
-    const [name, kind, variant, w, h, d, x = "", kw = "", slug = "", manual = "", colours = ""] = line.split("|");
-    out.push({ name, kind: kind as Kind, variant, w: Number(w), h: Number(h), d: Number(d), x: decodeX(x), keywords: kw ? kw.split(" ") : undefined, slug: slug || undefined, manual: manual || undefined, colours: colours ? colours.split(";").map((c) => { const [n, sku, t] = c.split("="); return { name: n, sku, ...(t ? { tones: t.split("/") } : {}) }; }) : undefined });
+    const [name, kind, variant, w, h, d, x = "", kw = "", slug = "", manual = "", colours = "", path = ""] = line.split("|");
+    out.push({ name, kind: kind as Kind, variant, w: Number(w), h: Number(h), d: Number(d), x: decodeX(x), keywords: kw ? kw.split(" ") : undefined, slug: slug || undefined, manual: manual || undefined, colours: colours ? colours.split(";").map((c) => { const [n, sku, t] = c.split("="); return { name: n, sku, ...(t ? { tones: t.split("/") } : {}) }; }) : undefined, path: path ? path.split(">") : undefined });
   }
   return out;
 }

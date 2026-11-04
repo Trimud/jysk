@@ -187,7 +187,7 @@ export class PlanBuilder {
 
   constructor(public spec: ProductSpec) {}
 
-  part(name: string, size: Vec3, o: { shape?: "box" | "cyl"; material?: PartMaterial; extra?: boolean; label?: string; tone?: number } = {}) {
+  part(name: string, size: Vec3, o: { shape?: "box" | "cyl"; material?: PartMaterial; extra?: boolean; made?: boolean; label?: string; tone?: number } = {}) {
     const id = "p" + this.parts.length;
     this.parts.push({
       id,
@@ -198,6 +198,7 @@ export class PlanBuilder {
       material: o.material ?? "board",
       qty: 0,
       extra: o.extra,
+      ...(o.made ? { made: true } : {}),
       ...(o.tone ? { tone: o.tone } : {}),
     });
     return id;
@@ -208,7 +209,7 @@ export class PlanBuilder {
    * centred on the bounding box of its pieces: `mid` is that centre in the frame the pieces were given
    * in, so placing the part at `mid` (unturned) puts every piece where it was drawn.
    */
-  compound(name: string, pieces: PartPiece[], o: { material?: PartMaterial; extra?: boolean; label?: string; tone?: number } = {}) {
+  compound(name: string, pieces: PartPiece[], o: { material?: PartMaterial; extra?: boolean; made?: boolean; label?: string; tone?: number } = {}) {
     const lo: Vec3 = [Infinity, Infinity, Infinity], hi: Vec3 = [-Infinity, -Infinity, -Infinity];
     for (const p of pieces) {
       const [sx, sy, sz] = p.size;
@@ -224,7 +225,7 @@ export class PlanBuilder {
     }
     const r = (n: number) => Math.round(n * 10) / 10;
     const mid: Vec3 = [r((lo[0] + hi[0]) / 2), r((lo[1] + hi[1]) / 2), r((lo[2] + hi[2]) / 2)];
-    const type = this.part(name, [r(hi[0] - lo[0]), r(hi[1] - lo[1]), r(hi[2] - lo[2])], { material: o.material, extra: o.extra, label: o.label, tone: o.tone });
+    const type = this.part(name, [r(hi[0] - lo[0]), r(hi[1] - lo[1]), r(hi[2] - lo[2])], { material: o.material, extra: o.extra, made: o.made, label: o.label, tone: o.tone });
     this.parts[this.parts.length - 1].pieces = pieces.map((p) => ({ ...p, pos: [r(p.pos[0] - mid[0]), r(p.pos[1] - mid[1]), r(p.pos[2] - mid[2])] }));
     return { type, mid };
   }

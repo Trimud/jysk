@@ -11,6 +11,7 @@
     "voice:names": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/voice/names.ts",
     "voice:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/voice/listen-check.ts",
     "feedback": "node --experimental-transform-types --no-warnings scripts/feedback.ts",
+    "jysk:discover": "node --experimental-transform-types --no-warnings scripts/jysk/discover.ts",
     "jysk:fetch": "node --experimental-transform-types --no-warnings scripts/jysk/fetch.ts",
     "jysk:build": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts",
     "jysk:check": "node --experimental-transform-types --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts",
