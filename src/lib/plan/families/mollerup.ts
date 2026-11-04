@@ -1,5 +1,7 @@
 import type { ProductSpec, Vec3 } from "../../types";
-import { HW, type FitOpts, type HwDef, type PlanBuilder } from "../builder";
+import { HW, type FitOpts, type PlanBuilder } from "../builder";
+import { spread } from "../math";
+import { wallFix } from "./_wall";
 import type { Family } from "./family";
 
 /*
@@ -9,11 +11,11 @@ import type { Family } from "./family";
  * included. x along the board, y up, z out from the wall, the board's back on z = 0.
  */
 
-const A: HwDef = { kind: "screw", len: 30, dia: 4 };
+const A = HW.screwM; // Ø4x30
 
 const L = 500, H = 60, T = 14;
 const PEG = 50, TILT = (20 * Math.PI) / 180; // read off the side view: the pegs rise about 20 degrees
-const xs = [-200, -100, 0, 100, 200];
+const xs = spread(-200, 200, 5);
 const KEY = [-180, 180]; // the two keyholes, near the ends of the back
 
 function build(b: PlanBuilder, s: ProductSpec): boolean {
@@ -49,11 +51,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       kind: "anchor",
       wall: true,
     },
-    () => {
-      b.fits(HW.plug, KEY.map((x): FitOpts => ({ at: [x, H - 15, -3], dir: [0, 0, -1] })), 0.2);
-      b.then(0.1);
-      b.fits(HW.wallScrew, KEY.map((x): FitOpts => ({ at: [x, H - 15, 1], dir: [0, 0, -1] })), 0.2);
-    },
+    () => wallFix(b, KEY.map((x) => [x, H - 15]), 0),
   );
   return true;
 }

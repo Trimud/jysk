@@ -1,6 +1,6 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../types";
 import { HW, PlanBuilder, type FitOpts } from "./builder";
-import { clamp } from "./math";
+import { clamp, range } from "./math";
 
 /**
  * A sun lounger with a backrest that adjusts: two long side rails on four legs, cross rails between them, a slatted seat
@@ -33,16 +33,23 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
   const cross = zc.map((z) => b.place(crossT, [0, cy, z]));
 
   /* ---------- the slatted seat, and the backrest ---------- */
-  const slats = (len: number): PartPiece[] => {
-    const n = Math.max(4, Math.round(len / 95));
-    const step = len / n;
-    return Array.from({ length: n }, (_, i) => ({ shape: "box", size: [W - 20, slatT, step - 22], pos: [0, 0, -len / 2 + step * (i + 0.5)] }));
+  // a section of `len`: its slats across, about 95 mm apart, and the slats' centres along it from its middle
+  const layout = (len: number) => {
+    const n = Math.max(4, Math.round(len / 95)), step = len / n;
+    return { step, at: range(n).map((i) => -len / 2 + step * (i + 0.5)) };
   };
   const batX = W / 2 - railT - legS - 17; // the battens under the slats, inboard of the legs
+  const section = (len: number): PartPiece[] => {
+    const { step, at } = layout(len);
+    return [
+      ...at.map((z): PartPiece => ({ shape: "box", size: [W - 20, slatT, step - 22], pos: [0, 0, z] })),
+      ...[-1, 1].map((sx): PartPiece => ({ shape: "box", size: [30, 20, len - 20], pos: [sx * batX, -slatT / 2 - 10, 0] })),
+    ];
+  };
   const seatLen = L / 2 - zh;
-  const seatC = b.compound("Seat", [...slats(seatLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, seatLen - 20] as Vec3, pos: [sx * batX, -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
+  const seatC = b.compound("Seat", section(seatLen), { material: "wood" });
   const seat = b.place(seatC.type, [0, top - slatT / 2 + seatC.mid[1], zh + seatLen / 2]);
-  const backC = b.compound("Backrest", [...slats(backLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, backLen - 20] as Vec3, pos: [sx * batX, -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
+  const backC = b.compound("Backrest", section(backLen), { material: "wood" });
   // raised: it turns about the hinge, its far end up
   const along: Vec3 = [0, Math.sin(tilt), -Math.cos(tilt)];
   const bc: Vec3 = [0, top - slatT / 2 + along[1] * (backLen / 2), zh + along[2] * (backLen / 2)];
@@ -113,8 +120,8 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
       b.then(0.1);
       const sc: FitOpts[] = [];
       // each screw through the middle of the slat nearest where it's wanted, not into a gap between two
-      const n = Math.max(4, Math.round(seatLen / 95)), step = seatLen / n;
-      const onSlat = (z: number) => zh + step * (clamp(Math.floor((z - zh) / step), 0, n - 1) + 0.5);
+      const mid = zh + seatLen / 2, slatZ = layout(seatLen).at.map((z) => mid + z);
+      const onSlat = (z: number) => slatZ.reduce((a, c) => (Math.abs(c - z) <= Math.abs(a - z) ? c : a)); // a tie: the slat after
       for (const z of [zh + 120, zh + seatLen / 2, L / 2 - 120]) for (const sx of [-1, 1]) sc.push({ on: seat, at: [sx * (W / 2 - railT / 2), top, onSlat(z)], dir: [0, -1, 0], hole: false });
       b.fits(HW.screwM, sc, 0.08);
     },

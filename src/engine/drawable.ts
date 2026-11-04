@@ -5,6 +5,7 @@ import type { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { faceMaterial, hullMaterial, lineMaterial, withBoxHullDir, withCylHullDir, withHullDir } from "./materials";
 import type { HwKind, Hole, PartType } from "@/lib/types";
 import { FACE } from "./materials";
+import { RUNNER } from "./sizes";
 
 export class Drawable {
   root = new THREE.Group();
@@ -290,9 +291,9 @@ export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false
       addSolid(d, "br:v", () => new THREE.BoxGeometry(40, 42, 2), metal, { position: [0, 21, -15] });
       break;
     case "runner":
-      // 12.5 mm off the panel in all, like a real runner: drawers leave 13 mm a side for them (scripts/qa/overlaps.ts)
-      addSolid(d, `run:${len}`, () => new THREE.BoxGeometry(20, 8, len), metal, { position: [0, 4, 0] });
-      addSolid(d, `run:lip:${len}`, () => new THREE.BoxGeometry(4, 4.5, len), metal, { position: [-8, 10.25, 0] });
+      // a rail with a lip along one edge on top (sizes.ts)
+      addSolid(d, `run:${len}`, () => new THREE.BoxGeometry(RUNNER.w, RUNNER.body, len), metal, { position: [0, RUNNER.body / 2, 0] });
+      addSolid(d, `run:lip:${len}`, () => new THREE.BoxGeometry(RUNNER.lipW, RUNNER.lip, len), metal, { position: [-(RUNNER.w - RUNNER.lipW) / 2, RUNNER.body + RUNNER.lip / 2, 0] });
       break;
     case "knob":
       addSolid(d, "knob:stem", cyl(5.5, 12, 14), wood, { hull: "cyl", position: [0, 6, 0] });

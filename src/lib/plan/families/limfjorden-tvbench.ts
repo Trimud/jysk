@@ -1,6 +1,7 @@
 import type { ProductSpec, Vec3 } from "../../types";
 import { HW, type FitOpts, type HwDef, type PlanBuilder, type StepDef } from "../builder";
 import type { Family } from "./family";
+import { wallStep } from "./_wall";
 
 /*
  * JYSK LIMFJORDEN TV bench, 2 drawers 1 door (3630136/37), read from its 37-page manual. Three compartments across:
@@ -75,17 +76,20 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   const btT = part("Drawer bottom", "13", [530, 3, 400], { material: "fiber" });
   const drawers = [-1, 1].map((g) => {
     const cx = g * CXD;
-    return {
-      cx,
-      front: b.place(frT, [g * 601.5, FY, FZ]),
-      sides: [-1, 1].map((k, i) => b.place(dsT[i], [cx + k * (543 / 2 - 6), YD + 90, ZF - 200])),
-      back: b.place(dbT, [cx, YD + 90, ZF - 400 + 6]),
-      bottom: b.place(btT, [cx, YD + 8.5, ZF - 196]),
-    };
+    return b.drawer(
+      {
+        cx,
+        front: b.place(frT, [g * 601.5, FY, FZ]),
+        sides: [-1, 1].map((k, i) => b.place(dsT[i], [cx + k * (543 / 2 - 6), YD + 90, ZF - 200])),
+        back: b.place(dbT, [cx, YD + 90, ZF - 400 + 6]),
+        bottom: b.place(btT, [cx, YD + 8.5, ZF - 196]),
+      },
+      400,
+    );
   });
 
   /* ---------- helpers ---------- */
-  const step = (d: StepDef, body = () => {}) => b.step(d, body);
+  const step = b.step.bind(b);
   const fit = (def: HwDef, on: string | undefined, pts: Vec3[], dir: Vec3, o: Partial<FitOpts> = {}) => {
     b.fits(def, pts.map((at) => ({ on, at, dir, ...o })), 0.06);
     b.then(0.1);
@@ -102,6 +106,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   const sideOf = (x: number) => Math.sign(x) || 1;
   // dowels in a board's top and bottom edges, near the front and back
   const edgeZ = [ZB + 60, 209 - 60];
+  const boltZ = [ZB + 110, 209 - 110]; // the bottom's connector screws and its cam bolts into the sides
 
   /* ---------- the left divider, the rails, the right divider ---------- */
   step({ title: "Tap 4 dowels (A) into the divider (9L)", detail: "Two into its top edge and two into its bottom edge. 8 mm dowels, not the thin 6 mm or long 60 mm ones.", tools: ["hammer"], scene: "s1", kind: "dowels" }, () => {
@@ -161,15 +166,16 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
 
   /* ---------- the bottom and the plinths ---------- */
   const plinthZ = [209 - 8, ZB + 8];
+  const plinthIn = [1, -1]; // which way each plinth's inner face looks (z): the front one back, the back one forward
   const plinthKX = [-650, -150, 150, 650];
   step({ title: "Fit dowels (A) and cam bolts (K) to the bottom (7)", detail: "Two dowels into each end, and eight cam bolts screwed straight into the underside for the plinths.", tools: ["hammer", "screwdriver"], scene: "s5", kind: "dowels" }, () => {
     show(bottom);
-    for (const g of [-1, 1]) fit(A, bottom, [ZB + 60, 209 - 60].map((z): Vec3 => [g * (XI + 0), YB + 8, z]), [g, 0, 0], { mate: g < 0 ? side1 : side2 });
+    for (const g of [-1, 1]) fit(A, bottom, edgeZ.map((z): Vec3 => [g * XI, YB + 8, z]), [g, 0, 0], { mate: g < 0 ? side1 : side2 });
     fit(K, bottom, plinthZ.flatMap((z) => plinthKX.map((x): Vec3 => [x, YB, z])), [0, 1, 0], { mate: plinths[0] });
   });
   step({ title: "Fit the bottom (7) onto the dividers", detail: "Over the dividers' dowels, then four connector screws (G) through the bottom into the dividers with the allen key (U), two into each.", tools: ["allen"], kind: "bolts" }, () => {
     put([bottom], [0, -200, 0]);
-    fit(G, bottom, [-DX, DX].flatMap((x) => [ZB + 110, 209 - 110].map((z): Vec3 => [x, YB, z])), [0, 1, 0], { mate: div9 });
+    fit(G, bottom, [-DX, DX].flatMap((x) => boltZ.map((z): Vec3 => [x, YB, z])), [0, 1, 0], { mate: div9 });
   });
   step({ title: "Tap two glides (N) into each plinth (4)", detail: "Into the bottom edge, about 586 mm in from each end.", tools: ["tape", "hammer"], scene: "s6", kind: "general" }, () => {
     for (const k of plinths) show(k);
@@ -186,16 +192,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     put(plinths, [0, -200, 0]);
     // in each plinth's inner face
     for (const [i, k] of plinths.entries()) {
-      const g = i === 0 ? 1 : -1;
-      fit(J, k, plinthKX.map((x): Vec3 => [x, YB - 20, plinthZ[i] - g * 8]), [0, 0, g]);
+      fit(J, k, plinthKX.map((x): Vec3 => [x, YB - 20, plinthZ[i] - plinthIn[i] * 8]), [0, 0, plinthIn[i]]);
     }
   });
 
   /* ---------- the sides ---------- */
   const sideJoints = (x: number): Vec3[] => [
     [x, RY, RZ - 15], // the rail
-    [x, YB + 8, ZB + 110], // the bottom
-    [x, YB + 8, 209 - 110],
+    ...boltZ.map((z): Vec3 => [x, YB + 8, z]), // the bottom
     [x, GL + 60, plinthZ[0]], // the plinths
     [x, GL + 60, plinthZ[1]],
   ];
@@ -216,8 +220,8 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     const g = sideOf(x), cx = g * (XI - 25);
     put([sd], [g * 250, 0, 0]);
     fit(J, g < 0 ? rail5L : rail5R, [[cx, RY - 16, RZ - 15]], [0, 1, 0]);
-    fit(J, bottom, [ZB + 110, 209 - 110].map((z): Vec3 => [cx, YB, z]), [0, 1, 0]);
-    for (const [i, k] of plinths.entries()) fit(J, k, [[cx, GL + 60, plinthZ[i] - (i === 0 ? 8 : -8)]], [0, 0, i === 0 ? 1 : -1]);
+    fit(J, bottom, boltZ.map((z): Vec3 => [cx, YB, z]), [0, 1, 0]);
+    for (const [i, k] of plinths.entries()) fit(J, k, [[cx, GL + 60, plinthZ[i] - plinthIn[i] * 8]], [0, 0, plinthIn[i]]);
   };
   step({ title: "Fit dowels, cam bolts and glides to the left side (1L)", detail: "Two dowels (A) into its top edge, five cam bolts (K) screwed straight in, and two glides (N) into its bottom edge, about 20 mm from the front and back.", tools: ["tape", "hammer", "screwdriver"], scene: "s7", kind: "cams" }, () => prepSide(side1, -SX));
   step({ title: "Screw the cabinet runner (CL) onto the left side", detail: "Four short 13 mm screws (E), roller end at the front.", tools: ["screwdriver"], scene: "s7", kind: "runners" }, () => sideRunner(side1, -SX, CL));
@@ -238,10 +242,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   step({ title: "Lay the top on and lock it", detail: "Stand the bench on its glides. The top goes over the dowels of both sides and both dividers. Eight cam locks (J), two in each.", tools: ["flathead"], kind: "cams", people: 2 }, () => {
     put([top], [0, 250, 0]);
     // in the inner face of each side, and a face of each divider
-    for (const [x, face, k] of [[-SX, -XI, side1], [-DX, -DX + 8, div9], [DX, DX - 8, div8], [SX, XI, side2]] as const) {
-      const g = x === -SX ? -1 : x === SX ? 1 : -sideOf(x);
-      fit(J, k, edgeZ.map((z): Vec3 => [face, YT - 25, z + 50]), [g, 0, 0]);
-    }
+    for (const [face, g, k] of [[-XI, -1, side1], [-DX + 8, 1, div9], [DX - 8, -1, div8], [XI, 1, side2]] as const) fit(J, k, edgeZ.map((z): Vec3 => [face, YT - 25, z + 50]), [g, 0, 0]);
   });
   step({ title: "Lay the back (14) on", detail: "Cable holes at the top. Turn the bench onto its front on a rug first if that's easier.", kind: "general" }, () => put([back], [0, 0, -250]));
   const nail = (x: number, y: number): FitOpts => ({ on: back, at: [x, y, ZB - 3], dir: [0, 0, 1] });
@@ -254,21 +255,11 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     list.push(nail(-20, YB + 8), nail(20, YB + 8)); // 2
     b.fits(M, list, 0.03);
   });
-  step(
-    {
-      title: "Fix it to the wall",
-      detail: "Push it against the wall, mark through the two brackets, drill and plug the holes, screw the brackets to the wall, then tighten the bracket screws (S) fully. Wall screws and plugs aren't included: pick ones made for your wall.",
-      tools: ["pencil", "drill", "hammer", "screwdriver"],
-      kind: "anchor",
-      wall: true,
-      warnings: ["tip", "wall"],
-    },
-    () => {
-      b.fits(HW.plug, brX.map((x): FitOpts => ({ at: [x, YT - 24, ZB - 3], dir: [0, 0, -1] })), 0.2);
-      b.then(0.1);
-      b.fits(HW.wallScrew, brX.map((x): FitOpts => ({ at: [x, YT - 24, ZB + 1], dir: [0, 0, -1] })), 0.2);
-    },
-  );
+  wallStep(b, brX, YT, ZB, {
+    title: "Fix it to the wall",
+    detail: "Push it against the wall, mark through the two brackets, drill and plug the holes, screw the brackets to the wall, then tighten the bracket screws (S) fully. Wall screws and plugs aren't included: pick ones made for your wall.",
+    pose: undefined,
+  });
   const pinZ = [ZB + 40, 186 - 40];
   step({ title: "Push the four shelf pins (P) into the dividers", detail: "In the middle compartment, the same height on all four. Tap them in gently with the hammer.", tools: ["hammer"], kind: "shelves" }, () =>
     b.fits(P, [[div9, -DX + 8, -1], [div8, DX - 8, 1]].flatMap(([k, x, g]) => pinZ.map((z): FitOpts => ({ on: k as string, at: [x as number, SHY - 8 - 3, z], dir: [g as number, 0, 0] }))), 0.08),
@@ -335,7 +326,6 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       b.add(shelf, [0, 0, 400]);
     },
   );
-  for (const d of drawers) b.openDrawer([d.front, ...d.sides, d.back, d.bottom], 400);
 
   /* ---------- the door ---------- */
   const hx = -300 + 22, hys = [FY - 85, FY + 85];

@@ -63,7 +63,7 @@ export function buildRack(b: PlanBuilder, s: ProductSpec) {
       const list: FitOpts[] = [];
       for (const [i, sx] of [-1, 1].entries())
         // through the 30 mm tube into the shelf's end: two side by side, inside the tube
-        for (const z of shoes ? [-8, 8] : [0]) list.push({ on: ups[i], at: [sx * (ux + tube / 2), lowY, z], dir: [-sx, 0, 0], mate: low });
+        for (const z of shoes ? [-tube / 4, tube / 4] : [0]) list.push({ on: ups[i], at: [sx * (ux + tube / 2), lowY, z], dir: [-sx, 0, 0], mate: low });
       b.fits(HW.boltS, list, 0.12);
     },
   );

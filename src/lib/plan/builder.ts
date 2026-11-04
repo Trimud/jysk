@@ -306,7 +306,7 @@ export class PlanBuilder {
 
   /* ---------- step context ---------- */
 
-  step(def: StepDef, body: () => void) {
+  step(def: StepDef, body: () => void = () => {}) {
     const s: Step = {
       n: this.steps.length,
       title: def.title,

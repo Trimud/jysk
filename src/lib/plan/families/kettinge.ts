@@ -1,5 +1,7 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
-import { HW, type FitOpts, type HwDef, type PlanBuilder } from "../builder";
+import type { FitOpts, HwDef, PlanBuilder } from "../builder";
+import { range } from "../math";
+import { wallFix } from "./_wall";
 import type { Family } from "./family";
 
 /*
@@ -26,12 +28,12 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   // the bottom half's battens run up past the seam in the front half of their depth, the top half's down in the back half
   const bottomHalf = b.compound(
     "Panel half",
-    [...Array.from({ length: 11 }, (_, i) => slat(i)), ...bx.flatMap((x) => [box([40, SEAM - LAP, BT], [x, (SEAM - LAP) / 2, BT / 2]), box([40, 2 * LAP, BT / 2], [x, SEAM, (3 * BT) / 4])])],
+    [...range(11).map(slat), ...bx.flatMap((x) => [box([40, SEAM - LAP, BT], [x, (SEAM - LAP) / 2, BT / 2]), box([40, 2 * LAP, BT / 2], [x, SEAM, (3 * BT) / 4])])],
     { material: "wood", label: "2" },
   );
   const topHalf = b.compound(
     "Panel half",
-    [...Array.from({ length: 11 }, (_, i) => slat(i + 11)), ...bx.flatMap((x) => [box([40, H - SEAM - LAP, BT], [x, (H + SEAM + LAP) / 2, BT / 2]), box([40, 2 * LAP, BT / 2], [x, SEAM, BT / 4])])],
+    [...range(11).map((i) => slat(i + 11)), ...bx.flatMap((x) => [box([40, H - SEAM - LAP, BT], [x, (H + SEAM + LAP) / 2, BT / 2]), box([40, 2 * LAP, BT / 2], [x, SEAM, BT / 4])])],
     { material: "wood", label: "1" },
   );
   const lower = b.place(bottomHalf.type, bottomHalf.mid);
@@ -62,11 +64,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       kind: "anchor",
       wall: true,
     },
-    () => {
-      b.fits(HW.plug, outer.map((x): FitOpts => ({ at: [x, H - 30, -3], dir: [0, 0, -1] })), 0.2);
-      b.then(0.1);
-      b.fits(HW.wallScrew, outer.map((x): FitOpts => ({ at: [x, H - 30, 1], dir: [0, 0, -1] })), 0.2);
-    },
+    () => wallFix(b, outer.map((x) => [x, H - 30]), 0),
   );
   b.step(
     {
@@ -76,11 +74,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       kind: "anchor",
       wall: true,
     },
-    () => {
-      b.fits(HW.plug, outer.map((x): FitOpts => ({ at: [x, 30, -3], dir: [0, 0, -1] })), 0.2);
-      b.then(0.1);
-      b.fits(HW.wallScrew, outer.map((x): FitOpts => ({ at: [x, 30, BT], dir: [0, 0, -1] })), 0.2);
-    },
+    () => wallFix(b, outer.map((x) => [x, 30]), 0, BT), // the screws through the batten
   );
   return true;
 }

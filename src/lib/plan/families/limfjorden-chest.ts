@@ -1,7 +1,8 @@
 import type { ProductSpec, Vec3 } from "../../types";
-import { HW, PlanBuilder, type FitOpts, type HwDef, type StepDef } from "../builder";
+import { PlanBuilder, type FitOpts, type HwDef, type StepDef } from "../builder";
 import { range, sg, spread } from "../math";
 import type { Family } from "./family";
+import { wallStep } from "./_wall";
 
 /*
  * LIMFJORDEN 4 drawer chest (JYSK 3670661 and its colours), read from JYSK's 30-page manual (Rev.1, 03.02.2026).
@@ -282,7 +283,7 @@ function build4(b: PlanBuilder) {
       b.fits(M, list, 0.04);
     },
   );
-  wallStep(b, [0], TY);
+  wallStep(b, [0], TY, ZB);
 
   drawerSteps(b, range(n).map((i) => ({ i, cx: 0, fx: 0 })));
   return true;
@@ -569,30 +570,9 @@ function build33(b: PlanBuilder) {
       b.fits(M, list, 0.04);
     },
   );
-  wallStep(b, ux, TY3);
+  wallStep(b, ux, TY3, ZB);
   drawerSteps(b, range(3).flatMap((i) => [-1, 1].map((g) => ({ i, cx: g * CX3, fx: g * FX3 }))));
   return true;
-}
-
-/** Fixing it to the wall through its brackets (at these x), before the drawers go in. */
-function wallStep(b: PlanBuilder, xs: number[], ty: number) {
-  const many = xs.length > 1, s = many ? "s" : "";
-  b.step(
-    {
-      title: "Stand it up and fix it to the wall",
-      detail: `Push it against the wall, mark through the bracket${s}, drill and plug the hole${s}, screw the bracket${s} to the wall and tighten the ${many ? "bracket screws" : "two bracket screws"} fully. Wall screws and plugs aren't included: pick ones made for your wall.`,
-      tools: ["pencil", "drill", "hammer", "screwdriver"],
-      pose: "+y",
-      kind: "anchor",
-      wall: true,
-      warnings: ["tip", "wall"],
-    },
-    () => {
-      b.fits(HW.plug, xs.map((x) => ({ at: [x, ty - 24, ZB - 3], dir: [0, 0, -1] as Vec3 })), 0.2);
-      b.then(0.1);
-      b.fits(HW.wallScrew, xs.map((x) => ({ at: [x, ty - 24, ZB + 1], dir: [0, 0, -1] as Vec3 })), 0.2);
-    },
-  );
 }
 
 /** The drawers (the same in both chests): one built step by step on its front, the others the same, then all slid in; the load limits last. */

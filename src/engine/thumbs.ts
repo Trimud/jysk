@@ -11,10 +11,12 @@ let stage: Stage | null = null;
 let busy = false;
 const cache = new Map<string, Shot>();
 const waiting = new Map<string, ((s: Shot) => void)[]>();
-/** How the finished piece is shown in a still: X-ray, and everything that opens opened (the QA snapshots). */
+/** How the finished piece is shown in a still: X-ray, and everything that opens opened (the QA snapshots).
+ *  `once`: drawn for one caller that keeps it itself, so not cached (thousands of QA views would pile up). */
 export interface Look {
   xray?: boolean;
   open?: boolean;
+  once?: boolean;
 }
 const queue: { key: string; plan: Plan; mode: StageMode; w: number; h: number; probes?: Vec3[]; look?: Look }[] = [];
 
@@ -43,7 +45,7 @@ async function pump() {
       s.openAll(!!job.look?.open, true);
       const url = s.snapshot(job.w, job.h);
       const shot: Shot = { url, points: (job.probes ?? []).map((p) => s.locate(p)) };
-      cache.set(job.key, shot);
+      if (!job.look?.once) cache.set(job.key, shot);
       waiting.get(job.key)?.forEach((cb) => cb(shot));
       waiting.delete(job.key);
       await new Promise((r) => setTimeout(r, 8));

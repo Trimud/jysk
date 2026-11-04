@@ -40,16 +40,13 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   });
   const holes = ROW.map((h): Vec3 => [h.x, y, 0]);
 
-  b.step(
-    {
-      title: "Mark and drill a hole for each hook",
-      detail: "Mark the five spots on the wall, level with each other, and drill a hole at each one with a bit to suit your wall plugs.",
-      tools: ["tape", "pencil", "level", "drill"],
-      kind: "anchor",
-      wall: true,
-    },
-    () => {},
-  );
+  b.step({
+    title: "Mark and drill a hole for each hook",
+    detail: "Mark the five spots on the wall, level with each other, and drill a hole at each one with a bit to suit your wall plugs.",
+    tools: ["tape", "pencil", "level", "drill"],
+    kind: "anchor",
+    wall: true,
+  });
   b.step(
     {
       title: "Tap a wall plug into each hole",
