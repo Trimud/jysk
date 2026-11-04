@@ -82,6 +82,18 @@ function Marked({ children, size }: { children: string; size: number }) {
   );
 }
 
+/** The call to action, drawn as the site's primary button: blue, white words, an arrow. */
+function Cta({ children }: { children: string }) {
+  return (
+    <div style={{ display: "flex", alignSelf: "flex-start", alignItems: "center", gap: 12, marginTop: 28, padding: "13px 22px", borderRadius: 6, background: BRAND, color: "#fff", fontSize: 24, fontWeight: 700 }}>
+      <span>{children}</span>
+      <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+    </div>
+  );
+}
+
 function render(node: React.ReactElement) {
   return new ImageResponse(node, { ...OG_SIZE, fonts: FONTS });
 }
@@ -119,6 +131,9 @@ export function siteCard() {
         <div style={{ display: "flex", flexDirection: "column", fontFamily: "Display", fontWeight: 800, fontSize: H, lineHeight: 1, letterSpacing: "-0.045em" }}>
           <span>JYSK assembly,</span>
           <span style={{ marginTop: 4 }}>step by step.</span>
+          <div style={{ display: "flex", fontFamily: "Sans", letterSpacing: "normal", lineHeight: 1.2 }}>
+            <Cta>Find your guide, free</Cta>
+          </div>
         </div>
         <Powered />
       </div>
@@ -165,7 +180,7 @@ function Sheet({ children }: { children: React.ReactNode }) {
  * The card for a page that isn't one guide: a kicker, the page's words in the display face, and the
  * pictures it is about on the sheet (one large, or up to four in a grid). With no pictures the words take the width.
  */
-export function pageCard(o: { kicker: string; title: string; line?: string; art?: string[] }) {
+export function pageCard(o: { kicker: string; title: string; line?: string; cta?: string; art?: string[] }) {
   const art = (o.art ?? []).slice(0, 4);
   const wide = art.length === 0;
   return render(
@@ -182,6 +197,7 @@ export function pageCard(o: { kicker: string; title: string; line?: string; art?
               </span>
             </div>
           )}
+          {o.cta && <Cta>{o.cta}</Cta>}
         </div>
         <Powered />
       </div>
@@ -215,6 +231,7 @@ export function guideCard(o: { name: string; variant: string; steps: number | nu
               <Marked size={26}>{o.steps ? `${o.steps} steps, in 3D` : "Every step, in 3D"}</Marked>
             </span>
           </div>
+          <Cta>Start the free guide</Cta>
         </div>
         <Powered />
       </div>

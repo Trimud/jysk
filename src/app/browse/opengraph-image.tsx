@@ -11,5 +11,5 @@ const ART = ["wardrobe-limfjorden-180x200-3-doors-3-drawers-beige", "sofa-dalshu
 const art = (await Promise.all(ART.map(drawing))).filter((d): d is string => !!d);
 
 export default function Image() {
-  return pageCard({ kicker: "All guides", title: "All JYSK guides", line: `${PRODUCT_COUNT} products, every step in 3D`, art });
+  return pageCard({ kicker: "All guides", title: "All JYSK guides", line: `${PRODUCT_COUNT} products, every step in 3D`, cta: "Find your guide", art });
 }

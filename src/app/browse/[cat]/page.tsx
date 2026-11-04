@@ -22,6 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
 }
 
+// every tab is prerendered (generateStaticParams), so navigating between them is instant. params is read only to
+// 404 an unknown one: a <Suspense> around that would show the browse page under a 404, so skip the dev check here
+export const instant = false;
+
 // a category that isn't a tab has no page (cacheComponents has no dynamicParams = false)
 export default async function Page({ params }: Props) {
   const { cat } = await params;

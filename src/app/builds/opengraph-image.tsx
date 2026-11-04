@@ -8,5 +8,5 @@ export const contentType = "image/png";
 const art = await drawing("hero-bygga");
 
 export default function Image() {
-  return pageCard({ kicker: "Your workshop", title: "Pick up where you left off", line: "Every build you started", art: art ? [art] : [] });
+  return pageCard({ kicker: "Your workshop", title: "Pick up where you left off", line: "Every build you started", cta: "Open your workshop", art: art ? [art] : [] });
 }

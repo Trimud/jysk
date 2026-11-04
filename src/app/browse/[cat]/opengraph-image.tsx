@@ -17,6 +17,7 @@ export default async function Image({ params }: { params: Promise<{ cat: string 
     kicker: "JYSK assembly guides",
     title: c.label + (c.tag ? " furniture" : ""),
     line: `${guides.length} ${guides.length === 1 ? "guide" : "guides"}, every step in 3D`,
+    cta: guides.length === 1 ? "Open the guide" : "See the guides",
     art,
   });
 }
