@@ -12,8 +12,7 @@ import Compare from "@/components/home/Compare";
 import { Figure } from "@/components/art/Figure";
 import { ToolArt } from "@/components/art/Tools";
 import { HwArt } from "@/components/art/Hardware";
-import { IArrowOut, IArrowRight, IScan } from "@/components/art/Icons";
-import { TogetherMark } from "@/components/art/Together";
+import { IArrowRight, IScan } from "@/components/art/Icons";
 import { PRODUCT_COUNT } from "@/lib/search";
 import { AI_ENABLED, SCAN_ENABLED, SITE_URL } from "@/lib/site";
 
@@ -43,17 +42,6 @@ export default function Home() {
 
       <section className="hero">
         <div className="hero-copy">
-          {AI_ENABLED && (
-          <a className="tg-pill" href="https://togetherai.link/" target="_blank" rel="noreferrer">
-            <span className="tg-badge">
-              <TogetherMark size={16} />
-            </span>
-            <span className="tg-text">
-              Powered by <b>Together AI</b>
-            </span>
-            <IArrowOut size={14} className="tg-go" />
-          </a>
-          )}
           <h1>
             JYSK assembly,
             <br />
