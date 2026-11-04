@@ -11,7 +11,12 @@ let stage: Stage | null = null;
 let busy = false;
 const cache = new Map<string, Shot>();
 const waiting = new Map<string, ((s: Shot) => void)[]>();
-const queue: { key: string; plan: Plan; mode: StageMode; w: number; h: number; probes?: Vec3[] }[] = [];
+/** How the finished piece is shown in a still: X-ray, and everything that opens opened (the QA snapshots). */
+export interface Look {
+  xray?: boolean;
+  open?: boolean;
+}
+const queue: { key: string; plan: Plan; mode: StageMode; w: number; h: number; probes?: Vec3[]; look?: Look }[] = [];
 
 async function ensure() {
   if (stage) return stage;
@@ -34,6 +39,8 @@ async function pump() {
       if (cache.has(job.key)) continue;
       s.setPlan(job.plan);
       s.setMode(job.mode, { instant: true });
+      s.setXray(!!job.look?.xray);
+      s.openAll(!!job.look?.open, true);
       const url = s.snapshot(job.w, job.h);
       const shot: Shot = { url, points: (job.probes ?? []).map((p) => s.locate(p)) };
       cache.set(job.key, shot);
@@ -47,14 +54,14 @@ async function pump() {
 }
 
 /** Render a static line drawing and report where the probe points landed in the image. */
-export function shot(key: string, plan: Plan, mode: StageMode, w = 360, h = 270, probes?: Vec3[]): Promise<Shot> {
+export function shot(key: string, plan: Plan, mode: StageMode, w = 360, h = 270, probes?: Vec3[], look?: Look): Promise<Shot> {
   const hit = cache.get(key);
   if (hit) return Promise.resolve(hit);
   return new Promise((resolve) => {
     const list = waiting.get(key) ?? [];
     list.push(resolve);
     waiting.set(key, list);
-    if (!queue.some((q) => q.key === key)) queue.push({ key, plan, mode, w, h, probes });
+    if (!queue.some((q) => q.key === key)) queue.push({ key, plan, mode, w, h, probes, look });
     pump();
   });
 }

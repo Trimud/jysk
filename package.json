@@ -16,6 +16,7 @@
     "jysk:build": "node --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/build.ts && npm run -s qa:overlaps -- --jysk",
     "jysk:check": "node --no-warnings --import ./scripts/voice/register.mjs scripts/jysk/check.ts && npm run -s qa:overlaps -- --jysk",
     "families": "node scripts/families.mjs",
+    "qa:snapshots": "node scripts/qa/snapshots.mjs",
     "qa:overlaps": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/overlaps.ts"
   },
   "dependencies": {

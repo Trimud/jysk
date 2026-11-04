@@ -57,3 +57,6 @@ next-env.d.ts
 
 # taste-skill inspector output
 .taste-skill/
+
+# QA snapshots: drawings, references and the report stay on the machine that reviews them
+/.qa/

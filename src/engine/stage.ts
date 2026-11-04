@@ -533,9 +533,12 @@ export class Stage {
     this.xray = on;
   }
 
-  /** Opens (or closes) everything that opens on the preview. */
-  openAll(open: boolean) {
-    for (const o of this.opens) o.to = open ? 1 : 0;
+  /** Opens (or closes) everything that opens on the preview; `instant` skips the swing (a still picture). */
+  openAll(open: boolean, instant = false) {
+    for (const o of this.opens) {
+      o.to = open ? 1 : 0;
+      if (instant) o.k = o.to;
+    }
     this.opts.onOpen?.(open);
   }
 
