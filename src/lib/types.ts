@@ -283,6 +283,7 @@ export interface PartPiece {
   outline?: [number, number][]; // slab: its corners as [x, z] (mm, from pos), drawn as one board of size[1] thickness
   round?: number; // slab: corner radius
   size: Vec3; // mm, box extents or cylinder [dia, length, dia]
+  foot?: number; // cyl: its diameter at the -y end, when it tapers (a table leg); size[0] is then the +y end's
   pos: Vec3; // mm, from the centre of the part
   rot?: Vec3;
   material?: PartMaterial;

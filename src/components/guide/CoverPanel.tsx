@@ -47,6 +47,11 @@ export default function CoverPanel({
           <p className="eyebrow">{s.brand ? `${s.brand}, ${s.category.toLowerCase()}` : s.category}</p>
           <h1 className="product-name">{s.name}</h1>
           <p className="product-variant">{s.variant}</p>
+          {(() => {
+            // the number on the box and on JYSK's page: the colour picked below has its own
+            const sku = (s.colours?.find((c) => c.name === colour) ?? s.colours?.[0])?.sku;
+            return sku && <p className="product-article">Article no. {sku}</p>;
+          })()}
           {built && (
             <p className="built-pill">
               <ICheck size={15} strokeWidth={2.6} />

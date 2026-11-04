@@ -1,4 +1,5 @@
-import type { Kind } from "./products";
+import { KIND_ARCH, type Kind } from "./products";
+import type { CatalogEntry } from "./catalog";
 import type { Archetype } from "./types";
 
 /**
@@ -64,3 +65,24 @@ export const catNoun = (c: (typeof CATS)[number]) => c.label.toLowerCase() + (c.
 
 /** JYSK type names that read oddly on their own, as the filters show them. */
 export const TYPE_LABEL: Record<string, string> = { "Misc.": "Other storage", "Bookshelves and Room Dividers": "Bookcases and room dividers" };
+
+// a kind no tab names yet still lands in the tab for its furniture type
+const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
+// JYSK types two tabs share (bar stools and bar tables): there the kind of thing decides
+const SHARED = new Set(CATS.flatMap((c) => c.types ?? []).filter((t, i, all) => all.indexOf(t) !== i));
+const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "cabinets", table: "tables", bed: "beds", seat: "chairs", sofa: "sofas", custom: "cabinets" };
+
+/** Whether a guide belongs under a tab. */
+export const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
+  if (!c.kinds && !c.tag && !c.types) return true;
+  if (c.tag) return !!e.keywords?.includes(c.tag) || (!!e.kind && !!c.kinds?.includes(e.kind));
+  // garden furniture lives in the Garden tab only, as it does on JYSK
+  if (e.keywords?.includes("outdoor")) return false;
+  // a JYSK product goes by JYSK's own type for it
+  const type = e.path?.[e.path.length - 1];
+  if (type) return !!c.types?.includes(type) && (!SHARED.has(type) || !c.arch || c.arch.includes(KIND_ARCH[e.kind!] ?? e.archetype));
+  // a clothes rail makes it a wardrobe, whatever kind builds it (a wardrobe with drawers is the "mixed" kind)
+  if (e.cabinet?.rail) return c.id === "wardrobes";
+  if (!e.kind) return false;
+  return !!c.kinds?.includes(e.kind) || (!LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id);
+};

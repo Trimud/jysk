@@ -113,7 +113,10 @@ export function partDrawable(p: PartType, holes: Hole[]) {
       if (q.shape === "slab" && q.outline?.length) addSolid(d, `slab:${qy}:${q.round ?? 0}:${q.outline.flat().map(Math.round).join(",")}`, () => slab(q.outline!, qy, q.round ?? 0), c, { hull: "radial", ...at });
       else if (q.shape === "arc") addSolid(d, `arc:${qx}:${qz}`, () => halfRing((qz - qx) / 2, qx / 2), c, { hull: "normal", ...at });
       else if (q.shape === "halfcyl") addSolid(d, `hcyl:${qx}:${qy}`, () => halfDisc(qx, qy), c, { hull: "radial", ...at });
-      else if (q.shape === "cyl") addSolid(d, `cyl:${qx}:${qy}`, () => new THREE.CylinderGeometry(qx / 2, qx / 2, qy, 32), c, { hull: "cyl", ...at });
+      else if (q.shape === "cyl") {
+        const foot = q.foot ?? qx;
+        addSolid(d, `cyl:${qx}:${qy}:${foot}`, () => new THREE.CylinderGeometry(qx / 2, foot / 2, qy, 32), c, { hull: "cyl", ...at });
+      }
       else if (mat === "soft") addSolid(d, `soft:${qx}:${qy}:${qz}`, () => roundedBox(qx, qy, qz, Math.min(42, qy / 2.4, qx / 3, qz / 3)), c, { hull: "box", half: [qx / 2, qy / 2, qz / 2], edges: false, ...at });
       else addSolid(d, `box:${qx}:${qy}:${qz}`, () => new THREE.BoxGeometry(qx, qy, qz), c, at);
       d.mats.push(mat);

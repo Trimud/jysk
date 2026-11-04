@@ -46,7 +46,7 @@ export async function drawing(name: string) {
 function Logo() {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", alignSelf: "flex-start", padding: "8px 15px 11px", borderRadius: 4, background: BRAND, color: "#fff", fontFamily: "Display", fontSize: 40, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1 }}>
-      <svg viewBox="0 0 33 32" width={23} height={22.4} style={{ marginBottom: 1, marginRight: 1 }}>
+      <svg viewBox="0 0 33 32" width={23} height={22.4} style={{ marginBottom: 4, marginRight: 1 }}>
         <path fillRule="evenodd" d={RING} fill="#fff" />
         <path d={STEM} fill="#fff" />
         <path d={SOCKET} fill="#fff" />
@@ -78,6 +78,18 @@ function Marked({ children, size }: { children: string; size: number }) {
     <div style={{ display: "flex", position: "relative", fontSize: size }}>
       <div style={{ position: "absolute", left: -size * 0.06, right: -size * 0.08, bottom: size * 0.1, height: size * 0.36, background: ACCENT, borderRadius: size * 0.06 }} />
       <span>{children}</span>
+    </div>
+  );
+}
+
+/** The call to action, drawn as the site's primary button: blue, white words, an arrow. */
+function Cta({ children }: { children: string }) {
+  return (
+    <div style={{ display: "flex", alignSelf: "flex-start", alignItems: "center", gap: 12, marginTop: 28, padding: "13px 22px", borderRadius: 6, background: BRAND, color: "#fff", fontSize: 24, fontWeight: 700 }}>
+      <span>{children}</span>
+      <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
     </div>
   );
 }
@@ -119,6 +131,9 @@ export function siteCard() {
         <div style={{ display: "flex", flexDirection: "column", fontFamily: "Display", fontWeight: 800, fontSize: H, lineHeight: 1, letterSpacing: "-0.045em" }}>
           <span>JYSK assembly,</span>
           <span style={{ marginTop: 4 }}>step by step.</span>
+          <div style={{ display: "flex", fontFamily: "Sans", letterSpacing: "normal", lineHeight: 1.2 }}>
+            <Cta>Find your guide, free</Cta>
+          </div>
         </div>
         <Powered />
       </div>
@@ -138,6 +153,68 @@ function nameSize(name: string) {
   return Math.max(56, Math.min(lines.length > 1 ? 80 : 118, Math.floor(NAME_W / em)));
 }
 
+/** The white sheet that runs off the card's right and bottom edges, as on a guide card. */
+function Sheet({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        flex: 1,
+        alignItems: "center",
+        alignContent: "center",
+        justifyContent: "center",
+        margin: "28px -60px -60px 0",
+        padding: "0 60px 60px 0",
+        background: "#ffffff",
+        borderRadius: "36px 0 0 0",
+        boxShadow: "0 24px 60px rgba(30,26,16,0.12), 0 2px 8px rgba(30,26,16,0.05)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The card for a page that isn't one guide: a kicker, the page's words in the display face, and the
+ * pictures it is about on the sheet (one large, or up to four in a grid). With no pictures the words take the width.
+ */
+export function pageCard(o: { kicker: string; title: string; line?: string; cta?: string; art?: string[] }) {
+  const art = (o.art ?? []).slice(0, 4);
+  const wide = art.length === 0;
+  return render(
+    <div style={{ width: "100%", height: "100%", display: "flex", background: PAGE, fontFamily: "Sans", color: INK, overflow: "hidden" }}>
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: wide ? "100%" : 540, height: "100%", flex: "none", padding: `${PAD - 8}px ${wide ? PAD : 40}px ${PAD - 12}px ${PAD}px` }}>
+        <Logo />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontSize: 24, fontWeight: 700, color: INK_2 }}>{o.kicker}</span>
+          <span style={{ display: "flex", flexWrap: "wrap", fontFamily: "Display", fontWeight: 800, fontSize: wide ? 96 : 72, lineHeight: 1.02, letterSpacing: "-0.045em", marginTop: 10 }}>{o.title}</span>
+          {o.line && (
+            <div style={{ display: "flex", marginTop: 22 }}>
+              <span style={{ display: "flex", fontSize: 26, fontWeight: 700 }}>
+                <Marked size={26}>{o.line}</Marked>
+              </span>
+            </div>
+          )}
+          {o.cta && <Cta>{o.cta}</Cta>}
+        </div>
+        <Powered />
+      </div>
+      {!wide && (
+        <Sheet>
+          {art.map((src, i) => {
+            // one fills the sheet, two stack, three or four share a grid
+            const [w, h] = art.length === 1 ? [660, 578] : art.length === 2 ? [600, 280] : [300, 263];
+            // eslint-disable-next-line @next/next/no-img-element
+            return <img key={i} src={src} alt="" width={w} height={h} style={{ objectFit: "contain" }} />;
+          })}
+        </Sheet>
+      )}
+    </div>,
+  );
+}
+
 export function guideCard(o: { name: string; variant: string; steps: number | null; art: string | null }) {
   const size = nameSize(o.name);
   const variant = spellOut(o.variant);
@@ -154,27 +231,15 @@ export function guideCard(o: { name: string; variant: string; steps: number | nu
               <Marked size={26}>{o.steps ? `${o.steps} steps, in 3D` : "Every step, in 3D"}</Marked>
             </span>
           </div>
+          <Cta>Start the free guide</Cta>
         </div>
         <Powered />
       </div>
       {/* the product on a sheet of white that runs off the card */}
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "28px -60px -60px 0",
-          paddingRight: 60,
-          paddingBottom: 60,
-          background: "#ffffff",
-          borderRadius: "36px 0 0 0",
-          boxShadow: "0 24px 60px rgba(30,26,16,0.12), 0 2px 8px rgba(30,26,16,0.05)",
-        }}
-      >
+      <Sheet>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {o.art && <img src={o.art} alt="" width={660} height={578} style={{ objectFit: "contain" }} />}
-      </div>
+      </Sheet>
     </div>,
   );
 }
