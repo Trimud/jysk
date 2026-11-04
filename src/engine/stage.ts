@@ -423,6 +423,8 @@ export class Stage {
 
   private flatQuat(t: PartType) {
     const s = t.size;
+    // a part that comes made stays the way it stands
+    if (t.made) return { q: new THREE.Quaternion(), thick: s[1], long: s[0], wide: s[2] };
     const idx = [0, 1, 2];
     const mi = idx.reduce((a, b) => (s[b] < s[a] ? b : a));
     const rest = idx.filter((i) => i !== mi);
@@ -444,8 +446,8 @@ export class Stage {
     this.stack.clear();
     this.layout.clear();
     const items = this.parts.filter((p) => !p.type.extra);
-    // stack: biggest at the bottom
-    const sorted = [...items].sort((a, b) => b.type.size[0] * b.type.size[2] + b.type.size[0] * b.type.size[1] - (a.type.size[0] * a.type.size[2] + a.type.size[0] * a.type.size[1]));
+    // stack: biggest at the bottom, and anything that comes made on top of the flat parts (a seat over its legs)
+    const sorted = [...items].sort((a, b) => Number(!!a.type.made) - Number(!!b.type.made) || b.type.size[0] * b.type.size[2] + b.type.size[0] * b.type.size[1] - (a.type.size[0] * a.type.size[2] + a.type.size[0] * a.type.size[1]));
     let y = 0;
     const fq = new Map<string, ReturnType<Stage["flatQuat"]>>();
     for (const p of sorted) {

@@ -297,6 +297,7 @@ export interface PartType {
   material: PartMaterial;
   qty: number;
   extra?: boolean;
+  made?: boolean; // comes made, not flat (a chair's upholstered body): the box view stands it upright, on top
   tone?: number; // which of a colour's tones it takes, 0 by default (1: the white drawer front of a "Light oak+White" desk) // not in the box (e.g. mattress)
   pieces?: PartPiece[]; // drawn as these boxes and cylinders instead of one
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -9,6 +9,7 @@ import { PRODUCTS, type CatalogEntry } from "@/lib/catalog";
 import { KIND_ARCH } from "@/lib/products";
 import type { Archetype } from "@/lib/types";
 import { CATS, catNoun } from "@/lib/categories";
+import { COLOUR_HEX, NO_FILTERS, SORTS, applyFilters, facets, sortList, type Filters, type Sort } from "@/lib/facets";
 import Drawing from "../Drawing";
 import { useUserKey } from "@/lib/userKey";
 import { Dots } from "../guide/ui";
@@ -16,13 +17,20 @@ import { IArrowRight, IClock, IClose, ISearch } from "../art/Icons";
 
 // a kind no tab names yet still lands in the tab for its furniture type
 const LISTED = new Set(CATS.flatMap((c) => c.kinds ?? []));
+// JYSK types two tabs share (bar stools and bar tables): there the kind of thing decides
+const SHARED = new Set(CATS.flatMap((c) => c.types ?? []).filter((t, i, all) => all.indexOf(t) !== i));
 const BY_ARCH: Record<Archetype, string> = { shelf: "shelves", drawers: "drawers", cabinet: "cabinets", table: "tables", bed: "beds", seat: "chairs", sofa: "sofas", custom: "cabinets" };
 
 const inCat = (e: CatalogEntry, c: (typeof CATS)[number]) => {
-  if (!c.kinds && !c.tag) return true;
-  if (c.tag && e.keywords?.includes(c.tag)) return true;
+  if (!c.kinds && !c.tag && !c.types) return true;
+  if (c.tag) return !!e.keywords?.includes(c.tag) || (!!e.kind && !!c.kinds?.includes(e.kind));
+  // garden furniture lives in the Garden tab only, as it does on JYSK
+  if (e.keywords?.includes("outdoor")) return false;
+  // a JYSK product goes by JYSK's own type for it
+  const type = e.path?.[e.path.length - 1];
+  if (type) return !!c.types?.includes(type) && (!SHARED.has(type) || !c.arch || c.arch.includes(KIND_ARCH[e.kind!] ?? e.archetype));
   // a clothes rail makes it a wardrobe, whatever kind builds it (a wardrobe with drawers is the "mixed" kind)
-  if (!c.tag && e.cabinet?.rail) return c.id === "wardrobes";
+  if (e.cabinet?.rail) return c.id === "wardrobes";
   if (!e.kind) return false;
   return !!c.kinds?.includes(e.kind) || (!LISTED.has(e.kind) && BY_ARCH[KIND_ARCH[e.kind] ?? e.archetype] === c.id);
 };
@@ -90,14 +98,53 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
   const path = usePathname();
   const [homeCat, setHomeCat] = useState("all");
   const cat = search ? catOf(path).id : homeCat;
-  const setCat = (id: string) => (search ? window.history.pushState(null, "", id === "all" ? "/browse" : `/browse/${id}`) : setHomeCat(id));
+  const setCat = (id: string) => {
+    if (!search) return setHomeCat(id);
+    // a product type or series belongs to one tab's furniture: a new tab starts without them, room and colour carry over
+    const f = { ...filters, type: "", series: "" };
+    setFilters(f);
+    window.history.pushState(null, "", (id === "all" ? "/browse" : `/browse/${id}`) + query(f, sort));
+  };
   const [q, setQ] = useState("");
   const [more, setMore] = useState({ view: "", n: PAGE });
   const no = search ? articleNo(q) : null;
+  // the filters and sort live in the address too (/browse/tables?room=garden&colour=black), so a filtered view can be shared
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [sort, setSort] = useState<Sort>("name");
+  useEffect(() => {
+    if (!search) return;
+    const read = () => {
+      const p = new URLSearchParams(window.location.search);
+      setFilters({ room: p.get("room") ?? "", type: p.get("type") ?? "", colour: p.get("colour") ?? "", series: p.get("series") ?? "" });
+      setSort((SORTS.find((x) => x.id === p.get("sort"))?.id ?? "name") as Sort);
+    };
+    read();
+    window.addEventListener("popstate", read);
+    return () => window.removeEventListener("popstate", read);
+  }, [search]);
+  const query = (f: Filters, s: Sort) => {
+    const p = new URLSearchParams(Object.entries({ ...f, sort: s === "name" ? "" : s }).filter(([, v]) => v));
+    const str = p.toString();
+    return str ? "?" + str : "";
+  };
+  const setFilter = (k: keyof Filters, v: string) => {
+    const f = { ...filters, [k]: v };
+    setFilters(f);
+    window.history.replaceState(null, "", window.location.pathname + query(f, sort));
+  };
+  const changeSort = (v: Sort) => {
+    setSort(v);
+    window.history.replaceState(null, "", window.location.pathname + query(filters, v));
+  };
 
-  const list = useMemo(() => {
-    const c = CATS.find((x) => x.id === cat)!;
-    let l = c.kinds || c.tag ? PRODUCTS.filter((e) => inCat(e, c)) : limit ? POPULAR : PRODUCTS;
+  // the tab's products before any filter: what the filters' options and counts are taken over
+  // the React Compiler memoizes these
+  const tab = CATS.find((x) => x.id === cat)!;
+  const inTab = tab.kinds || tab.tag || tab.types ? PRODUCTS.filter((e) => inCat(e, tab)) : limit ? POPULAR : PRODUCTS;
+  const opts = search ? facets(inTab, filters) : null;
+
+  const list = (() => {
+    let l = search ? applyFilters(inTab, filters) : inTab;
     const f = fold(q);
     let ranked = false;
     if (no) {
@@ -119,11 +166,12 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
         ranked = hits.length > 0;
       } else l = literal;
     }
-    if (!limit && !ranked) l = [...l].sort((a, b) => a.name.localeCompare(b.name, "sv") || a.variant.localeCompare(b.variant, "sv"));
+    if (!limit && !ranked) l = sortList(l, sort);
     return limit ? l.slice(0, limit) : l;
-  }, [cat, q, limit, no]);
+  })();
 
-  const view = cat + "|" + q;
+  const view = cat + "|" + q + "|" + query(filters, sort);
+  const filtered = Object.values(filters).some(Boolean);
   const n = limit ? list.length : more.view === view ? more.n : PAGE;
   const shown = list.slice(0, n);
 
@@ -151,6 +199,85 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
           ))}
         </div>
       </div>
+      {opts && (
+        <div className="cat-filters">
+          {opts.rooms.length > 1 || filters.room ? (
+            <div className="cat-rooms" role="group" aria-label="Room">
+              <button type="button" className={"chip" + (!filters.room ? " on" : "")} aria-pressed={!filters.room} onClick={() => setFilter("room", "")}>
+                Every room
+              </button>
+              {opts.rooms.map((r) => (
+                <button key={r.id} type="button" className={"chip" + (filters.room === r.id ? " on" : "")} aria-pressed={filters.room === r.id} onClick={() => setFilter("room", filters.room === r.id ? "" : r.id)}>
+                  {r.label} <small>{r.n}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="cat-selects">
+            <label className="fsel">
+              <span>Type</span>
+              <select value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
+                <option value="">All types</option>
+                {opts.types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({t.n})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="fsel">
+              <span>Series</span>
+              <select value={filters.series} onChange={(e) => setFilter("series", e.target.value)}>
+                <option value="">All series</option>
+                {opts.series.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({t.n})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="fsel">
+              <span>Sort</span>
+              <select value={sort} onChange={(e) => changeSort(e.target.value as Sort)}>
+                {SORTS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {filtered && (
+              <button
+                type="button"
+                className="fclear"
+                onClick={() => {
+                  setFilters(NO_FILTERS);
+                  window.history.replaceState(null, "", window.location.pathname + query(NO_FILTERS, sort));
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          {opts.colours.length > 1 || filters.colour ? (
+            <div className="cat-colours" role="group" aria-label="Colour">
+              {opts.colours.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={"swatch" + (filters.colour === c.id ? " on" : "")}
+                  aria-pressed={filters.colour === c.id}
+                  title={`${c.label} (${c.n})`}
+                  onClick={() => setFilter("colour", filters.colour === c.id ? "" : c.id)}
+                >
+                  <i style={{ background: COLOUR_HEX[c.id] }} />
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
       <motion.div layout className="pgrid">
         <AnimatePresence mode="popLayout">
           {shown.map((e, i) => (
@@ -164,10 +291,12 @@ export function Catalog({ limit, search }: Readonly<{ limit?: number; search?: b
             <p>No guide for that article number yet. Try the name on the box.</p>
           ) : (
             <>
-              <p>Nothing here matches &ldquo;{q.trim()}&rdquo;.</p>
-              <Link href={`/build/${slugify(q)}?q=${encodeURIComponent(q.trim())}`} className="empty-go">
-                Make a guide for {q.trim()} <IArrowRight size={16} />
-              </Link>
+              <p>{q.trim() ? <>Nothing here matches &ldquo;{q.trim()}&rdquo;.</> : "Nothing matches these filters."}</p>
+              {q.trim() && (
+                <Link href={`/build/${slugify(q)}?q=${encodeURIComponent(q.trim())}`} className="empty-go">
+                  Make a guide for {q.trim()} <IArrowRight size={16} />
+                </Link>
+              )}
             </>
           )}
         </div>

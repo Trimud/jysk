@@ -200,7 +200,8 @@ export function buildTable(b: PlanBuilder, s: ProductSpec) {
       },
     );
   } else if (p.shelf) {
-    const shT = b.part("Shelf", [W - 2 * ls - 2, 16, D], { material: "board" });
+    // between the legs, set in like they are
+    const shT = b.part("Shelf", [W - 2 * inset - 2 * ls - 2, 16, D - 2 * inset], { material: "board" });
     const sy = Math.max(110, H * 0.26);
     // a trolley's tiers: the lowest near the floor, the rest shared out evenly up to the top
     const n = clamp(Math.round(s.table?.levels ?? 1), 1, 4);
@@ -222,7 +223,7 @@ export function buildTable(b: PlanBuilder, s: ProductSpec) {
         const sc: FitOpts[] = [];
         for (const y of ys)
           corners.forEach(([sx, sz], i) => {
-            for (const dz of [-ls / 5, ls / 5]) sc.push({ on: legs[i], at: [sx * (W / 2), y, sz * lz + dz], dir: [-sx, 0, 0], hole: false });
+            for (const dz of [-ls / 5, ls / 5]) sc.push({ on: legs[i], at: [sx * (lx + ls / 2), y, sz * lz + dz], dir: [-sx, 0, 0], hole: false });
           });
         b.fits(HW.screwL, sc, n > 1 ? 0.03 : 0.06);
       },

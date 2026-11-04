@@ -1,4 +1,4 @@
-// Fetches the JYSK UK product pages listed in pilot.txt and keeps only facts: npm run jysk:fetch
+// Fetches the JYSK UK product pages listed in pilot.txt, then range.txt (npm run jysk:discover), and keeps only facts: npm run jysk:fetch
 // Each page is downloaded once, 2 s apart, into scripts/jysk/cache (git ignored); later runs read the cache.
 // Out: scripts/jysk/facts.json (git ignored). No images, prices, descriptions or reviews are kept.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +15,7 @@ export interface Facts {
   family: string; // JSON-LD ProductGroup.productGroupID, e.g. "LIMFJORDEN"
   name: string; // "4 drawer chest LIMFJORDEN beige"
   category: string; // "Chest of Drawers"
+  crumbs: string[]; // JYSK's breadcrumb between Home and the product: ["Storage", "Chest of drawers"], room first, type last
   colours: { name: string; sku: string }[]; // this page's colour first, then the others in the same size: one guide covers them all
   specs: Record<string, string>; // spec rows: "Number of drawers" -> "4"
   manual?: string; // official assembly instruction PDF
@@ -54,20 +55,38 @@ function parse(url: string, html: string): Facts {
   const colours = [{ ...g, color: (g.color ?? specs["Colour"] ?? "").replace(/\s*,\s*/g, "+") } as V, ...(g.hasVariant ?? []).filter((v: V) => v.size === g.size && v.sku !== g.sku)].map((v: V) => ({ name: v.color, sku: v.sku }));
   // the page's own address, so a product-lookup/<sku> link in pilot.txt still gives the product's slug
   const page = new URL(g.offers?.url ?? url, "https://jysk.co.uk").href;
-  return { url: page, slug: new URL(page).pathname.split("/").pop()!, family: g.productGroupID, name: g.name, category: g.category, colours, specs, manual };
+  type Crumb = { name: string };
+  const trail: Crumb[] = groups.find((j) => j["@type"] === "BreadcrumbList")?.itemListElement ?? [];
+  const crumbs = trail.slice(1, -1).map((c) => c.name);
+  return { url: page, slug: new URL(page).pathname.split("/").pop()!, family: g.productGroupID, name: g.name, category: g.category, crumbs, colours, specs, manual };
 }
 
+/** Assembly statuses with something to put together: a whole build, a body that comes built and takes its legs, or a built wardrobe that takes its sliding doors. */
+const BUILDS = ["Self assembly", "Legs must be mounted", "Easy sliding door installation"];
 /** Self assembly: says so, or (when the row is missing, as on some pages) comes with an assembly manual. */
-const selfAssembly = (f: Facts) => (f.specs["Assembly status"] ? f.specs["Assembly status"] === "Self assembly" : !!f.manual);
+const selfAssembly = (f: Facts) => (f.specs["Assembly status"] ? BUILDS.includes(f.specs["Assembly status"]) : !!f.manual);
 
-const urls = readFileSync(path.join(DIR, "pilot.txt"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+const list = (name: string) =>
+  existsSync(path.join(DIR, name)) ? readFileSync(path.join(DIR, name), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#")) : [];
+const urls = [...new Set([...list("pilot.txt"), ...list("range.txt")])];
 const out: Facts[] = [];
+// one guide covers every colour in a size: a page whose article is already a colour of a kept product adds nothing
+const seen = new Set<string>();
 for (const url of urls) {
-  const f = parse(url, await page(url));
+  let f: Facts;
+  try {
+    f = parse(url, await page(url));
+  } catch (e) {
+    // a page gone from the range, or one without an assembled size (sold as a set, a cover): nothing to draw
+    console.log(`skip (${(e as Error).message})`);
+    continue;
+  }
   if (!selfAssembly(f)) {
     console.log(`skip (not self assembly): ${url}`);
     continue;
   }
+  if (seen.has(f.colours[0].sku) || out.some((o) => o.slug === f.slug)) continue;
+  f.colours.forEach((c) => seen.add(c.sku));
   out.push(f);
   console.log(`${f.colours[0].sku} ${f.family}: ${f.name}`);
 }
