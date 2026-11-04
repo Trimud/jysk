@@ -1,14 +1,11 @@
 import { OG_SIZE, drawing, pageCard } from "@/lib/og/card";
 import { PRODUCTS } from "@/lib/catalog";
-import { TABS, catNoun, inCat } from "@/lib/categories";
+import { TABS, inCat } from "@/lib/categories";
 
+// ponytail: one alt for every category (see build/[slug]/opengraph-image.tsx for why not generateImageMetadata)
+export const alt = "JYSK assembly guides in one category on assemble.help, drawn in 3D";
 export const size = OG_SIZE;
 export const contentType = "image/png";
-
-export function generateImageMetadata({ params }: { params: { cat: string } }) {
-  const c = TABS.find((x) => x.id === params.cat);
-  return [{ id: "card", size: OG_SIZE, contentType, alt: `JYSK ${c ? catNoun(c) : "furniture"} assembly guides on assemble.help, drawn in 3D` }];
-}
 
 export default async function Image({ params }: { params: Promise<{ cat: string }> }) {
   const { cat } = await params;

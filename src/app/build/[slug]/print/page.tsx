@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = s ? `${s.name} ${s.variant.toLowerCase()}` : "assembly guide";
   const m = pageMeta(`Print: ${name}`, `The ${name} assembly guide, every step on paper.`, `/build/${slug}`, { robots: { index: false } });
   // file images don't reach a child route that sets its own openGraph: borrow the guide's card
-  return { ...m, openGraph: { ...m.openGraph, images: `/build/${slug}/opengraph-image/card` } };
+  return { ...m, openGraph: { ...m.openGraph, images: `/build/${slug}/opengraph-image` } };
 }
 
 export default function Page({ params }: Props) {

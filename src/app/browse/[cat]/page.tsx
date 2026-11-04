@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const what = catNoun(c);
   return pageMeta(
     `JYSK ${what}: assembly guides`,
-    `Step-by-step 3D assembly guides for JYSK ${what}: every panel, screw and tool, one step at a time. Search by name or article number.`,
+    `Step-by-step 3D assembly guides for JYSK ${what}: every panel, screw and tool, one step at a time.`,
     `/browse/${c.id}`,
   );
 }
