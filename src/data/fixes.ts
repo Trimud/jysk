@@ -24,4 +24,7 @@ export const FIXES: Record<string, Fix> = {};
  * Guides that are the same product as another guide: their link opens that one, and they are not listed. A hand made
  * guide IKEA's listings now draw under their own name, or a second hand made guide for one.
  */
-export const SAME: Record<string, string> = {};
+export const SAME: Record<string, string> = {
+  // JYSK stopped the dark oak colour; warm oak is the same table
+  "coffee-table-spodsbjerg-d67-dark-oak-colour": "coffee-table-spodsbjerg-d67-warm-oak-colour",
+};

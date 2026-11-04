@@ -1,9 +1,10 @@
 // Turns scripts/jysk/facts.json into the rows we draw: npm run jysk:build
 // Out: src/data/jysk-rows.ts (one row per line, see encodeRow in src/lib/ikea.ts).
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { encodeRow, type IkeaRow } from "@/lib/ikea";
 import type { Facts } from "./fetch";
+import { SAME } from "@/data/fixes";
 
 const DIR = import.meta.dirname;
 const OUT = path.join(DIR, "../../src/data/jysk-rows.ts");
@@ -26,6 +27,64 @@ function size(s: string, far = false): [number, number, number] | null {
   // a round thing gives its Diameter, and something small on the wall (a hook) gives no height of its own
   const v: [number, number, number] = R ? [R, H || R, D || R] : [W, H, D || L];
   return v.every((n) => n > 0) ? v : null;
+}
+
+/** The main materials in JYSK's material row (which lists every part, screws and foam included), in plain groups. */
+const MATERIALS: [label: string, re: RegExp][] = [
+  ["Solid wood", /\bsolid\b|acacia|teak|eucalyptus|bamboo/],
+  ["Veneer", /veneer/],
+  ["Particle board and MDF", /particle board|\bmdf\b|\bhdf\b|chipboard/],
+  ["Metal", /steel|metal|alumin|\biron\b/],
+  ["Glass", /glass/],
+  ["Fabric", /polyester|fabric|cotton|linen|velvet|boucl|chenille|corduroy|wool/],
+  ["Leather and faux leather", /leather/],
+  ["Rattan and rope", /rattan|wicker|rope|\bcord\b/],
+  ["Stone and ceramic", /marble|stone|ceramic|terrazzo|travertine|sintered/],
+  ["Plastic and composite", /polypropylene|\bpp\b|polywood|composite|resin|(?<!abs )plastic/],
+];
+
+/** What the browse filters read (src/lib/facets.ts), from the spec rows and the name; counts as plain numbers. */
+function factsOf(f: Facts, counts: { drawers?: number; doors?: number; shelves?: number; seats?: number }) {
+  const s = f.specs;
+  const n = f.name.toLowerCase();
+  // the row's own separators can't sit in a value
+  const clean = (v: string) => v.replace(/[|;=/`\\]+/g, " or ").replace(/\s*[\u2013\u2014]\s*/g, " - ").trim();
+  const out: Record<string, string[]> = {};
+  const put = (k: string, v: (string | number | undefined | false)[]) => {
+    const vs = [...new Set(v.filter((x): x is string | number => !!x).map((x) => clean(String(x))))];
+    if (vs.length) out[k] = vs;
+  };
+  // the mattress a bed takes, "135x190 - Double" as "Double, 135x190"
+  const bed = (s["Size"] ?? "").match(/^([\d/]+x\d+)(?:\s*-\s*(.+))?$/);
+  if (bed && f.crumbs.includes("Beds")) put("bed", [bed[2] ? `${bed[2]}, ${bed[1]}` : bed[1]]);
+  const seats = num(s["Number of seats"]) || num(s["Persons"]) || counts.seats;
+  put("seats", [seats]);
+  put("drawers", [counts.drawers]);
+  put("doors", [counts.doors]);
+  put("shelves", [counts.shelves]);
+  put("shape", [s["Shape"]]);
+  const mat = (s["Material"] ?? "").toLowerCase().split(/,\s*/);
+  put("material", MATERIALS.filter(([, re]) => mat.some((m) => re.test(m))).map(([l]) => l));
+  const storage = s["Storage space"] ?? "";
+  put("feature", [
+    (!!storage || /storage/.test(n) || (f.crumbs.includes("Beds") && !!counts.drawers)) && "With storage",
+    /gas lift/i.test(storage) && "Gas lift",
+    !!s["Extendable table"] && !/^no/i.test(s["Extendable table"]) && "Extendable",
+    /^yes/i.test(s["With armrests"] ?? "") && "With armrests",
+    /soft.?clos/i.test(s["Drawer feature"] ?? "") && "Soft-close drawers",
+    /incl\. (slatted base|bed slats)/i.test(s["Nice to know"] ?? "") && "Slats included",
+    /^yes/i.test(s["Maintenance-free"] ?? "") && "Maintenance-free",
+    (/height adjustable|adjustable height/.test(n) || /Height \d+-\d+ cm/.test(s["Size assembled"] ?? "")) && "Adjustable height",
+    /electric/.test(n) && "Electric",
+    /reclin/.test(n) && "Recliner",
+    /swivel/.test(n) && "Swivel",
+    /fold/.test(n) && "Folding",
+    /stackable/.test(n + " " + (s["Nice to know"] ?? "").toLowerCase()) && "Stackable",
+    /mirror/.test(n) && "With mirror",
+    /sliding/i.test(n + " " + (s["Type"] ?? "")) && "Sliding doors",
+  ]);
+  put("parcels", [num(s["Number of parcels"])]);
+  return out;
 }
 
 /** A colour's look in the drawing per JYSK colour name, sampled (median) from a patch on that colour's part in JYSK's own
@@ -77,7 +136,7 @@ function classify(f: Facts): { row: IkeaRow } | { skip: string } {
   const tags = [...(/child|kid/i.test(where) ? ["kids"] : []), ...(/garden|outdoor/i.test(where) ? ["outdoor"] : [])];
   const row = (kind: IkeaRow["kind"], x: IkeaRow["x"] = {}, s: [number, number, number] = [w, h, d]) => {
     for (const k of Object.keys(x) as (keyof IkeaRow["x"])[]) if (x[k] === undefined) delete x[k];
-    return { row: { ...base, w: s[0], h: s[1], d: s[2], kind, x, ...(tags.length ? { keywords: tags } : {}) } } as const;
+    return { row: { ...base, w: s[0], h: s[1], d: s[2], kind, x, ...(tags.length ? { keywords: tags } : {}), facts: factsOf(f, { drawers, doors, shelves, seats }) } } as const;
   };
   // a desk or table's "Width" can be its short side: the longer one is w
   const wide: [number, number, number] = [Math.max(w, d), h, Math.min(w, d)];
@@ -243,8 +302,45 @@ if (rows.length < facts.length) {
   console.error(`${facts.length - rows.length} product(s) not classified: update classify() in scripts/jysk/build.ts`);
   process.exit(1);
 }
+// a product JYSK stops selling keeps its guide (people still own one, and its address stays live): its last row carries
+// over, unless a fresh row is the same product (one colour gone, another kept: map the old slug in src/data/fixes.ts SAME)
+const same = (r: string) => r.split("|")[0] + "|" + r.split("|")[2];
+const fresh = new Set(rows.map(same));
+const slugs = new Set(rows.map((r) => r.split("|")[8]));
+const old = existsSync(OUT) ? (readFileSync(OUT, "utf8").split("`")[1] ?? "").split("\n").filter(Boolean) : [];
+const unmapped: string[] = [];
+const kept: string[] = [];
+for (const r of old) {
+  const slug = r.split("|")[8];
+  if (slugs.has(slug)) continue;
+  if (!fresh.has(same(r))) {
+    kept.push(slug);
+    rows.push(r);
+  } else if (!slugs.has(SAME[slug] ?? "")) unmapped.push(slug);
+}
+// its address would stop working: stop here, before anything is written
+if (unmapped.length) {
+  console.error(`JYSK dropped these, but sells the same product under another address. Map each old slug to the new one in SAME, src/data/fixes.ts:\n  ${unmapped.join("\n  ")}`);
+  process.exit(1);
+}
+
+// what this import changes, by slug: added, kept on though JYSK stopped selling it, and which cells changed
+const CELLS = ["name", "kind", "variant", "w", "h", "d", "params", "keywords", "slug", "manual", "colours", "path", "facts"];
+const bySlug = (list: string[]) => new Map(list.map((r) => [r.split("|")[8], r.split("|")]));
+const before = bySlug(old);
+const after = bySlug(rows);
+const added = [...after.keys()].filter((s) => !before.has(s));
+const changed = [...after].flatMap(([s, cells]) => {
+  const was = before.get(s);
+  const diff = was ? CELLS.filter((_, i) => (was[i] ?? "") !== (cells[i] ?? "")) : [];
+  return diff.length ? [`${s}: ${diff.join(", ")}`] : [];
+});
+const moved = old.map((r) => r.split("|")[8]).filter((s) => !after.has(s));
+console.log(`\nchanges: ${added.length} added, ${changed.length} changed, ${kept.length} no longer sold (kept), ${moved.length} moved (SAME)`);
+for (const [what, list] of [["added", added], ["changed", changed], ["no longer sold, kept", kept], ["moved", moved.map((s) => `${s} -> ${SAME[s]}`)]] as const)
+  for (const x of list) console.log(`  ${what.padEnd(20)} ${x}`);
 writeFileSync(
   OUT,
   `// Generated by scripts/jysk/build.ts from JYSK UK product pages. Do not edit by hand.\n// Rows we can draw, one per line: name|kind|variant|w|h|d|params|keywords|slug|manual|colours (colours: name=article=hex)\nexport const JYSK_ROWS = \`${rows.join("\n")}\`;\n`,
 );
-console.log(`${rows.length} of ${facts.length} products -> src/data/jysk-rows.ts`);
+console.log(`${rows.length} guides (${facts.length} products JYSK sells now) -> src/data/jysk-rows.ts`);

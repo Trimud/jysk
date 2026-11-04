@@ -1,19 +1,33 @@
 /**
  * Draws the pictures the share cards use, with the app's own engine:
  *
- *   npm run dev, then: node scripts/og/render.mjs [--base http://localhost:3000] [--only kallax-2x2] [--missing]
+ *   npm run dev, then: node scripts/og/render.mjs [--base http://localhost:3000] [--only kallax-2x2] [--missing] [--if-available]
  *
  * Needs Playwright from any project that has it: PLAYWRIGHT_FROM=/path/to/project.
  * Writes public/og/{slug}.png for every catalog product and public/og/kind-{kind}.png
- * for every furniture kind (the fallback for everything else).
+ * for every furniture kind (the fallback for everything else). --if-available exits quietly without the dev server,
+ * Playwright or ffmpeg, so npm run jysk:build can always call it (with --missing: pictures for new guides).
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { arg, openRenderer, png } from "./browser.mjs";
+import { arg, chromiumOrNull, openRenderer, png } from "./browser.mjs";
 
 const args = process.argv.slice(2);
-const base = arg("--base", "http://localhost:3000");
+const base = arg("--base", process.env.QA_BASE ?? "http://localhost:3000");
+if (args.includes("--if-available")) {
+  const skip = (why) => {
+    console.log(`og pictures skipped: ${why}`);
+    process.exit(0);
+  };
+  if (!chromiumOrNull()) skip("no Playwright (set PLAYWRIGHT_FROM to a folder whose node_modules has it)");
+  try {
+    execFileSync("ffmpeg", ["-version"], { stdio: "ignore" });
+  } catch {
+    skip("no ffmpeg");
+  }
+  if (!(await fetch(`${base}/dev/og/list`, { signal: AbortSignal.timeout(5000) }).then((r) => r.ok, () => false))) skip(`no dev server at ${base}`);
+}
 const only = arg("--only");
 
 const OUT = path.resolve(import.meta.dirname, "../../public/og");

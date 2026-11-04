@@ -27,6 +27,16 @@ Not affiliated with JYSK. Guides are generated drawings: always check them again
 
 `npm run qa:snapshots` draws every view of the guides you changed (the finished piece, everything opened, X-ray and every step) and compares each with the drawing you last approved. Open `.qa/report.html` to see what changed, then keep it with `npm run qa:snapshots -- --approve`. It needs the dev server running (`QA_BASE` if it isn't on port 3000) and Playwright (`PLAYWRIGHT_FROM`, a folder whose `node_modules` has it). `--only`, `--family` and `--all` pick other guides; `npm run jysk:build` runs it on the families an import changed.
 
+## Updating from JYSK
+
+`npm run jysk:refresh` runs the whole import, in about an hour (one JYSK page every 2 seconds):
+
+1. `jysk:discover` lists every furniture page in JYSK's sitemap (`scripts/jysk/range.txt`).
+2. `jysk:fetch -- --fresh` fetches each page again and reads its facts (`scripts/jysk/cache/` and `facts.json`, both kept out of git). Without `--fresh` a page already fetched is read from the cache.
+3. `jysk:build` writes `src/data/jysk-rows.ts` and prints what changed: guides added, changed (and which fields), kept on though JYSK stopped selling them, and moved. A product it can't classify stops the build: extend `classify()` in `scripts/jysk/build.ts`. A colour JYSK dropped while selling the same product under another address stops it too, until the old slug is mapped in `SAME` (`src/data/fixes.ts`), so its link keeps working. It then checks every model, draws the pictures new guides need and redraws the snapshots of changed families (these two need the dev server and Playwright, as above).
+
+Review the snapshot report, approve it, and commit.
+
 ## Credits and license
 
 A fork of [Bygga](https://github.com/Nutlope/bygga) by its original authors, see [CREDITS.md](CREDITS.md). MIT, see [LICENSE](LICENSE).

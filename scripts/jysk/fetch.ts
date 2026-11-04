@@ -8,6 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 const DIR = import.meta.dirname;
 const CACHE = path.join(DIR, "cache");
 const UA = "AssembleHelp/0.1 (+https://assemble.help)";
+const FRESH = process.argv.includes("--fresh");
 
 export interface Facts {
   url: string;
@@ -23,7 +24,8 @@ export interface Facts {
 
 async function page(url: string): Promise<string> {
   const file = path.join(CACHE, new URL(url).pathname.split("/").filter(Boolean).join("__") + ".html");
-  if (existsSync(file)) return readFileSync(file, "utf8");
+  // --fresh fetches it again, to see what JYSK changed since; without it a page is fetched once
+  if (!FRESH && existsSync(file)) return readFileSync(file, "utf8");
   await sleep(2000);
   const r = await fetch(url, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
