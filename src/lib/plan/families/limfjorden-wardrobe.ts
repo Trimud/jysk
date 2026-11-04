@@ -85,7 +85,7 @@ function drawerParts(b: PlanBuilder, xc: number, fx: number) {
     l: b.place(slT, [xc - 252.5, fy + 103, 27]),
     r: b.place(srT, [xc + 252.5, fy + 103, 27]),
     back: b.place(dbT, [xc, fy + 103, -215]),
-    bottom: b.place(btT, [xc, fy + 31.5, 28]),
+    bottom: b.place(btT, [xc, fy + 31.5, 34]), // in grooves 8 mm into the back and 5 into the front
   }));
 }
 type Drawer = ReturnType<typeof drawerParts>[number];
@@ -177,7 +177,9 @@ function build120(b: PlanBuilder) {
   const railT = b.part("Drawer rail", [550, 32, 70], { label: "10" });
   const railY = [307.5, 531.5]; // the two drawer rails (10), 32 mm tall
   const rails = railY.map((y) => b.place(railT, [-307, y, 237]));
-  const stile = b.place(b.part("Front stile", [70, 1876, T], { label: "11R" }), [0, 1047, 265]);
+  // its left edge flush with the runner panel (x = -32), like the 180's stiles, so the rails meet it there
+  const SC = -32 + 35;
+  const stile = b.place(b.part("Front stile", [70, 1876, T], { label: "11R" }), [SC, 1047, 265]);
   const plinth = b.place(b.part("Plinth", [1162, 88, T], { label: "12" }), [0, 49, 246]);
   const door13 = b.place(b.part("Short door", [582, 1218, T], { label: "13" }), [-293, 1374, 286]);
   const door14 = b.place(b.part("Tall door", [582, 1890, T], { label: "14" }), [293, 1038, 286]);
@@ -218,8 +220,8 @@ function build120(b: PlanBuilder) {
   step({ title: "Prepare the front stile and the front rail", detail: "Two dowels in each end of the long stile (11R) and three cam bolts in its back. Two cam bolts in the back of the short rail (9).", kind: "dowels", tools: ["hammer", "screwdriver"], scene: "s6", pose: "-z" }, () => {
     show(stile, [0, 0, -150]);
     show(lip, [0, 0, -150]);
-    fit(A, stile, [-17, 17].map((x): Vec3 => [x, 109, 265]), [0, 1, 0], { mate: bot });
-    fit(A, stile, [-17, 17].map((x): Vec3 => [x, 1985, 265]), [0, -1, 0], { mate: top });
+    fit(A, stile, [SC - 17, SC + 17].map((x): Vec3 => [x, 109, 265]), [0, 1, 0], { mate: bot });
+    fit(A, stile, [SC - 17, SC + 17].map((x): Vec3 => [x, 1985, 265]), [0, -1, 0], { mate: top });
     fit(G, stile, [400, 1050, 1700].map((y): Vec3 => [0, y, 257]), [0, 0, 1], { mate: div });
     fit(G, lip, [-507, -107].map((x): Vec3 => [x, 798, 256]), [0, 0, 1], { mate: fixed });
   });

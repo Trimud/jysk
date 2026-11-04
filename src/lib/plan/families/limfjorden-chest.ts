@@ -321,7 +321,7 @@ function build33(b: PlanBuilder) {
   const backRail = b.place(b.part("Back rail", [1572, 16, 88], { label: "14" }), [0, BRY, BRZ]);
   // ponytail: each back folds in two along its middle; drawn as one board, in rebates in the sides and the top
   const backT = b.part("Back panel", [796, 698, 2.5], { material: "fiber", label: "11" });
-  const backs = [-1, 1].map((g) => b.place(backT, [g * 399, GL + 72 + 349, ZB + 1.25]));
+  const backs = [-1, 1].map((g) => b.place(backT, [g * 399, TY3 + 11 - 349, ZB + 1.25])); // 11 mm up into the top, like the 4 drawer chest's
 
   // a side's joints: cam bolt in the side, dowel and cam lock in the rail, plinth or back rail
   const joint = (key: string, bolt: number[], dowel: number[], cam: (g: number) => FitOpts): Joint => ({ key, bolt, dowel, cam });

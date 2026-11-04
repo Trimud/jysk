@@ -28,11 +28,13 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     [
       ...corners.map((c) => rod(pt(c, TOP, BASE - 12), pt(c, FOOT, 0), 25)),
       ...corners.map((c, i) => rod(pt(c, TOP, BASE - 12), pt(corners[(i + 1) % 4], TOP, BASE - 12), 20)),
+      // a welded tab inside each corner, flush with the frame's top, that the bolt goes up through
+      ...corners.map((c) => ({ shape: "box" as const, size: [50, 3, 50] as Vec3, pos: pt(c, [TOP[0] - 25, TOP[1] - 25], BASE - 3.5) })),
     ],
     { material: "metal", label: "2" },
   );
   const legs = b.place(type, mid);
-  const bolts = corners.map((c): FitOpts => ({ on: legs, at: pt(c, [TOP[0] - 30, TOP[1] - 30], BASE - 22), dir: [0, 1, 0], mate: seat }));
+  const bolts = corners.map((c): FitOpts => ({ on: legs, at: pt(c, [TOP[0] - 30, TOP[1] - 30], BASE - 5), dir: [0, 1, 0], mate: seat }));
 
   b.step(
     {

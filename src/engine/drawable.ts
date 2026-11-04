@@ -290,8 +290,9 @@ export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false
       addSolid(d, "br:v", () => new THREE.BoxGeometry(40, 42, 2), metal, { position: [0, 21, -15] });
       break;
     case "runner":
-      addSolid(d, `run:${len}`, () => new THREE.BoxGeometry(20, 11, len), metal, { position: [0, 5.5, 0] });
-      addSolid(d, `run:lip:${len}`, () => new THREE.BoxGeometry(4, 6, len), metal, { position: [-8, 14, 0] });
+      // 12.5 mm off the panel in all, like a real runner: drawers leave 13 mm a side for them (scripts/qa/overlaps.ts)
+      addSolid(d, `run:${len}`, () => new THREE.BoxGeometry(20, 8, len), metal, { position: [0, 4, 0] });
+      addSolid(d, `run:lip:${len}`, () => new THREE.BoxGeometry(4, 4.5, len), metal, { position: [-8, 10.25, 0] });
       break;
     case "knob":
       addSolid(d, "knob:stem", cyl(5.5, 12, 14), wood, { hull: "cyl", position: [0, 6, 0] });

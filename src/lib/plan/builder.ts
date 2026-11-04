@@ -259,14 +259,17 @@ export class PlanBuilder {
     this.opens.push({ parts, slide: mul(out, Math.round(depth * 0.66)) });
   }
 
-  /** A door on the finished piece, hinged on its left (sgn -1) or right (sgn 1) edge: it swings about 100° out of the
-   *  front (+z) about that edge of its back face, both read from where the door was placed.
+  /** A door on the finished piece, hinged on its left (sgn -1) or right (sgn 1) edge: it swings `deg` (100 by default)
+   *  out of the front (+z) about that edge of its front face, both read from where the door was placed. A cup hinge
+   *  pivots out in front of the door like that, so the door's edge clears the front or side beside it; turning about
+   *  the back face, its front corner would swing into them. Less than 100 when an open drawer beside its hinge would
+   *  be in the way.
    *  ponytail: assumes the door stands unrotated, facing +z (every builder places them so). */
-  openDoor(key: string, sgn: number) {
+  openDoor(key: string, sgn: number, deg = 100) {
     const it = this.partItem(key);
     const [w, , t] = this.parts.find((p) => p.id === it.ref)!.size;
     const [x, , z] = it.final.pos;
-    this.opens.push({ parts: [key], hinge: { at: [x + (sgn * w) / 2, 0, z - t / 2], axis: [0, 1, 0], angle: sgn * 1.75 } });
+    this.opens.push({ parts: [key], hinge: { at: [x + (sgn * w) / 2, 0, z + t / 2], axis: [0, 1, 0], angle: (sgn * deg * Math.PI) / 180 } });
   }
 
   partItem(key: string) {

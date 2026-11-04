@@ -28,7 +28,9 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
   const legs = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => b.place(legT, [sx * xl, railTop / 2, sz * zl])));
   const crossT = b.part("Cross rail", [W - 2 * railT, 60, 30], { material: "wood" });
   const zc = [-L / 2 + 150, 0, L / 2 - 150];
-  const cross = zc.map((z) => b.place(crossT, [0, ry, z]));
+  // 20 mm below the rails' tops, so the battens under the seat sit on them
+  const cy = railTop - 20 - 30;
+  const cross = zc.map((z) => b.place(crossT, [0, cy, z]));
 
   /* ---------- the slatted seat, and the backrest ---------- */
   const slats = (len: number): PartPiece[] => {
@@ -36,17 +38,18 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
     const step = len / n;
     return Array.from({ length: n }, (_, i) => ({ shape: "box", size: [W - 20, slatT, step - 22], pos: [0, 0, -len / 2 + step * (i + 0.5)] }));
   };
+  const batX = W / 2 - railT - legS - 17; // the battens under the slats, inboard of the legs
   const seatLen = L / 2 - zh;
-  const seatC = b.compound("Seat", [...slats(seatLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, seatLen - 20] as Vec3, pos: [sx * (W / 2 - railT - 40), -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
+  const seatC = b.compound("Seat", [...slats(seatLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, seatLen - 20] as Vec3, pos: [sx * batX, -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
   const seat = b.place(seatC.type, [0, top - slatT / 2 + seatC.mid[1], zh + seatLen / 2]);
-  const backC = b.compound("Backrest", [...slats(backLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, backLen - 20] as Vec3, pos: [sx * (W / 2 - railT - 40), -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
+  const backC = b.compound("Backrest", [...slats(backLen), ...[-1, 1].map((sx) => ({ shape: "box" as const, size: [30, 20, backLen - 20] as Vec3, pos: [sx * batX, -slatT / 2 - 10, 0] as Vec3 }))], { material: "wood" });
   // raised: it turns about the hinge, its far end up
   const along: Vec3 = [0, Math.sin(tilt), -Math.cos(tilt)];
   const bc: Vec3 = [0, top - slatT / 2 + along[1] * (backLen / 2), zh + along[2] * (backLen / 2)];
   const backrest = b.place(backC.type, bc, [tilt, 0, 0]);
   // the support: two struts up from the rails to the underside of the backrest, joined across the bottom
   const tp: Vec3 = [0, top - slatT + along[1] * backLen * 0.62, zh + along[2] * backLen * 0.62];
-  const sh = tp[1] - railTop;
+  const sh = tp[1] - railTop - 12 * Math.tan(tilt); // its square top meets the sloping backrest at its lower corner
   const supC = b.compound(
     "Back support",
     [
@@ -94,7 +97,7 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
       cross.forEach((c) => b.add(c, [0, 260, 0]));
       b.then(0.1);
       const bolts: FitOpts[] = [];
-      for (const z of zc) for (const sx of [-1, 1]) bolts.push({ on: rails[sx < 0 ? 0 : 1], at: [sx * (W / 2), ry, z], dir: [-sx, 0, 0], mate: cross[zc.indexOf(z)] });
+      for (const z of zc) for (const sx of [-1, 1]) bolts.push({ on: rails[sx < 0 ? 0 : 1], at: [sx * (W / 2), cy, z], dir: [-sx, 0, 0], mate: cross[zc.indexOf(z)] });
       b.fits(HW.boltL, bolts, 0.06);
     },
   );
@@ -109,7 +112,10 @@ export function buildLounger(b: PlanBuilder, s: ProductSpec) {
       b.add(seat, [0, 300, 0]);
       b.then(0.1);
       const sc: FitOpts[] = [];
-      for (const z of [zh + 120, zh + seatLen / 2, L / 2 - 120]) for (const sx of [-1, 1]) sc.push({ on: seat, at: [sx * (W / 2 - railT / 2), top, z], dir: [0, -1, 0], hole: false });
+      // each screw through the middle of the slat nearest where it's wanted, not into a gap between two
+      const n = Math.max(4, Math.round(seatLen / 95)), step = seatLen / n;
+      const onSlat = (z: number) => zh + step * (clamp(Math.floor((z - zh) / step), 0, n - 1) + 0.5);
+      for (const z of [zh + 120, zh + seatLen / 2, L / 2 - 120]) for (const sx of [-1, 1]) sc.push({ on: seat, at: [sx * (W / 2 - railT / 2), top, onSlat(z)], dir: [0, -1, 0], hole: false });
       b.fits(HW.screwM, sc, 0.08);
     },
   );

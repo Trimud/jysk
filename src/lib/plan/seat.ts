@@ -234,8 +234,9 @@ function chair(b: PlanBuilder, s: ProductSpec, p: SeatParams) {
   );
 
   if (!p.arms) return;
-  const armT = b.part("Armrest", [56, 24, D + 40], { material: "wood" });
-  const arms = [-1, 1].map((sgn) => b.place(armT, [sgn * sx, AH + 12, 20]));
+  // from the back leg's front face (the back leg runs up past it to the backrest) to 40 mm past the front
+  const armT = b.part("Armrest", [56, 24, D + 40 - ls], { material: "wood" });
+  const arms = [-1, 1].map((sgn) => b.place(armT, [sgn * sx, AH + 12, (40 + ls) / 2]));
   b.step(
     {
       title: "Fit the armrests",
@@ -251,7 +252,7 @@ function chair(b: PlanBuilder, s: ProductSpec, p: SeatParams) {
       for (const [i, k] of arms.entries()) {
         const x = (i === 0 ? -1 : 1) * sx;
         bolts.push({ on: k, at: [x, AH + 24, sz], dir: [0, -1, 0], mate: fl[i] });
-        bolts.push({ on: k, at: [(i === 0 ? -1 : 1) * (W / 2), AH + 12, -sz], dir: [i === 0 ? 1 : -1, 0, 0], mate: bl[i] });
+        bolts.push({ on: bl[i], at: [x, AH + 12, -D / 2], dir: [0, 0, 1], mate: k });
       }
       b.fits(HW.boltL, bolts, 0.08);
     },

@@ -61,7 +61,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
         front: b.place(types.front, [0, fy + 97, 166]),
         sides: [b.place(types.l, [-169, fy + 82, 8]), b.place(types.r, [169, fy + 82, 8])],
         back: b.place(types.back, [0, fy + 82, -134]),
-        bottom: b.place(types.bottom, [0, fy + 30, 8]),
+        bottom: b.place(types.bottom, [0, fy + 30, 16]), // in grooves 8 mm into the back and the front
       },
       300,
     ),

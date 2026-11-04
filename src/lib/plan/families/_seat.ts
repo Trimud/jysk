@@ -77,7 +77,7 @@ export type Crossed = {
 export function crossed(o: Crossed) {
   return (b: PlanBuilder, s: ProductSpec): boolean => {
     if (s.archetype !== "seat" || Math.round(s.size.w) !== o.w || Math.round(s.size.h) !== o.h || Math.round(s.size.d) !== o.d) return false;
-    const base = o.seat.base, RAIL = 40, LEG = 32;
+    const base = o.seat.base, RAIL = 40, LEG = 32, RD = 26; // RD: the rail tube's diameter
     const seat = body(b, o.seat);
 
     // the frames run corner to corner: 2 from back left to front right, 3 from back right to front left
@@ -90,7 +90,7 @@ export function crossed(o: Crossed) {
         [
           rod(at(g, -o.frame.top / 2, base), at(g, -o.frame.len / 2 + LEG / 2, 0), LEG),
           rod(at(g, o.frame.top / 2, base), at(g, o.frame.len / 2 - LEG / 2, 0), LEG),
-          rod(at(g, -o.frame.top / 2, base - RAIL / 2), at(g, o.frame.top / 2, base - RAIL / 2), 26),
+          rod(at(g, -o.frame.top / 2, base - RAIL / 2), at(g, o.frame.top / 2, base - RAIL / 2), RD),
         ],
         { material: "metal", label },
       );
@@ -101,7 +101,7 @@ export function crossed(o: Crossed) {
     const cross: FitOpts = { on: f3, at: [0, base, 0], dir: [0, -1, 0], mate: f2 };
     // B: up through each rail end, just inside the legs, into the seat's frame
     const ups = [[f2, 1], [f3, -1]].flatMap(([f, g]) =>
-      [-1, 1].map((k): FitOpts => ({ on: f as string, at: at(g as number, (k * o.frame.top) / 2 - k * 45, base - RAIL), dir: [0, 1, 0], mate: seat })),
+      [-1, 1].map((k): FitOpts => ({ on: f as string, at: at(g as number, (k * o.frame.top) / 2 - k * 45, base - RAIL / 2 - RD / 2), dir: [0, 1, 0], mate: seat })), // from the rail's underside
     );
 
     const crossIt = () => {
