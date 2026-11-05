@@ -96,6 +96,7 @@ html:has(.site) body {
   font-size: 15px;
   color: var(--ink-2);
   text-decoration: none;
+  white-space: nowrap;
   transition: color 0.2s;
 }
 .nav-link::after {
@@ -2711,5 +2712,58 @@ html:has(.site) body {
   }
   .cat-tile-art {
     width: 92px;
+  }
+}
+
+.az-by {
+  display: none;
+}
+/* phones: logo, "by" + House A-Z's mark (the link's aria-label names it), then Workshop and Browse on the right for the thumb.
+   ponytail: visual order only (display: contents + order), so focus order stays logo, Browse, Workshop, House A-Z */
+@media (max-width: 520px) {
+  .head-left {
+    display: contents;
+  }
+  .site-head {
+    gap: 8px;
+  }
+  /* "by" sits 8px from the logo (the header's gap) and 8px from the mark */
+  .site-head > .nav-link {
+    order: 1;
+    gap: 8px;
+    padding: 0 4px 0 0;
+  }
+  .site-nav {
+    order: 2;
+    margin-left: auto;
+    flex-direction: row-reverse;
+  }
+  .site-nav .nav-link {
+    gap: 4px;
+    padding: 0 6px;
+  }
+  .az-label {
+    display: none;
+  }
+  .az-by {
+    display: inline;
+    font-size: 13px;
+  }
+}
+/* narrowest phones: the logo shrinks with the screen, so the row fits down to 360px */
+@media (max-width: 440px) {
+  .site-head .wordmark {
+    font-size: 0.7em;
+  }
+  .site-nav .nav-link {
+    padding: 0 4px;
+  }
+}
+@media (max-width: 374px) {
+  .site-head .wordmark {
+    font-size: 0.64em;
+  }
+  .site-nav .nav-link {
+    font-size: 14px;
   }
 }
