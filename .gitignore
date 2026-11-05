@@ -60,3 +60,6 @@ next-env.d.ts
 
 # QA snapshots: drawings, references and the report stay on the machine that reviews them
 /.qa/
+
+# HyperFrames launch video: project, recordings and renders stay local
+/video/

@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // agent worktrees and local tool state
     ".claude/**",
     ".sweep/**",
+    // the local HyperFrames video project
+    "video/**",
   ]),
 ]);
 
