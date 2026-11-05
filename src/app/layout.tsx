@@ -6,6 +6,7 @@ import "./guide.css";
 import "./home.css";
 import "./scan.css";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Offline from "@/components/Offline";
 import { AI_ENABLED, SITE_URL } from "@/lib/site";
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <Analytics />
+        <SpeedInsights />
         {/* it reads the path, which the prerendered shell doesn't know yet */}
         <Suspense fallback={null}>
           <Offline />
