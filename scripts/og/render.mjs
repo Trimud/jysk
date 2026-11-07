@@ -11,7 +11,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { arg, chromiumOrNull, openRenderer, png } from "./browser.mjs";
+import { arg, chromiumOrNull, guideList, openRenderer, png } from "./browser.mjs";
 
 const args = process.argv.slice(2);
 const base = arg("--base", process.env.QA_BASE ?? "http://localhost:3000");
@@ -26,7 +26,7 @@ if (args.includes("--if-available")) {
   } catch {
     skip("no ffmpeg");
   }
-  if (!(await fetch(`${base}/dev/og/list`, { signal: AbortSignal.timeout(5000) }).then((r) => r.ok, () => false))) skip(`no dev server at ${base}`);
+  if (!(await guideList(base))) skip(`no dev server at ${base}`);
 }
 const only = arg("--only");
 

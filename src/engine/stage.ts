@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import type { HwItem, PartItem, PartState, PartType, Plan, Step, Vec3 } from "@/lib/types";
-import { POSE_EULER } from "@/lib/plan/math";
+import { POSE_EULER, clamp } from "@/lib/plan/math";
 import { Drawable, hwDrawable, partDrawable, wallDrawable } from "./drawable";
+import type { Look } from "./thumbs";
 import { INK, INK_OLD } from "./materials";
 
 /** Part names can come from a shared scan link: never let them through as markup. */
@@ -42,6 +43,7 @@ const PART_DUR = 0.95;
 const HW_DUR = 0.6;
 const CAM_TURN = 0.62;
 const HOLD = 2.4;
+const ZOOM_HOLD = 3; // seconds the close-ups stay on once a step has played, before it starts over
 const FADE = 0.35;
 
 interface PNode {
@@ -57,6 +59,8 @@ interface HNode {
   holder: THREE.Group;
   inner: THREE.Group;
   parent?: PNode;
+  /** how far it stands out of the surface it goes into (mm): the top of its drawing, modelled along +Y from that surface */
+  out: number;
 }
 
 interface Xf {
@@ -70,6 +74,29 @@ const Y = new THREE.Vector3(0, 1, 0);
 
 function quatFromEuler(e: Vec3) {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2], "XYZ"));
+}
+
+type Pt = { x: number; y: number };
+
+/** A fitting type's close-up: where its first fitting ends up, which way it goes in, and how wide to look (mm). */
+interface Focus {
+  local: THREE.Vector3;
+  dir: THREE.Vector3;
+  size: number;
+  hw: HNode;
+}
+
+/** A zoom circle: its own canvas and arrows, the leader line to its fitting, and where it sits beside it. */
+interface Callout {
+  wrap: HTMLDivElement;
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  svg: SVGSVGElement;
+  leader: SVGPathElement;
+  dot: SVGCircleElement;
+  visible: number;
+  /** angle and distance (px) of the circle's centre from its fitting's spot on screen, and its clash when picked */
+  at?: { a: number; d: number; cost: number };
 }
 
 export class Stage {
@@ -101,16 +128,15 @@ export class Stage {
   overlay?: SVGSVGElement;
   labelLayer?: HTMLDivElement;
   tooltip?: HTMLDivElement;
+  /** One zoom circle per fitting type: a shared renderer draws each close-up, copied into the circle's own canvas. */
   callout?: {
-    wrap: HTMLDivElement;
     renderer: THREE.WebGLRenderer;
     camera: THREE.OrthographicCamera;
-    svg: SVGSVGElement;
+    /** the circle's diameter with one fitting type; more circles are drawn smaller (calloutSize) */
     size: number;
-    visible: number;
+    drawn: number;
+    items: Callout[];
   };
-  leader?: SVGPathElement;
-  leaderDot?: SVGCircleElement;
   arrows: SVGPathElement[] = [];
   labels = new Map<string, HTMLDivElement>();
   squareEls: SVGElement[] = [];
@@ -171,7 +197,14 @@ export class Stage {
   private frameLocal: THREE.Vector3[] = [];
   private stack = new Map<string, Xf>();
   private layout = new Map<string, Xf>();
-  private focus?: { local: THREE.Vector3; dir: THREE.Vector3; size: number; hw: HNode };
+  /** One zoom target per fitting type in the step, in the order they go in: each gets its own circle as it starts. */
+  private focuses: Focus[] = [];
+  /** every fitting going in this step (root frame): the circles keep clear of all of them, not just their own */
+  private stepFits: THREE.Vector3[] = [];
+  /** How long a step holds once played before it starts over (longer when there are close-ups to look at). */
+  private get hold() {
+    return this.focuses.length ? ZOOM_HOLD : HOLD;
+  }
   /** How many fittings the step's corner box lists (it sits over the top left of the drawing). */
   private cornerItems = 0;
   margins?: { t: number; r: number; b: number; l: number };
@@ -255,28 +288,54 @@ export class Stage {
 
   /* ---------------- setup ---------------- */
 
+  /** A phone-sized view: tighter margins, smaller corner box and buttons, smaller zoom circles. */
+  private get mob() {
+    return this.w < 640;
+  }
+
+  /** The step number and fittings box over the top left of a step (their CSS sizes, roughly). */
+  private cornerBox() {
+    const mob = this.mob, m = this.opts.margins ?? { t: 0, r: 0, b: 0, l: 0 };
+    const n = this.cornerItems;
+    return { w: (n ? (mob ? 34 + n * 48 : 46 + n * 62) : mob ? 80 : 110) + m.l, h: (mob ? 128 : 200) + m.t };
+  }
+
+  /** The buttons along the bottom of a step (play, speed, "drag to turn it around"). */
+  private bottomBar() {
+    return (this.mob ? 56 : 72) + (this.opts.margins?.b ?? 0);
+  }
+
   private makeCallout() {
-    const wrap = document.createElement("div");
-    wrap.className = "stage-callout";
-    wrap.style.opacity = "0";
-    wrap.style.visibility = "hidden";
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0xffffff, 1);
-    wrap.appendChild(renderer.domElement);
+    this.callout = { renderer, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000), size: 200, drawn: 0, items: [] };
+  }
+
+  private makeCalloutItem(): Callout {
     const ns = "http://www.w3.org/2000/svg";
+    const wrap = document.createElement("div");
+    wrap.className = "stage-callout";
+    wrap.style.visibility = "hidden";
+    const canvas = document.createElement("canvas");
+    wrap.appendChild(canvas);
     const svg = document.createElementNS(ns, "svg") as SVGSVGElement;
     svg.setAttribute("class", "stage-callout-svg");
     wrap.appendChild(svg);
     this.el.appendChild(wrap);
-    this.callout = { wrap, renderer, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000), svg, size: 200, visible: 0 };
-    this.leader = document.createElementNS(ns, "path") as SVGPathElement;
-    this.leader.setAttribute("class", "leader");
-    this.leaderDot = document.createElementNS(ns, "circle") as SVGCircleElement;
-    this.leaderDot.setAttribute("class", "leader-dot");
-    this.leaderDot.setAttribute("r", "4");
-    this.overlay!.appendChild(this.leader);
-    this.overlay!.appendChild(this.leaderDot);
+    const leader = document.createElementNS(ns, "path") as SVGPathElement;
+    leader.setAttribute("class", "leader");
+    const dot = document.createElementNS(ns, "circle") as SVGCircleElement;
+    dot.setAttribute("class", "leader-dot");
+    dot.setAttribute("r", "4");
+    this.overlay!.appendChild(leader);
+    this.overlay!.appendChild(dot);
+    return { wrap, canvas, ctx: canvas.getContext("2d")!, svg, leader, dot, visible: 0 };
+  }
+
+  /** The circles' diameter: smaller as there are more of them, so they fit round the drawing. */
+  private calloutSize(base: number, n: number) {
+    return Math.round(base * [1, 1, 0.85, 0.74, 0.66, 0.6][Math.min(n, 5)]);
   }
 
   resize(w?: number, h?: number) {
@@ -290,10 +349,9 @@ export class Stage {
     }
     this.renderer.setSize(this.w, this.h, false);
     if (this.callout) {
-      const size = Math.round(Math.min(220, Math.max(120, Math.min(this.w, this.h) * 0.34)));
+      const k = this.mob ? 0.85 : 1; // a little smaller on phones, where they crowd the drawing
+      const size = Math.round(Math.min(220, Math.max(120 * k, Math.min(this.w, this.h) * 0.34 * k)));
       this.callout.size = size;
-      this.callout.renderer.setSize(size, size, false);
-      this.callout.wrap.style.width = this.callout.wrap.style.height = size + "px";
     }
   }
 
@@ -327,6 +385,7 @@ export class Stage {
       if (it.kind !== "hw") continue;
       const ht = hwTypes.get(it.ref)!;
       const d = hwDrawable(ht.kind, ht.len, ht.dia, ht.flush);
+      const out = Math.max(0, new THREE.Box3().setFromObject(d.root).max.y); // read before it has a parent
       const holder = new THREE.Group();
       const inner = new THREE.Group();
       holder.add(inner);
@@ -338,7 +397,7 @@ export class Stage {
       const parent = it.parent ? this.byKey.get(it.parent) : undefined;
       (parent ? parent.node : this.root).add(holder);
       d.meshes.forEach((m) => (m.userData.ref = it.ref));
-      this.hws.push({ item: it, d, holder, inner, parent });
+      this.hws.push({ item: it, d, holder, inner, parent, out });
     }
     this.computeExtents();
     this.computeArrangements();
@@ -588,7 +647,7 @@ export class Stage {
   private prepareMode() {
     const plan = this.plan;
     if (!plan) return;
-    this.focus = undefined;
+    this.focuses = [];
     this.frameLocal = [];
     this.cornerItems = 0;
     this.stepXf.clear();
@@ -611,31 +670,37 @@ export class Stage {
         this.frameLocal.push(...this.corners(p, st.pos, st.rot));
         if (st.step === s) end = Math.max(end, st.delay + PART_DUR + (st.spin ? 0.4 : 0));
       }
-      let first: HNode | undefined;
+      const firsts = new Map<string, HNode>(); // the first of each fitting type to go in
       for (const h of this.hws) {
         if (h.item.step !== s) continue;
         const dur = HW_DUR + (h.item.turn ? CAM_TURN : 0);
         end = Math.max(end, h.item.delay + dur);
-        if (h.item.travel > 0 && (!first || h.item.delay < first.item.delay)) first = h;
+        const f = firsts.get(h.item.ref);
+        if (h.item.travel > 0 && (!f || h.item.delay < f.item.delay)) firsts.set(h.item.ref, h);
       }
       this.stepEnd = Math.max(end, 0.6);
       this.cornerItems = Math.min(4, new Set(this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => h.item.ref)).size);
-      if (first && this.callout) {
-        const loc = new THREE.Vector3(...first.item.pos);
-        const dir = new THREE.Vector3(...first.item.dir).normalize();
-        if (first.parent) {
-          const { st } = this.stateAt(first.parent, s);
-          if (st) {
-            const q = quatFromEuler(st.rot);
-            loc.applyQuaternion(q).add(new THREE.Vector3(...st.pos));
-            dir.applyQuaternion(q);
-          }
+      // where a fitting ends up in this step, in the root's frame
+      const settled = (h: HNode) => {
+        const loc = new THREE.Vector3(...h.item.pos);
+        const dir = new THREE.Vector3(...h.item.dir).normalize();
+        const st = h.parent && this.stateAt(h.parent, s).st;
+        if (st) {
+          const q = quatFromEuler(st.rot);
+          loc.applyQuaternion(q).add(new THREE.Vector3(...st.pos));
+          dir.applyQuaternion(q);
         }
-        const ht = plan.hardware.find((x) => x.id === first!.item.ref)!;
+        return { loc, dir };
+      };
+      this.stepFits = this.callout ? this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => settled(h).loc) : [];
+      for (const first of this.callout ? [...firsts.values()].sort((a, b) => a.item.delay - b.item.delay) : []) {
+        const { loc, dir } = settled(first);
+        const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
-        this.focus = { local: loc, dir, size, hw: first };
+        this.focuses.push({ local: loc, dir, size, hw: first });
       }
+      for (const c of this.callout?.items ?? []) c.at = undefined;
       // wall
       if (step.wall) this.ensureWall();
       if (step.check === "square") this.ensureSquare();
@@ -706,7 +771,7 @@ export class Stage {
     }
     const m = this.mode;
     if (m.kind === "step" && this.opts.loop !== false) {
-      const cycle = this.stepEnd + HOLD + FADE;
+      const cycle = this.stepEnd + this.hold + FADE;
       if (this.t > cycle) {
         this.t = 0;
         this.loopCount++;
@@ -795,14 +860,17 @@ export class Stage {
     }
     const col = o.ink ? INK : INK_OLD;
     const lw = this.opts.offscreen ? o.width * 1.15 : o.width;
+    // lines too: an outline still waiting to fade in must not write depth, or it cuts its shape out of what's behind
     for (const l of d.lines) {
       l.color.copy(col);
       l.opacity = o.opacity;
       l.linewidth = lw;
+      l.depthWrite = depth;
     }
     for (const l of d.thin) {
       l.color.copy(col);
       l.opacity = o.opacity * 0.9;
+      l.depthWrite = depth;
       l.linewidth = Math.max(0.8, o.width * 0.62);
     }
     for (const hm of d.hulls) {
@@ -820,7 +888,7 @@ export class Stage {
     const sIdx = m.kind === "step" ? m.index : -1;
     const scene = step?.scene ?? "main";
     const loops = this.opts.loop !== false;
-    const fadeOut = loops && m.kind === "step" && t > this.stepEnd + HOLD ? 1 - clamp01((t - this.stepEnd - HOLD) / FADE) : 1;
+    const fadeOut = loops && m.kind === "step" && t > this.stepEnd + this.hold ? 1 - clamp01((t - this.stepEnd - this.hold) / FADE) : 1;
     const hl = this.highlight;
 
     const visibleParts = new Set<PNode>();
@@ -949,8 +1017,10 @@ export class Stage {
       } else {
         h.inner.position.set(0, 0, 0);
         h.inner.quaternion.setFromAxisAngle(Y, (it.spin ?? 0) * Math.PI * 2 + (it.turn ?? 0));
-        const op = m.kind === "intro" ? clamp01((t - this.stepEnd + 0.7) / 0.5) : 1;
         const lit = this.highlight?.has(it.ref) ?? false;
+        // in a step, a fitting already on a part shows only as much as that part does: one fading in (on the step's
+        // own pieces, or coming over from the prep table) brings its fittings with it
+        const op = m.kind === "intro" ? clamp01((t - this.stepEnd + 0.7) / 0.5) : m.kind === "step" && h.parent && !lit ? h.parent.d.opacity : 1;
         this.styleDrawable(h.d, { opacity: op, ink: isNew || lit || m.kind !== "step", tint: lit ? 0.8 : 0, width: lit ? 1.7 : 1.25 });
       }
     }
@@ -1046,7 +1116,7 @@ export class Stage {
       maxR = maxU = 500;
     }
     const aspect = this.w / this.h;
-    const mob = this.w < 640;
+    const mob = this.mob;
     const k = this.mode.kind;
     const m = this.opts.margins ?? { t: 0, r: 0, b: 0, l: 0 };
     let mT = 40, mR = 40, mB = 40, mL = 40;
@@ -1054,10 +1124,10 @@ export class Stage {
       const pad = Math.round(Math.min(this.w, this.h) * 0.07);
       mT = mR = mB = mL = k === "part" ? 4 : pad;
     } else if (k === "step") {
-      const co = this.callout && this.focus ? this.callout.size + (mob ? 24 : 56) : 0;
+      const co = this.callout && this.focuses.length ? this.callout.size + (mob ? 24 : 56) : 0;
       mT = (mob ? 70 : 96) + m.t;
       mL = (mob ? 24 : 36) + m.l;
-      mB = (mob ? 56 : 72) + m.b;
+      mB = this.bottomBar();
       mR = Math.max(mob ? 24 : 36, co * (mob ? 0.55 : 1)) + m.r;
     } else if (k === "part") {
       mT = mR = mB = mL = 4;
@@ -1078,8 +1148,8 @@ export class Stage {
     // the fittings box covers the top left: keep the drawing either below it or to its right
     const starts: [number, number][] = [[mL, mT]];
     if (k === "step" && this.cornerItems) {
-      const boxH = (mob ? 128 : 200) + m.t, boxW = (mob ? 34 + this.cornerItems * 48 : 46 + this.cornerItems * 62) + m.l;
-      starts.splice(0, 1, [mL, Math.max(mT, boxH)], [Math.max(mL, boxW), mT]);
+      const box = this.cornerBox();
+      starts.splice(0, 1, [mL, Math.max(mT, box.h)], [Math.max(mL, box.w), mT]);
     }
     let best = fit(mL, mT, mR, mB);
     let first = true;
@@ -1087,8 +1157,8 @@ export class Stage {
       const c = fit(l, t, mR, mB);
       if (first || c.s < best.s) best = c;
       first = false;
-      if (k === "step" && this.callout && this.focus) {
-        // the circle only blocks the top right corner: try keeping the drawing below it instead
+      if (k === "step" && this.callout && this.focuses.length) {
+        // leave the circles room at the top right, or keep the drawing below it
         const below = fit(l, Math.max(t, this.callout.size + 34), (mob ? 24 : 36) + m.r, mB);
         if (below.s < best.s) best = below;
       }
@@ -1157,11 +1227,19 @@ export class Stage {
   }
 
   /** Render once at a size and return a PNG data URL (offscreen stages). */
-  snapshot(w: number, h: number) {
+  snapshot(w: number, h: number, o: Pick<Look, "at" | "hideNew"> = {}) {
     this.resize(w, h);
     this.camReady = false;
     this.rootReady = false;
+    // `at`: a moment in the step (seconds) instead of its end. `hideNew` leaves out what fades in during the step (new
+    // fittings, and parts that arrive rather than move), so scripts/qa/snapshots.mjs can check that it doesn't show yet
+    if (o.at !== undefined) this.t = o.at;
     this.tick(0);
+    if (o.hideNew && this.mode.kind === "step") {
+      const s = this.mode.index;
+      for (const h of this.hws) if (h.item.step === s && !h.item.preset) h.holder.visible = false;
+      for (const [p, xf] of this.stepXf) if (xf.st.step === s && !xf.from) p.node.visible = false;
+    }
     this.setRes(w, h);
     this.renderer.render(this.scene, this.camera);
     return this.renderer.domElement.toDataURL("image/png");
@@ -1194,7 +1272,7 @@ export class Stage {
     const arrowKeys = new Set<string>();
     const wantedLabels = new Map<string, { x: number; y: number; text: string; sub?: string; o: number; lit: boolean }>();
     if (m.kind === "step" && step) {
-      const fade = this.opts.loop !== false && t > this.stepEnd + HOLD ? 1 - clamp01((t - this.stepEnd - HOLD) / FADE) : 1;
+      const fade = this.opts.loop !== false && t > this.stepEnd + this.hold ? 1 - clamp01((t - this.stepEnd - this.hold) / FADE) : 1;
       for (const p of this.parts) {
         if (!p.node.visible) continue;
         const { st, prev } = this.stateAt(p, m.index);
@@ -1406,88 +1484,179 @@ export class Stage {
     this.dimsEl.style.opacity = "1";
   }
 
+  /**
+   * Where the step's zoom circles go (radius r): each fitting type's spot on screen, every fitting of the step, and the
+   * circles placed beside their spots. Makes the circles' elements as needed.
+   */
+  private layoutCallouts(r: number) {
+    const co = this.callout!;
+    const fs = this.mode.kind === "step" ? this.focuses : [];
+    while (co.items.length < fs.length) {
+      co.items.push(this.makeCalloutItem());
+      co.drawn = 0; // sized on the next render
+    }
+    const worlds = fs.map((f) => this.root.localToWorld(f.local.clone()));
+    const spots = worlds.map((w) => this.project(w));
+    const fits = this.stepFits.map((v) => this.project(this.root.localToWorld(v.clone())));
+    return { worlds, spots, fits, r, ...this.placeCallouts(spots, fits, r) };
+  }
+
+  /** The step's circle layout, for scripts/qa/callouts.mjs (through /dev/og): worked out without drawing anything. */
+  calloutLayout() {
+    const co = this.callout;
+    if (!co || this.mode.kind !== "step" || !this.focuses.length) return null;
+    this.root.updateMatrixWorld(true);
+    const { circles, fits, box, bar, r } = this.layoutCallouts(this.calloutSize(co.size, this.focuses.length) / 2);
+    return { w: this.w, h: this.h, r, circles, fits, box, bar };
+  }
+
   private renderCallout() {
     const co = this.callout;
-    if (!co || !this.leader || !this.leaderDot) return;
-    const f = this.mode.kind === "step" ? this.focus : undefined;
+    if (!co) return;
     const t = this.t;
-    let target = 0;
-    if (f) {
-      const k = (t - f.hw.item.delay + 0.5) / 0.4;
-      target = clamp01(k);
-      if (t > this.stepEnd + HOLD) target = 1;
+    const fs = this.mode.kind === "step" ? this.focuses : [];
+    if (!fs.length) {
+      for (const c of co.items) {
+        c.visible = 0;
+        c.wrap.style.visibility = "hidden";
+        c.leader.style.opacity = c.dot.style.opacity = "0";
+      }
+      return;
     }
-    co.visible += (target - co.visible) * 0.18;
-    const show = co.visible > 0.02 && !!f;
-    co.wrap.style.opacity = String(co.visible);
-    co.wrap.style.transform = `scale(${0.85 + 0.15 * co.visible})`;
-    co.wrap.style.visibility = show ? "visible" : "hidden";
-    this.leader.style.opacity = this.leaderDot.style.opacity = String(show ? co.visible : 0);
-    if (!show || !f) return;
+    const s = this.calloutSize(co.size, fs.length);
+    const { worlds, spots, circles } = this.layoutCallouts(s / 2);
+    if (co.drawn !== s) {
+      co.drawn = s;
+      co.renderer.setSize(s, s, false);
+      for (const c of co.items) {
+        c.canvas.width = c.canvas.height = co.renderer.domElement.width;
+        c.wrap.style.width = c.wrap.style.height = s + "px";
+        c.svg.setAttribute("viewBox", `0 0 ${s} ${s}`);
+      }
+    }
 
-    const world = this.root.localToWorld(f.local.clone());
-    const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
     const camDir = new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
-    const view = dirW.clone().multiplyScalar(0.85).addScaledVector(camDir, 0.55).normalize();
-    const cam = co.camera;
-    const half = f.size;
-    cam.left = -half;
-    cam.right = half;
-    cam.top = half;
-    cam.bottom = -half;
-    cam.position.copy(world).addScaledVector(view, -900);
-    cam.up.copy(Math.abs(view.y) > 0.92 ? new THREE.Vector3(0, 0, -1) : Y);
-    cam.lookAt(world);
-    cam.near = 900 - Math.max(120, half * 2.2);
-    cam.far = 900 + 900;
-    cam.updateProjectionMatrix();
-    cam.updateMatrixWorld();
-    const s = co.size;
-    this.setRes(s, s);
-    const sh = this.shadow.visible;
-    this.shadow.visible = false;
-    if (this.wall) this.wall.node.visible = this.wall.on > 0.02;
-    co.renderer.render(this.scene, cam);
-    this.shadow.visible = sh;
-    this.setRes(this.w, this.h);
+    // switched over for the close-ups on the first circle that shows, and back after the last
+    let shadow: boolean | null = null;
+    co.items.forEach((c, i) => {
+      const f = fs[i];
+      // each circle comes in as its fitting starts and stays until the step starts over
+      const target = f ? clamp01((t - f.hw.item.delay + 0.5) / 0.4) : 0;
+      c.visible += (target - c.visible) * 0.18;
+      const show = !!f && c.visible > 0.02;
+      c.wrap.style.visibility = show ? "visible" : "hidden";
+      c.leader.style.opacity = c.dot.style.opacity = String(show ? c.visible : 0);
+      if (!show) return;
+      if (shadow === null) {
+        shadow = this.shadow.visible;
+        this.shadow.visible = false;
+        this.setRes(s, s);
+        if (this.wall) this.wall.node.visible = this.wall.on > 0.02;
+      }
+      const sp = spots[i], { x: cx, y: cy } = circles[i];
+      c.wrap.style.opacity = String(c.visible);
+      c.wrap.style.transform = `translate(${cx - s / 2}px, ${cy - s / 2}px) scale(${0.85 + 0.15 * c.visible})`;
 
-    // leader line from the spot in the main view to the circle
-    const sp = this.project(world);
-    const rect = co.wrap.getBoundingClientRect();
-    const host = this.el.getBoundingClientRect();
-    const cx = rect.left - host.left + rect.width / 2;
-    const cy = rect.top - host.top + rect.height / 2;
-    const r = rect.width / 2;
-    const ang = Math.atan2(sp.y - cy, sp.x - cx);
-    const ex = cx + Math.cos(ang) * r, ey = cy + Math.sin(ang) * r;
-    this.leader.setAttribute("d", `M${sp.x} ${sp.y} L${ex} ${ey}`);
-    this.leaderDot.setAttribute("cx", String(sp.x));
-    this.leaderDot.setAttribute("cy", String(sp.y));
+      const world = worlds[i];
+      const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
+      const view = dirW.clone().multiplyScalar(0.85).addScaledVector(camDir, 0.55).normalize();
+      const cam = co.camera;
+      const half = f.size;
+      cam.left = -half;
+      cam.right = half;
+      cam.top = half;
+      cam.bottom = -half;
+      cam.position.copy(world).addScaledVector(view, -900);
+      cam.up.copy(Math.abs(view.y) > 0.92 ? new THREE.Vector3(0, 0, -1) : Y);
+      cam.lookAt(world);
+      cam.near = 900 - Math.max(120, half * 2.2);
+      cam.far = 900 + 900;
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+      co.renderer.render(this.scene, cam);
+      // copied out straight after the render, while the drawing buffer still holds it
+      c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      c.ctx.drawImage(co.renderer.domElement, 0, 0);
 
-    // callout arrows: insertion + rotation
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = co.svg;
-    svg.setAttribute("viewBox", `0 0 ${s} ${s}`);
-    const it = f.hw.item;
-    const k = clamp01((t - it.delay) / HW_DUR);
-    const proj = (v: THREE.Vector3) => {
-      const p = v.clone().project(cam);
-      return { x: ((p.x + 1) / 2) * s, y: ((1 - p.y) / 2) * s };
-    };
-    const a = proj(world.clone().addScaledVector(dirW, -half * 1.15));
-    const b = proj(world.clone().addScaledVector(dirW, -half * 0.45));
-    let html = "";
-    const op1 = k < 1 ? 1 : clamp01(1 - (t - it.delay - HW_DUR) * 2);
-    if (Math.hypot(b.x - a.x, b.y - a.y) > 18) html += `<path class="arrow" style="opacity:${op1}" d="${arrowPath(a, b, 0.9)}"/>`;
-    const turning = (it.turn ?? 0) > 0 || (it.spin ?? 0) > 0;
-    if (turning) {
-      const c = proj(world);
-      const tk = it.turn ? clamp01((t - it.delay - HW_DUR) / CAM_TURN) : k;
-      const op2 = it.turn ? (tk > 0 ? 1 : 0) : 1;
-      html += `<path class="arrow turn" style="opacity:${op2}" d="${arcArrow(c.x, c.y, Math.min(34, s * 0.2), -2.4 + tk * 0.4, 0.9 + tk * 0.4)}"/>`;
+      // leader line from the spot in the main view to the circle's edge
+      const ang = Math.atan2(sp.y - cy, sp.x - cx);
+      c.leader.setAttribute("d", `M${sp.x} ${sp.y} L${cx + Math.cos(ang) * (s / 2)} ${cy + Math.sin(ang) * (s / 2)}`);
+      c.dot.setAttribute("cx", String(sp.x));
+      c.dot.setAttribute("cy", String(sp.y));
+
+      // callout arrows: insertion + rotation
+      const it = f.hw.item;
+      const k = clamp01((t - it.delay) / HW_DUR);
+      const proj = (v: THREE.Vector3) => {
+        const p = v.clone().project(cam);
+        return { x: ((p.x + 1) / 2) * s, y: ((1 - p.y) / 2) * s };
+      };
+      const a = proj(world.clone().addScaledVector(dirW, -half * 1.15));
+      const b = proj(world.clone().addScaledVector(dirW, -half * 0.45));
+      let html = "";
+      const op1 = k < 1 ? 1 : clamp01(1 - (t - it.delay - HW_DUR) * 2);
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 18) html += `<path class="arrow" style="opacity:${op1}" d="${arrowPath(a, b, 0.9)}"/>`;
+      if ((it.turn ?? 0) > 0 || (it.spin ?? 0) > 0) {
+        // centred on the hole and wide enough to clear what sticks out of it (a cam bolt stands ~23 mm proud)
+        const p0 = proj(world), p1 = proj(world.clone().addScaledVector(dirW, -f.hw.out));
+        const rr = Math.min(s * 0.45, Math.max(Math.min(34, s * 0.2), Math.hypot(p1.x - p0.x, p1.y - p0.y) + 12));
+        const tk = it.turn ? clamp01((t - it.delay - HW_DUR) / CAM_TURN) : k;
+        const op2 = it.turn ? (tk > 0 ? 1 : 0) : 1;
+        html += `<path class="arrow turn" style="opacity:${op2}" d="${arcArrow(p0.x, p0.y, rr, -2.4 + tk * 0.4, 0.9 + tk * 0.4)}"/>`;
+      }
+      if (c.svg.innerHTML !== html) c.svg.innerHTML = html;
+    });
+    if (shadow !== null) {
+      this.shadow.visible = shadow;
+      this.setRes(this.w, this.h);
     }
-    if (svg.innerHTML !== html) svg.innerHTML = html;
-    void ns;
+  }
+
+  /**
+   * Put each circle (radius r) beside its fitting's spot on screen: inside the view, clear of the step number and
+   * fittings box (top left) and the buttons along the bottom (whose top is `bar`), of the circles before it and of every
+   * fitting in the step. A circle keeps its place (as an offset from its spot, so it follows the drawing round) while
+   * that still works. Returns the circles' centres and what they keep clear of.
+   */
+  private placeCallouts(spots: Pt[], fits: Pt[], r: number) {
+    const items = this.callout!.items;
+    const pad = 10;
+    const box = this.cornerBox();
+    const bar = this.h - this.bottomBar(), floor = bar - 4;
+    const mid = this.project(this.camTarget);
+    const placed: Pt[] = [];
+    const clash = (x: number, y: number) => {
+      let p = Math.max(0, pad + r - x) + Math.max(0, x + r - (this.w - pad)) + Math.max(0, pad + r - y) + Math.max(0, y + r - floor);
+      const qx = clamp(x, 0, box.w), qy = clamp(y, 0, box.h);
+      p += Math.max(0, r + 8 - Math.hypot(x - qx, y - qy));
+      for (const o of placed) p += Math.max(0, 2 * r + 14 - Math.hypot(x - o.x, y - o.y));
+      // any fitting under the circle, its own type's others included (its own spot is never under it)
+      let cover = 0;
+      for (const o of fits) cover += Math.max(0, r + 14 - Math.hypot(x - o.x, y - o.y));
+      return p * 50 + cover;
+    };
+    spots.forEach((sp, i) => {
+      const c = items[i];
+      const at = (a: number, d: number) => ({ x: sp.x + Math.cos(a) * d, y: sp.y + Math.sin(a) * d });
+      const keep = c.at && at(c.at.a, c.at.d);
+      // move only when the spot got worse than when it was picked (a crowded view may have no perfect spot)
+      if (!keep || clash(keep.x, keep.y) > c.at!.cost + 0.5) {
+        // nearest first, and rather out away from the middle of the drawing than over it
+        const out = Math.atan2(sp.y - mid.y, sp.x - mid.x);
+        let best = { a: 0, d: 0, cost: 0, score: Infinity };
+        for (const d of [r + 110, r + 160, r + 220, r + 300]) // well clear of the piece, so the drawing stays readable
+          for (let k = 0; k < 16; k++) {
+            const a = (k / 16) * Math.PI * 2;
+            const q = at(a, d);
+            const cost = clash(q.x, q.y);
+            const score = cost * 10 + d + 40 * (1 - Math.cos(a - out));
+            if (score < best.score) best = { a, d, cost, score };
+          }
+        c.at = { a: best.a, d: best.d, cost: best.cost };
+      }
+      placed.push(at(c.at!.a, c.at!.d));
+    });
+    return { circles: placed, box, bar };
   }
 
   /* ---------------- pointer ---------------- */
@@ -1616,7 +1785,7 @@ export class Stage {
     if (this.callout) {
       this.callout.renderer.dispose();
       this.callout.renderer.forceContextLoss();
-      this.callout.wrap.remove();
+      for (const c of this.callout.items) c.wrap.remove();
     }
     this.overlay?.remove();
     this.labelLayer?.remove();

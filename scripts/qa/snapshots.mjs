@@ -8,7 +8,9 @@
  * .qa/current/<slug>/<view>.png and compared, in the browser, with .qa/baseline/<slug>/<view>.png; .qa/report.html
  * lists what changed (reference, new, difference), what is new and what is gone. With no selection it draws the guides
  * whose family file or catalog row changed since the last commit (--changed). Exits 1 when anything changed or is new,
- * until it is approved. Needs the dev server (QA_BASE if it isn't on port 3000) and Playwright (PLAYWRIGHT_FROM, see
+ * until it is approved. Each step is also checked at its first moment: drawn with and without what first comes in
+ * during it, the two must match, or something not faded in yet still shows (.qa/ghost, listed in the report).
+ * Needs the dev server (QA_BASE if it isn't on port 3000) and Playwright (PLAYWRIGHT_FROM, see
  * scripts/og/browser.mjs); --if-available exits quietly when either is missing, so npm run jysk:build can always call it.
  */
 import { execFileSync } from "node:child_process";
@@ -16,12 +18,12 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, write
 import path from "node:path";
 import { decodeRows } from "@/lib/ikea";
 import { familyOf } from "@/lib/plan/families/family";
-import { arg, chromiumOrNull, openRenderer, png } from "../og/browser.mjs";
+import { arg, chromiumOrNull, guideList, openRenderer, png } from "../og/browser.mjs";
 
 const args = process.argv.slice(2);
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const QA = path.join(ROOT, ".qa");
-const CUR = path.join(QA, "current"), BASE = path.join(QA, "baseline"), DIFF = path.join(QA, "diff");
+const CUR = path.join(QA, "current"), BASE = path.join(QA, "baseline"), DIFF = path.join(QA, "diff"), GHOST = path.join(QA, "ghost");
 const W = 400, H = 300;
 const MIN_CHANGED = 20; // pixels that differ before a view counts as changed: anti-aliasing noise stays under it
 const only = arg("--only")?.split(",").filter(Boolean);
@@ -51,7 +53,7 @@ if (!chromiumOrNull()) {
   if (soft) quiet("no Playwright (set PLAYWRIGHT_FROM to a folder whose node_modules has it)");
   throw new Error("set PLAYWRIGHT_FROM to a folder whose node_modules has playwright");
 }
-const list = await fetch(`${base}/dev/og/list`, { signal: AbortSignal.timeout(5000) }).then((r) => r.json(), () => null);
+const list = await guideList(base);
 if (!list) {
   if (soft) quiet(`no dev server at ${base}`);
   throw new Error("start the dev server first (npm run dev), or pass --base");
@@ -102,33 +104,20 @@ const views = (i) => [
 const drawAndCompare = (o) =>
   page.evaluate(async ({ ref, min, ...o }) => {
     const url = await window.__draw(o);
-    if (!url || !ref) return { url };
-    const load = (src) => new Promise((r, e) => Object.assign(new Image(), { onload() { r(this); }, onerror: e, src }));
-    const [A, B] = await Promise.all([load(ref), load(url)]);
-    if (A.width !== B.width || A.height !== B.height) return { url, changed: Infinity, diff: null };
-    const c = Object.assign(document.createElement("canvas"), { width: A.width, height: A.height });
-    const x = c.getContext("2d", { willReadFrequently: true });
-    x.drawImage(A, 0, 0);
-    const da = x.getImageData(0, 0, c.width, c.height).data;
-    x.clearRect(0, 0, c.width, c.height);
-    x.drawImage(B, 0, 0);
-    const db = x.getImageData(0, 0, c.width, c.height).data;
-    const out = x.createImageData(c.width, c.height);
-    let n = 0;
-    for (let i = 0; i < da.length; i += 4) {
-      const d = Math.max(Math.abs(da[i] - db[i]), Math.abs(da[i + 1] - db[i + 1]), Math.abs(da[i + 2] - db[i + 2]), Math.abs(da[i + 3] - db[i + 3]));
-      if (d > 32) {
-        n++;
-        out.data.set([230, 30, 30, 255], i);
-      } else out.data.set([db[i], db[i + 1], db[i + 2], Math.round(db[i + 3] * 0.25)], i);
-    }
-    if (n < min) return { url, changed: n, diff: null };
-    x.putImageData(out, 0, 0);
-    return { url, changed: n, diff: c.toDataURL("image/png") };
+    return url && ref ? { url, ...(await window.__compare(ref, url, min)) } : { url };
   }, { ...o, min: MIN_CHANGED });
 
+/** A step at its first moment must look the same with and without what fades in during it: nothing shows yet. */
+const ghostCheck = (slug, mode) =>
+  page.evaluate(async ({ min, ...o }) => {
+    const ref = await window.__draw({ ...o, look: { at: 0, hideNew: true } });
+    const url = await window.__draw({ ...o, look: { at: 0 } });
+    return ref && url ? { url, ...(await window.__compare(ref, url, min)) } : null;
+  }, { slug, mode, w: W, h: H, min: MIN_CHANGED });
+
 rmSync(DIFF, { recursive: true, force: true });
-const result = { changed: [], fresh: [], gone: [], failed: [], same: 0 };
+rmSync(GHOST, { recursive: true, force: true });
+const result = { changed: [], fresh: [], gone: [], failed: [], ghosts: [], same: 0 };
 let done = 0;
 for (const slug of slugs) {
   const i = await page.evaluate((s) => window.__info(s), slug);
@@ -156,6 +145,14 @@ for (const slug of slugs) {
       }
       result.changed.push({ slug, view: v.name, pixels: r.changed });
     }
+    if (v.mode.kind !== "step") continue;
+    const g = await ghostCheck(slug, v.mode).catch((e) => void result.failed.push(`${slug} ${v.name} start: ${e.message.split("\n")[0]}`));
+    if (g?.diff) {
+      mkdirSync(path.join(GHOST, slug), { recursive: true });
+      writeFileSync(path.join(GHOST, slug, `${v.name}.png`), png(g.url));
+      writeFileSync(path.join(GHOST, slug, `${v.name}-diff.png`), png(g.diff));
+      result.ghosts.push({ slug, view: v.name, pixels: g.changed });
+    }
   }
   if (existsSync(path.join(BASE, slug))) for (const f of readdirSync(path.join(BASE, slug))) if (!names.has(f.replace(/\.png$/, ""))) result.gone.push({ slug, view: f.replace(/\.png$/, "") });
   if (++done % 10 === 0) console.log(`${done}/${slugs.length}`);
@@ -163,7 +160,7 @@ for (const slug of slugs) {
 await browser.close();
 
 /* ---------- the report ---------- */
-const summary = `${result.changed.length} changed, ${result.fresh.length} new, ${result.gone.length} gone, ${result.same} unchanged, ${result.failed.length} failed`;
+const summary = `${result.changed.length} changed, ${result.fresh.length} new, ${result.gone.length} gone, ${result.same} unchanged, ${result.ghosts.length} showing too early, ${result.failed.length} failed`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const img = (dir, slug, view) => `<img loading="lazy" src="${dir}/${esc(slug)}/${esc(view)}.png" alt="">`;
 const fig = (dir, c, caption) => `<figure>${img(dir, c.slug, c.view)}<figcaption>${caption}</figcaption></figure>`;
@@ -181,7 +178,8 @@ ${result.changed.length ? "<h2>Changed: reference, new, difference in red</h2>" 
 ${result.changed.map((c) => `<h3>${esc(c.slug)} &middot; ${esc(c.view)} <small>(${c.pixels === Infinity ? "a different size" : `${c.pixels} pixels`})</small></h3><div class="row">${fig("baseline", c, "reference")}${fig("current", c, "new")}${c.pixels === Infinity ? "" : fig("diff", c, "difference")}</div>`).join("\n")}
 ${result.fresh.length ? `<h2>New: no reference yet</h2><div class="grid">${result.fresh.map((c) => fig("current", c, `${esc(c.slug)} &middot; ${esc(c.view)}`)).join("")}</div>` : ""}
 ${result.gone.length ? `<h2>Gone: in the reference, not drawn any more</h2><ul>${result.gone.map((c) => `<li>${esc(c.slug)} &middot; ${esc(c.view)}</li>`).join("")}</ul>` : ""}
+${result.ghosts.length ? `<h2>Showing too early: a step's first moment, and in red what shows that hasn't come in yet</h2>${result.ghosts.map((c) => `<h3>${esc(c.slug)} &middot; ${esc(c.view)} <small>(${c.pixels} pixels)</small></h3><div class="row">${fig("ghost", c, "first moment")}${fig("ghost", { ...c, view: c.view + "-diff" }, "difference")}</div>`).join("\n")}` : ""}
 ${result.failed.length ? `<h2>Failed to draw</h2><ul>${result.failed.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}`;
 writeFileSync(path.join(QA, "report.html"), html);
 console.log(`${summary}: open .qa/report.html`);
-if (result.changed.length || result.fresh.length || result.gone.length || result.failed.length) process.exit(soft ? 0 : 1);
+if (result.changed.length || result.fresh.length || result.gone.length || result.ghosts.length || result.failed.length) process.exit(soft ? 0 : 1);

@@ -15,6 +15,9 @@ export const arg = (k, d) => {
 /** A data URL's bytes. */
 export const png = (url) => Buffer.from(url.split(",")[1], "base64");
 
+/** The guides and kinds the dev server can draw (`${base}/dev/og/list`), or null when no dev server answers. */
+export const guideList = (base) => fetch(`${base}/dev/og/list`, { signal: AbortSignal.timeout(5000) }).then((r) => (r.ok ? r.json() : null), () => null);
+
 /** Playwright's chromium, or null when it can't be found. */
 export function chromiumOrNull() {
   try {

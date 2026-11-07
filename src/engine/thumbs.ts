@@ -17,6 +17,9 @@ export interface Look {
   xray?: boolean;
   open?: boolean;
   once?: boolean;
+  /** a step drawn at this moment (seconds) instead of its end, and without what first comes in it (Stage.snapshot) */
+  at?: number;
+  hideNew?: boolean;
 }
 const queue: { key: string; plan: Plan; mode: StageMode; w: number; h: number; probes?: Vec3[]; look?: Look }[] = [];
 
@@ -43,7 +46,7 @@ async function pump() {
       s.setMode(job.mode, { instant: true });
       s.setXray(!!job.look?.xray);
       s.openAll(!!job.look?.open, true);
-      const url = s.snapshot(job.w, job.h);
+      const url = s.snapshot(job.w, job.h, job.look);
       const shot: Shot = { url, points: (job.probes ?? []).map((p) => s.locate(p)) };
       if (!job.look?.once) cache.set(job.key, shot);
       waiting.get(job.key)?.forEach((cb) => cb(shot));
