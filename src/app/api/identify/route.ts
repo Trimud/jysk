@@ -1,8 +1,8 @@
 import { chatText, extractJson, fromApp, ipOf, keyTrouble, MODELS, rateLimited, TogetherError, userKey } from "@/lib/together";
 
-const PROMPT = `This photo shows a JYSK product, its box, its label or its assembly manual cover. Read the product name.
-Reply with JSON only: {"name": "KALLAX", "variant": "2x4 shelving unit", "confidence": 0.0-1.0}.
-The name is the word in capitals (it may contain Å, Ä or Ö). If you can't read a name, guess the kind of furniture in "variant" and set name to "".`;
+const PROMPT = `This photo shows a JYSK product, its box, its label or its assembly manual cover. Read the product name and the product number.
+Reply with JSON only: {"name": "LIMFJORDEN", "variant": "4 drawer chest", "productNo": "3670661", "confidence": 0.0-1.0}.
+The name is the word in capitals (it may contain Æ, Ø, Å, Ä or Ö). The product number is the 7 digit number in the top-left corner of the box front, printed as "Product no." or at the start of a box label (as in "3670661 - 4 drawer chest"); a manual cover lists one per colour, give the first; it is not the 13 digit barcode number, the order, batch or supplier number. Leave any field you can't read as "". If you can't read a name, guess the kind of furniture in "variant".`;
 
 export async function POST(req: Request) {
   if (!fromApp(req)) return Response.json({ error: "forbidden" }, { status: 403 });
@@ -15,15 +15,16 @@ export async function POST(req: Request) {
     const { text } = await chatText({
       key,
       models: MODELS.vision,
-      // vision models think before they answer: a short budget comes back empty
-      maxTokens: 1500,
+      // vision models think before they answer: a short budget comes back empty (a label with only small print needed ~4000)
+      maxTokens: 4000,
       temperature: 0,
       messages: [{ role: "user", content: [{ type: "text", text: PROMPT }, { type: "image_url", image_url: { url: image } }] }],
     });
-    const j = extractJson(text) as { name?: string; variant?: string; confidence?: number } | null;
+    const j = extractJson(text) as { name?: string; variant?: string; productNo?: string; confidence?: number } | null;
     const name = (j?.name ?? "").toString().trim();
     const variant = (j?.variant ?? "").toString().trim();
-    return Response.json({ name, variant, query: [name, variant].filter(Boolean).join(" ").trim(), confidence: Number(j?.confidence ?? 0) });
+    const productNo = (j?.productNo ?? "").toString().replace(/\D/g, "");
+    return Response.json({ name, variant, productNo, query: [name, variant].filter(Boolean).join(" "), confidence: Number(j?.confidence ?? 0) });
   } catch (e) {
     console.error("[identify]", (e as Error).message);
     const trouble = e instanceof TogetherError ? keyTrouble(e.status) : null;

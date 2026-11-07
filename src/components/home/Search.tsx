@@ -8,6 +8,8 @@ import Drawing from "../Drawing";
 import { keyHeaders } from "@/lib/userKey";
 import { IArrowRight, ICamera, ISearch, ISparkle } from "../art/Icons";
 import KeyModal, { type KeyTrouble } from "../KeyModal";
+import PhotoTip from "./PhotoTip";
+import { getPref } from "@/lib/store";
 import { AI_ENABLED } from "@/lib/site";
 
 const EXAMPLES = ["LIMFJORDEN", "ABBETVED desk", "3670661", "TRAPPEDAL shelving", "JENSLEV sideboard", "MARSTRAND table"];
@@ -22,6 +24,8 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
   const [msg, setMsg] = useState("");
   // photo search runs on the person's own key: without one, the camera asks for it first
   const [askKey, setAskKey] = useState<KeyTrouble | "" | null>(null);
+  // the camera first shows where on the box to aim
+  const [tip, setTip] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -78,6 +82,12 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
     else go();
   }
 
+  function onCamera() {
+    if (!ai) return setAskKey("");
+    if (getPref("photoTipHidden", false)) return file.current?.click();
+    setTip(true);
+  }
+
   async function onPhoto(f: File) {
     setReading(true);
     setMsg("");
@@ -90,11 +100,14 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
         return;
       }
       if (!r.ok) throw new Error(j.error);
-      if (j.name) {
-        setQ(j.query || j.name);
-        setMsg(`Found ${j.name}${j.variant ? `, ${j.variant}` : ""}`);
-        setTimeout(() => go(j.query || j.name), 650);
-      } else setMsg("Couldn't read a name. Try a closer photo of the label.");
+      // the product number names the exact product and colour, so it wins when we have a guide for it
+      const tries = [j.productNo, j.query].filter(Boolean) as string[];
+      const target = tries.find((t) => matchCatalog(t)) ?? tries[0];
+      if (target) {
+        setQ(target);
+        setMsg(`Found ${j.name || target}${j.variant ? `, ${j.variant}` : ""}`);
+        setTimeout(() => go(target), 650);
+      } else setMsg("Couldn't read it. Get close to the top-left corner of the box, where the product number is.");
     } catch {
       setMsg("Couldn't read that photo. Try again or type the name.");
     } finally {
@@ -142,7 +155,7 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
           enterKeyHint="go"
         />
         {AI_ENABLED && (
-        <button type="button" className={"cam-btn" + (reading ? " busy" : "")} onClick={() => (ai ? file.current?.click() : setAskKey(""))} aria-label="Search with a photo of the box label" title="Snap the box label">
+        <button type="button" className={"cam-btn" + (reading ? " busy" : "")} onClick={onCamera} aria-label="Search with a photo of the box label" title="Photograph the product number on the box">
           <ICamera size={22} />
         </button>
         )}
@@ -164,6 +177,18 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
       </form>
       <AnimatePresence>{msg && <motion.p className="search-msg" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>{msg}</motion.p>}</AnimatePresence>
       <AnimatePresence>
+        {tip && (
+          <PhotoTip
+            onClose={() => setTip(false)}
+            onShoot={() => {
+              // opened inside the tap: phones only let a tap open the camera
+              file.current?.click();
+              setTip(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {askKey !== null && (
           <KeyModal
             why="photo"
@@ -171,7 +196,7 @@ export default function Search({ ai, autoFocus }: { ai: boolean; autoFocus?: boo
             onClose={() => setAskKey(null)}
             onSaved={() => {
               setAskKey(null);
-              setMsg("Key saved. Tap the camera to snap the label.");
+              setMsg("Key saved. Tap the camera to snap the product number.");
             }}
           />
         )}
