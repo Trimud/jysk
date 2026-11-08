@@ -3,7 +3,7 @@ import { HW, PlanBuilder, type FitOpts } from "./builder";
 import { clamp } from "./math";
 
 /**
- * Office and swivel chairs, in IKEA's order: castors into the star base, the gas lift into the base,
+ * Office and swivel chairs, in JYSK's order: castors into the star base, the gas lift into the base,
  * the mechanism under the seat, then the armrests and the backrest, and the seat onto the gas lift last.
  * The seat is built in scenes of its own (upside down, then lying on its back), so each view stands on the floor.
  */

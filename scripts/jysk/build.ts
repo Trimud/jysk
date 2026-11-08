@@ -1,8 +1,8 @@
 // Turns scripts/jysk/facts.json into the rows we draw: npm run jysk:build
-// Out: src/data/jysk-rows.ts (one row per line, see encodeRow in src/lib/ikea.ts).
+// Out: src/data/jysk-rows.ts (one row per line, see encodeRow in src/lib/jysk.ts).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { encodeRow, type IkeaRow } from "@/lib/ikea";
+import { encodeRow, type JyskRow } from "@/lib/jysk";
 import type { Facts } from "./fetch";
 import { SAME } from "@/data/fixes";
 
@@ -107,7 +107,7 @@ const tones = (family: string, name: string) => {
 // Every product gets a row: a case this doesn't cover yet means extending classify(), never skipping it.
 // JYSK's category says what it is; the name says the rest (a pedestal among the side tables, a daybed among the sofa beds).
 // Counts the page doesn't give are left out, so specFor's defaults apply.
-function classify(f: Facts): { row: IkeaRow } | { skip: string } {
+function classify(f: Facts): { row: JyskRow } | { skip: string } {
   const c = f.category;
   const n = f.name.toLowerCase();
   // a chaise longue's depth is given as seat/chaise: the drawing takes the whole depth, the seat depth goes in x.sd
@@ -134,8 +134,8 @@ function classify(f: Facts): { row: IkeaRow } | { skip: string } {
   // the browse tabs for children's and garden furniture go by these tags, from the category or where JYSK files it
   const where = [c, ...(f.crumbs ?? [])].join(" ");
   const tags = [...(/child|kid/i.test(where) ? ["kids"] : []), ...(/garden|outdoor/i.test(where) ? ["outdoor"] : [])];
-  const row = (kind: IkeaRow["kind"], x: IkeaRow["x"] = {}, s: [number, number, number] = [w, h, d]) => {
-    for (const k of Object.keys(x) as (keyof IkeaRow["x"])[]) if (x[k] === undefined) delete x[k];
+  const row = (kind: JyskRow["kind"], x: JyskRow["x"] = {}, s: [number, number, number] = [w, h, d]) => {
+    for (const k of Object.keys(x) as (keyof JyskRow["x"])[]) if (x[k] === undefined) delete x[k];
     return { row: { ...base, w: s[0], h: s[1], d: s[2], kind, x, ...(tags.length ? { keywords: tags } : {}), facts: factsOf(f, { drawers, doors, shelves, seats }) } } as const;
   };
   // a desk or table's "Width" can be its short side: the longer one is w

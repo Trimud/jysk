@@ -261,7 +261,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-/* size chips can carry a long IKEA name: let them wrap into a rounded box instead of spilling out */
+/* size chips can carry a long JYSK name: let them wrap into a rounded box instead of spilling out */
 .chips.sizes .chip {
   height: auto;
   min-height: 36px;

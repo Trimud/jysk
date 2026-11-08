@@ -16,7 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { decodeRows } from "@/lib/ikea";
+import { decodeRows } from "@/lib/jysk";
 import { familyOf } from "@/lib/plan/families/family";
 import { arg, chromiumOrNull, guideList, openRenderer, png } from "../og/browser.mjs";
 

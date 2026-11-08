@@ -1,11 +1,11 @@
 import { PRODUCTS, articleSlug, catalogEntry, toSpec, type CatalogEntry } from "./catalog";
 import { fold } from "./fold";
-import { articleNo, isGuardedName } from "./ikea";
+import { articleNo, isGuardedName } from "./jysk";
 import { KIND_DEFAULT_SIZE, KIND_LABELS, specFor, type Kind } from "./products";
 import type { Archetype, ProductSpec } from "./types";
 
 export { fold };
-export { articleNo, ikeaType } from "./ikea";
+export { articleNo, jyskType } from "./jysk";
 export { articleSlug };
 
 export function slugify(s: string) {
@@ -166,7 +166,7 @@ export function searchCatalog(q: string, limit = 8): Hit[] {
   const firstIsKind = !!kw?.some((w) => w.split(" ").includes(first));
   const kidsQ = /\b(child|children|kid|kids|junior|baby|toddler)/.test(f);
   const joined = f.replace(/\s+/g, "");
-  // a real IKEA name we can't draw is not a typo of one we can
+  // a real JYSK name we can't draw is not a typo of one we can
   const typos = !isGuardedName(first);
   const byName = new Map<string, number>();
   const nameScore = (r: Row) => {
@@ -198,7 +198,7 @@ export function searchCatalog(q: string, limit = 8): Hit[] {
     if (e.kind && (LESSER.has(e.kind) || e.cabinet?.fit) && kind !== e.kind) score -= 1;
     // and rows of frames that aren't all alike after the rows of frames that are
     if (e.row?.units) score -= 0.5;
-    // and pieces drawn later under IKEA's own name for them after the family's older ones of the same kind
+    // and pieces drawn later under JYSK's own name for them after the family's older ones of the same kind
     if (e.late) score -= kind === e.kind ? 0.5 : 1;
     // and the US range's own pieces after the UK ones of a family, as much as a word of the query is worth
     if (e.us) score -= 13;
@@ -214,7 +214,7 @@ export function searchCatalog(q: string, limit = 8): Hit[] {
 export function matchCatalog(q: string): ProductSpec | null {
   const [a, b] = searchCatalog(q, 2);
   if (!a || a.score < 50) return null;
-  // a real IKEA name we can't draw must not land on a different product
+  // a real JYSK name we can't draw must not land on a different product
   if (!a.exact && isGuardedName(fold(q).split(" ")[0] ?? "")) return null;
   // a typo match only counts when it is clearly the best one
   if (a.score < 60 && b && b.score >= a.score - 4 && fold(b.entry.name) !== fold(a.entry.name)) return null;

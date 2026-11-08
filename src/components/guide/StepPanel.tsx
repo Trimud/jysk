@@ -117,18 +117,23 @@ export default function StepPanel({
                     <span className="need-qty">{count}&times;</span>
                   </li>
                 ))}
-                {c.hardware.map(({ type, count }) => (
-                  <li key={type.id} onMouseEnter={() => onHover([type.id])} onMouseLeave={() => onHover(null)}>
-                    <span className="need-art">
-                      <HwArt kind={type.kind} len={type.len} dia={type.dia} fit={40} />
-                    </span>
-                    <span className="need-name">
-                      {type.notIncluded ? (type.kind === "plug" ? "Wall plug" : "Wall screw") : type.name}
-                      {type.spec && <small>{type.spec}</small>}
-                    </span>
-                    <span className="need-qty">{count}&times;</span>
-                  </li>
-                ))}
+                {c.hardware.map(({ type, count }) => {
+                  // the pack's total helps tell near-identical sizes apart (a bag of 8 against one of 24)
+                  const inBox = !type.notIncluded && `${type.qty} in the box`;
+                  const note = type.spec && inBox ? `${type.spec} (${inBox})` : type.spec || inBox;
+                  return (
+                    <li key={type.id} onMouseEnter={() => onHover([type.id])} onMouseLeave={() => onHover(null)}>
+                      <span className="need-art">
+                        <HwArt kind={type.kind} len={type.len} dia={type.dia} fit={40} />
+                      </span>
+                      <span className="need-name">
+                        {type.notIncluded ? (type.kind === "plug" ? "Wall plug" : "Wall screw") : type.name}
+                        {note && <small>{note}</small>}
+                      </span>
+                      <span className="need-qty">{count}&times;</span>
+                    </li>
+                  );
+                })}
                 {s.tools.map((t) => (
                   <li key={t} className="tool">
                     <span className="need-art">

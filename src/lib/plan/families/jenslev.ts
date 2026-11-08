@@ -1,5 +1,5 @@
 import type { ProductSpec, StepKind, ToolId, Vec3 } from "../../types";
-import { HW, type FitOpts, type HwDef, type PlanBuilder, type StepDef } from "../builder";
+import { HW, runner, type FitOpts, type HwDef, type PlanBuilder, type StepDef } from "../builder";
 import type { Family } from "./family";
 
 /**
@@ -29,8 +29,8 @@ const P: HwDef = { kind: "pin", len: 16, dia: 5 };
 const Q: HwDef = { kind: "plate", len: 2, dia: 20, name: "Joining plate" };
 const R: HwDef = { kind: "screw", len: 16, dia: 3.5 };
 const S: HwDef = HW.hinge;
-const run = (name: string): HwDef => ({ kind: "runner", len: 300, dia: 20, name });
-const CR = run("Cabinet runner, right"), CL = run("Cabinet runner, left"), DR = run("Drawer runner, right"), DL = run("Drawer runner, left");
+const run = (name: string, roller?: "back") => runner(300, name, roller);
+const CR = run("Cabinet runner, right"), CL = run("Cabinet runner, left"), DR = run("Drawer runner, right", "back"), DL = run("Drawer runner, left", "back");
 
 // mm: x left to right, y up, z back to front. Sides at ±581, dividers at ±198, the bottom's top at 76, the top at 867.
 const XS = 581, XD = 198, YB = 76, YT = 867;

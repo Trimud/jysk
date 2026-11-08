@@ -298,7 +298,7 @@ function chipLabels(labels: string[]) {
 }
 
 
-/** IKEA's shorthand spelled out, first letter up. */
+/** JYSK's shorthand spelled out, first letter up. */
 function tidy(t: string) {
   const s = spellOut(t)
     // a size never breaks across lines

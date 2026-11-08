@@ -1,7 +1,7 @@
 import { PRODUCTS, toSpec } from "@/lib/catalog";
 import { categoryOf, fold, guessSpec, matchCatalog, searchCatalog } from "@/lib/search";
 import { parseSpec, SPEC_PROMPT } from "@/lib/spec";
-import { ikeaType } from "@/lib/ikea";
+import { jyskType } from "@/lib/jysk";
 import { chatText, extractJson, fromApp, ipOf, keyTrouble, MODELS, rateLimited, TogetherError, userKey } from "@/lib/together";
 import type { ProductSpec } from "@/lib/types";
 
@@ -22,12 +22,12 @@ export async function POST(req: Request) {
 
   const suggestions = (more: string[] = []) => [...new Set([...more, ...searchCatalog(q, 8).filter((h) => h.score >= 40).map((h) => h.entry.name)])].filter((x) => fold(x) !== key).slice(0, 4);
 
-  // IKEA's own word for what this is: steers the draft, and says plainly when it's something we can't draw
-  const type = await ikeaType(q);
-  if (type && !drawable(type)) return Response.json({ found: false, ikea: type, suggestions: suggestions(), via: "ikea" });
+  // JYSK's own word for what this is: steers the draft, and says plainly when it's something we can't draw
+  const type = await jyskType(q);
+  if (type && !drawable(type)) return Response.json({ found: false, jysk: type, suggestions: suggestions(), via: "jysk" });
   // names read the same to the model however they were typed
   const said = q.replace(/\s+/g, " ").toUpperCase();
-  const hint = type ? `${said} (IKEA sells this as: ${type})` : said;
+  const hint = type ? `${said} (JYSK sells this as: ${type})` : said;
 
   // working out a product we don't know runs on the person's own key; without one, they pick its shape
   const own = userKey(req);
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
   const g = guessSpec(type ? `${q} ${type}` : q);
   if (g && categoryOf(type ? `${q} ${type}` : q)) return Response.json({ spec: { ...g, variant: type ?? g.variant }, via: "guess", trouble: trouble ?? undefined });
-  return Response.json({ found: false, ikea: type ?? undefined, suggestions: suggestions(), via: own ? "ai" : "offline", trouble: trouble ?? undefined });
+  return Response.json({ found: false, jysk: type ?? undefined, suggestions: suggestions(), via: own ? "ai" : "offline", trouble: trouble ?? undefined });
 }
 
 /** Types the plan generator can draw: lamps, mattresses, textiles, plants and the like it can't. */

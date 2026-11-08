@@ -72,7 +72,7 @@ export const NO_FILTERS: Filters = {};
 
 type Def = { id: string; label: string; values: (e: CatalogEntry) => [id: string, label: string][]; rank?: (id: string) => number; swatch?: boolean };
 
-/** A fact JYSK gives for a product (src/lib/ikea.ts facts), its words as the option. */
+/** A fact JYSK gives for a product (src/lib/jysk.ts facts), its words as the option. */
 const fact = (id: string, label: string, numeric = false): Def => ({ id, label, values: (e) => (e.facts?.[id] ?? []).map((v) => [idOf(v), v]), rank: numeric ? (v) => parseFloat(v) : undefined });
 
 /** A measure in bands: "under 40 cm", "40 to 60 cm", "200 cm and over". */

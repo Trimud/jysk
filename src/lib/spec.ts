@@ -140,7 +140,7 @@ function stripUndefined(o: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(o).filter(([, x]) => x !== undefined));
 }
 
-export const SPEC_PROMPT = `You help people assemble IKEA flat pack furniture. Given what a person typed (usually a product name, sometimes with a size), identify the product and describe it so our generator can draw an assembly guide.
+export const SPEC_PROMPT = `You help people assemble JYSK flat pack furniture. Given what a person typed (usually a product name, sometimes with a size), identify the product and describe it so our generator can draw an assembly guide.
 
 Reply with JSON only, no prose. Shape:
 {
@@ -171,5 +171,5 @@ Rules:
 - Wardrobes, sideboards, TV units with doors and cabinets are "cabinet". Shoe cabinets with fronts that tip open (BISSA, HEMNES, STÄLL, TRONES) are "cabinet" with "fronts": "tilt" and one compartment per front.
 - Desks and TV benches without doors are "table". Nightstands with drawers are "drawers". Sofas and upholstered armchairs are "sofa".
 - Use the most common size if the person didn't give one.
-- If it is not an IKEA product that needs assembly (lamps, textiles, plants, food, or unknown), reply {"found": false, "suggestions": ["NAME", "NAME"]} with up to 3 real product names they might mean.
+- If it is not a JYSK product that needs assembly (lamps, textiles, plants, food, or unknown), reply {"found": false, "suggestions": ["NAME", "NAME"]} with up to 3 real product names they might mean.
 - Never use em dashes or en dashes. Keep every sentence short and plain.`;

@@ -156,7 +156,7 @@ export interface SofaParams {
   round?: boolean; // a pouffe: a padded drum instead of a block
   bed?: boolean; // a chair-bed: it folds out into a bed
   table?: number; // cm: a side table module at the right-hand end (size.w takes it in)
-  // IKEA's own measurements, in cm, where the product has them (see src/lib/plan/sofaDims.ts)
+  // JYSK's own measurements, in cm, where the product has them (see src/lib/plan/sofaDims.ts)
   seatH?: number; // top of the seat cushions
   seatD?: number; // how deep the seat is, from the back cushions to the front edge
   armH?: number; // top of the armrests
@@ -302,6 +302,13 @@ export interface PartType {
   made?: boolean; // comes made, not flat (a chair's upholstered body): the box view stands it upright, on top
   tone?: number; // which of a colour's tones it takes, 0 by default (1: the white drawer front of a "Light oak+White" desk) // not in the box (e.g. mattress)
   pieces?: PartPiece[]; // drawn as these boxes and cylinders instead of one
+  mark?: PartMark; // text printed on one face, as on the real part ("This side down")
+}
+
+/** Text printed on a face of a part (in our own words and letters), reading along the face's longer side. */
+export interface PartMark {
+  text: string;
+  face: Pose;
 }
 
 export type HwKind =
@@ -348,6 +355,8 @@ export interface HwType {
   qty: number;
   notIncluded?: boolean;
   flush?: boolean;
+  /** a runner with its roller at the back end (most drawer runners); unset, it is at the front */
+  roller?: "back";
 }
 
 export interface Hole {
@@ -457,6 +466,7 @@ export interface Step {
   wall?: boolean;
   quiet?: boolean;
   minutes: number;
+  turn?: number; // radians the view turns round for this step, to look at faces that point away (a part's marking)
 }
 
 export interface ToolNeed {

@@ -1,12 +1,12 @@
 /**
  * How the voice says product names. Kokoro reads "Malm" like an English word,
  * so each name gets a phonetic spelling (Kokoro's [word](/ipa/) markup) the way
- * an English speaker in an IKEA store would say it.
+ * an English speaker in a JYSK store would say it.
  *
  *   npm run voice:names            spell every catalog name that has no spelling yet
  *   npm run voice:names -- --check say a sample both ways and score what Whisper hears
  *   npm run voice:names -- --prune keep a spelling only where Whisper hears the name clearly better with it
- *   add --only MALM,KALLAX to any of these to work on just those names
+ *   add --only LIMFJORDEN,JENSLEV to any of these to work on just those names
  *
  * Spellings live in src/lib/voice/names.ts and are applied only when a line is
  * rendered (src/lib/voice/tts.ts), so clip names and the on-screen text don't change.
@@ -28,7 +28,7 @@ const save = () =>
 // Kokoro's American English phonemes (misaki), so a spelling never contains a sound it can't make
 const OK = /^[ˈˌabdefhijklmnpstuvwzæðŋɑɐɔəɛɜɪʊʌɡɹʃʒθʤʧᵊᵻɚAIOWYː ]+$/;
 
-const PROMPT = `You write how IKEA product names are said out loud in an American IKEA store: the familiar, slightly Swedish pronunciation an English speaker would use (MALM is "mahlm", POÄNG is "poh-ENG", IDÅSEN is "ee-DOH-sen", KALLAX is "KAH-lahks", HEMNES is "HEM-ness", BILLY is "BILL-ee").
+const PROMPT = `You write how JYSK product names (most are Danish place names) are said out loud in a JYSK store: the familiar, slightly Danish pronunciation an English speaker would use, not a strict Danish one.
 Write each in IPA using ONLY these symbols: ˈ ˌ a b d e f h i j k l m n p s t u v w z æ ð ŋ ɑ ɐ ɔ ə ɛ ɜ ɪ ʊ ʌ ɡ ɹ ʃ ʒ θ ʤ ʧ ɚ ː and the diphthongs A (as in day), I (as in my), O (as in go), W (as in now), Y (as in boy). Put ˈ before the stressed syllable.
 Reply with JSON only: {"NAME": "ipa", ...} for every name given.`;
 

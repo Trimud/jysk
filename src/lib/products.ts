@@ -1,7 +1,7 @@
 import type { Archetype, CornerCab, FitUse, FitZone, ProductSpec, RowUnit } from "./types";
 
 /**
- * A wide offline index of real IKEA product names. Each row is a kind plus outer size (cm);
+ * A wide offline index of real JYSK product names. Each row is a kind plus outer size (cm);
  * the kind decides the archetype and sensible parameters. Hand-tuned catalog entries win over these.
  */
 export type Kind =
@@ -25,7 +25,7 @@ export type Kind =
   | "bench"
   | "sofa"
   | "armchair"
-  // added with the IKEA product data: existing archetypes with other parameters
+  // added with the JYSK product data: existing archetypes with other parameters
   | "wallshelf"
   | "wallcab"
   | "kitchen"
@@ -131,7 +131,7 @@ export type X = {
   cu?: number;
   inner?: "shelf" | "carousel" | "pullout";
   rock?: boolean;
-  /** IKEA's own kind of product when the kind's category doesn't name it ("Storage table", "Pouffe") */
+  /** JYSK's own kind of product when the kind's category doesn't name it ("Storage table", "Pouffe") */
   cat?: string;
   /** stands on castors */
   cast?: boolean;
@@ -155,7 +155,7 @@ export type X = {
   up?: number;
   /** sold in the US and not in the UK: comes after the family's UK pieces in search */
   us?: boolean;
-  /** cm, from IKEA's measurements of a sofa or armchair: armrest height and width, backrest height, room under it, seat depth */
+  /** cm, from JYSK's measurements of a sofa or armchair: armrest height and width, backrest height, room under it, seat depth */
   ah?: number;
   aw?: number;
   bk?: number;
@@ -163,7 +163,7 @@ export type X = {
   sdp?: number;
 };
 
-/** A hand made row. `slug` keeps a row's link when IKEA's name for it is corrected (otherwise it comes from the name and variant). */
+/** A hand made row. `slug` keeps a row's link when JYSK's name for it is corrected (otherwise it comes from the name and variant). */
 export type Row = [name: string, kind: Kind, variant: string, w: number, h: number, d: number, x?: X, keywords?: string, slug?: string];
 
 export const ROWS: Row[] = [];
@@ -260,7 +260,7 @@ function fitted(kind: Kind, base: Omit<ProductSpec, "source">, w: number, h: num
 /** Turn a kind and a size into a full product spec. */
 export function specFor(kind: Kind, name: string, variant: string, w: number, h: number, d: number, x: X = {}): Omit<ProductSpec, "source"> {
   let spec = specOf(kind, name, variant, w, h, d, x);
-  // a sofa or armchair IKEA measured: its seat, armrests, backrest and legs as they really are
+  // a sofa or armchair JYSK measured: its seat, armrests, backrest and legs as they really are
   if (spec.sofa && !spec.sofa.pouffe) {
     const m = { seatH: x.seatH, seatD: x.sdp, armH: x.ah, armW: x.aw, backH: x.bk, legH: x.lg };
     const known = Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined));
@@ -272,7 +272,7 @@ export function specFor(kind: Kind, name: string, variant: string, w: number, h:
     const cab = spec.cabinet ?? { doors: 0 as const, shelves: 0, rail: false, plinth: false, handles: "none" as const, thickness: 16 };
     spec = { ...spec, archetype: "cabinet", shelf: undefined, cabinet: { ...cab, shelves: 0, plinth: false, thickness: 16, ...(wall ? { wall: true } : {}) } };
   }
-  // IKEA's own name for what it is, when the kind's category doesn't say it
+  // JYSK's own name for what it is, when the kind's category doesn't say it
   return x.cat ? { ...spec, category: x.cat } : spec;
 }
 
@@ -299,7 +299,7 @@ function specOf(kind: Kind, name: string, variant: string, w: number, h: number,
         const cols = Math.max(1, Math.round((w - 6) / 35)), rows = Math.max(1, Math.round((h - x.uf - 6) / 35));
         return { ...base, minutes: x.min ?? 30 + 7 * cols * rows, people: cols * rows > 4 ? 2 : 1, shelf: { style: "grid", cols, rows, outer: 40, inner: 16, back: false, underframe: x.uf } };
       }
-      // x.t: thinner panels than KALLAX's (IVAR's box shelf)
+      // x.t: thinner panels than a standard box shelf
       if (x.t) return { ...base, minutes: x.min ?? 15, people: 1, shelf: { style: "grid", cols: Math.max(1, Math.round((w - 6) / 35)), rows: Math.max(1, Math.round((h - 6) / 35)), outer: x.t, inner: x.t, back: false } };
       return { ...base, shelf: { style: "grid", cols: Math.max(1, Math.round((w - 6) / 35)), rows: Math.max(1, Math.round((h - 6) / 35)), outer: 40, inner: 16, back: false } };
     case "bookcase":
@@ -550,7 +550,7 @@ function specOf(kind: Kind, name: string, variant: string, w: number, h: number,
     case "cornerrobe": {
       // an L of wardrobe frames: x.u along the back wall, ending at its far end, x.v along the left-hand wall, ending at its
       // front, and between them an add-on corner unit x.cu deep with its back to the left-hand wall (cm, "100+50")
-      // no layout given (a typed name, not an IKEA row): one frame along the back and a deep corner unit, like PAX 161/111
+      // no layout given (a typed name, not a JYSK row): one frame along the back and a deep corner unit
       const plain = x.u === undefined && x.v === undefined;
       const fd = 58, cuw = 53, cud = x.cu ?? (plain ? 58 : 35);
       const list = (s?: string) => (s ?? "").split("+").filter(Boolean).map(Number);

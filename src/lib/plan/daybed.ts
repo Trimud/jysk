@@ -6,7 +6,7 @@ import { clamp } from "./math";
  * Day-beds: a single bed with a back and two ends, a sofa by day. Most have a second bed underneath
  * that pulls out to make a double: a box on castors with the drawers in it (HEMNES, BRIMNES, FLEKKE), or a
  * trundle on castors (VIHALS). Others have storage boxes on castors, or nothing underneath.
- * It stands lengthways across the view (x), back at the back. Built in IKEA's order: the pull-out first,
+ * It stands lengthways across the view (x), back at the back. Built in JYSK's order: the pull-out first,
  * then the frame around it, the drawers, and last the mattresses, stacked by day and side by side at night.
  */
 export function buildDayBed(b: PlanBuilder, s: ProductSpec) {

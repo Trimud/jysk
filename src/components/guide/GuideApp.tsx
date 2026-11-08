@@ -76,7 +76,7 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
   useEffect(() => {
     if (mounted && local?.slug && local.slug !== slug) router.replace(`/build/${local.slug}` + (step ? `?step=${step}` : ""));
   }, [mounted, local, slug, step, router]);
-  const [fetched, setFetched] = useState<{ slug: string; spec?: ProductSpec; via?: Via; suggestions?: string[]; ikea?: string; error?: boolean; trouble?: KeyTrouble } | null>(null);
+  const [fetched, setFetched] = useState<{ slug: string; spec?: ProductSpec; via?: Via; suggestions?: string[]; jysk?: string; error?: boolean; trouble?: KeyTrouble } | null>(null);
   // every AI feature runs on the person's own key
   const key = useUserKey();
   const ai = !!key;
@@ -115,7 +115,7 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
           // a typical build is only a stand-in: not kept, so the next visit (with a key, say) can ask for the real thing
           if (j.via !== "guess") cacheSpec(slug, sp);
           setFetched({ slug, spec: sp, via: j.via, trouble: j.trouble });
-        } else setFetched({ slug, suggestions: j.suggestions ?? [], ikea: j.ikea, trouble: j.trouble });
+        } else setFetched({ slug, suggestions: j.suggestions ?? [], jysk: j.jysk, trouble: j.trouble });
       })
       .catch(() => alive && setFetched({ slug, error: true }));
     return () => {
@@ -177,7 +177,7 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
           query={q}
           slug={slug}
           suggestions={suggestions}
-          ikea={result?.ikea}
+          jysk={result?.jysk}
           error={status === "error"}
           ai={ai}
           trouble={result?.trouble}
@@ -227,7 +227,7 @@ function NotFound({
   query,
   slug,
   suggestions,
-  ikea,
+  jysk,
   error,
   ai,
   trouble,
@@ -237,7 +237,7 @@ function NotFound({
   query: string;
   slug: string;
   suggestions: string[];
-  ikea?: string;
+  jysk?: string;
   error: boolean;
   ai: boolean;
   trouble?: KeyTrouble;
@@ -245,7 +245,7 @@ function NotFound({
   onRetry: () => void;
 }) {
   const name = query.split(" ")[0].toUpperCase();
-  const what = ikea?.toLowerCase();
+  const what = jysk?.toLowerCase();
   const kinds = KIND_LABELS;
   if (error)
     return (

@@ -1,4 +1,4 @@
-/** IKEA's shorthand in product names, spelled out: "Base cab f hob/2 frnts" reads "Base cabinet for hob/2 fronts". */
+/** JYSK's shorthand in product names, spelled out: "Base cab f hob/2 frnts" reads "Base cabinet for hob/2 fronts". */
 const SHORTHAND: [RegExp, string][] = [
   [/\s*\+\s*/g, " and "],
   [/\b(cab|cb)\b/gi, "cabinet"],

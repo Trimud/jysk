@@ -74,7 +74,7 @@ function takeAnchor(b: PlanBuilder): Built["anchor"] {
  * Frames that aren't all alike, side by side (a wide BILLY and a narrow one, PAX frames of 100 and 50 cm),
  * or standing in a corner around an add-on corner unit. The commonest frame is built step by step exactly
  * as its own guide does; each of the others is built the same way off to the side, one step per size.
- * Then they're pushed together (screwed to each other through their sides when IKEA joins them),
+ * Then they're pushed together (screwed to each other through their sides when JYSK joins them),
  * sliding doors go across when there are any, and every frame is fixed to the wall last.
  */
 export function buildUnits(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void, opts: RowOpts = {}) {

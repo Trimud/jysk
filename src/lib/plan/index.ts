@@ -39,7 +39,7 @@ function familyRow(b: PlanBuilder, spec: ProductSpec) {
   return false;
 }
 
-/** A family that knows how its product really goes together (from IKEA's manual) builds it; otherwise its kind does. */
+/** A family that knows how its product really goes together (from JYSK's manual) builds it; otherwise its kind does. */
 function buildFamily(b: PlanBuilder, spec: ProductSpec) {
   if (spec.archetype === "custom") return false;
   for (const f of byName.get(familyOf(spec)) ?? []) {

@@ -6,6 +6,7 @@ import type {
   Opening,
   PartItem,
   PartMaterial,
+  PartMark,
   PartPiece,
   PartType,
   Plan,
@@ -29,7 +30,17 @@ export interface HwDef {
   notIncluded?: boolean;
   name?: string; // the fitting's own name when the kind's general one doesn't fit ("Catch", "Knob bolt")
   flush?: boolean; // a bolt whose head sinks level with the surface (a connector screw)
+  roller?: "back"; // a runner with its roller at the back end (most drawer runners); unset, it is at the front
 }
+
+/** The marking on a rail's underside, where its cam locks go in: the face that goes down. */
+export const SIDE_DOWN: PartMark = { text: "This side down", face: "-y" };
+
+/** A drawer runner (wheel at the back end) or cabinet runner (wheel at the front), 20 mm tall. */
+export const runner = (len: number, name: string, roller?: "back"): HwDef => ({ kind: "runner", len, dia: 20, name, ...(roller ? { roller } : {}) });
+
+/** A cabinet runner's screws: one in each hole along it, and the front one 11 mm higher, in its raised end hole. */
+export const runnerScrews = (x: number, y: number, zs: number[], frontZ: number): Vec3[] => [...zs.map((z): Vec3 => [x, y, z]), [x, y + 11, frontZ]];
 
 export const HW = {
   dowel: { kind: "dowel", len: 30, dia: 8 },
@@ -154,6 +165,7 @@ export interface StepDef {
   check?: "square";
   wall?: boolean;
   weight?: number;
+  turn?: number; // radians the view turns round, to show faces that point away from it
 }
 
 export interface FitOpts {
@@ -190,7 +202,7 @@ export class PlanBuilder {
     this.spec = spec;
   }
 
-  part(name: string, size: Vec3, o: { shape?: "box" | "cyl"; material?: PartMaterial; extra?: boolean; made?: boolean; label?: string; tone?: number } = {}) {
+  part(name: string, size: Vec3, o: { shape?: "box" | "cyl"; material?: PartMaterial; extra?: boolean; made?: boolean; label?: string; tone?: number; mark?: PartMark } = {}) {
     const id = "p" + this.parts.length;
     this.parts.push({
       id,
@@ -203,6 +215,7 @@ export class PlanBuilder {
       extra: o.extra,
       ...(o.made ? { made: true } : {}),
       ...(o.tone ? { tone: o.tone } : {}),
+      ...(o.mark ? { mark: o.mark } : {}),
     });
     return id;
   }
@@ -298,6 +311,7 @@ export class PlanBuilder {
         dia: def.dia,
         qty: 0,
         notIncluded: def.notIncluded,
+        ...(def.roller ? { roller: def.roller } : {}),
         flush: def.flush,
       });
     }
@@ -321,6 +335,7 @@ export class PlanBuilder {
       check: def.check,
       wall: def.wall,
       minutes: def.weight ?? 0,
+      ...(def.turn ? { turn: def.turn } : {}),
     };
     this.steps.push(s);
     this.cur = s;

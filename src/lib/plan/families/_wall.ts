@@ -10,8 +10,9 @@ export function wallFix(b: PlanBuilder, pts: [number, number][], wall: number, s
   b.fits(HW.wallScrew, pts.map(([x, y]) => ({ at: [x, y, screwZ] as Vec3, dir })), 0.2);
 }
 
-/** Fixing it to the wall through its brackets, at these x under a top at `ty`, its back on z = `wall`. */
-export function wallStep(b: PlanBuilder, xs: number[], ty: number, wall: number, o: Partial<StepDef> = {}) {
+/** Fixing it to the wall through its brackets, at these x under a top at `ty`, its back on z = `wall`; `screwZ`: where
+ *  the wall screws' heads sit (on the brackets' upright legs), the back's face by default. */
+export function wallStep(b: PlanBuilder, xs: number[], ty: number, wall: number, o: Partial<StepDef> = {}, screwZ?: number) {
   const many = xs.length > 1, s = many ? "s" : "";
   b.step(
     {
@@ -24,6 +25,6 @@ export function wallStep(b: PlanBuilder, xs: number[], ty: number, wall: number,
       warnings: ["tip", "wall"],
       ...o,
     },
-    () => wallFix(b, xs.map((x) => [x, ty - 24]), wall),
+    () => wallFix(b, xs.map((x) => [x, ty - 24]), wall, screwZ),
   );
 }

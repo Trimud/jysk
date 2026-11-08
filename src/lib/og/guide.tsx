@@ -1,5 +1,5 @@
 import { catalogSpec } from "@/lib/catalog";
-import { ikeaType } from "@/lib/ikea";
+import { jyskType } from "@/lib/jysk";
 import { buildPlan } from "@/lib/plan";
 import { KIND_LABELS } from "@/lib/products";
 import { kindOf } from "@/lib/search";
@@ -12,9 +12,9 @@ const BY_ARCH: Record<string, string> = { shelf: "bookcase", drawers: "chest", t
 export async function guideImage(slug: string) {
   const spec = catalogSpec(slug);
   if (!spec) {
-    // a product we draft on the fly: its name, and the drawing of the kind IKEA sells it as, or the slug names
+    // a product we draft on the fly: its name, and the drawing of the kind JYSK sells it as, or the slug names
     const name = slug.split("-")[0].toUpperCase().slice(0, 18);
-    const type = await ikeaType(name).catch(() => null);
+    const type = await jyskType(name).catch(() => null);
     const kind = kindOf(type ?? "") ?? kindOf(slug.replace(/-/g, " "));
     const art = (kind && (await drawing(`kind-${kind}`))) || (await drawing("hero-bygga"));
     return guideCard({ name, variant: type ?? "Assembly, step by step", steps: null, art });

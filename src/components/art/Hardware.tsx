@@ -168,11 +168,11 @@ function draw(kind: HwKind, len: number, dia: number): Drawn {
         scalable: true,
         node: (
           <g transform="translate(0 -23)">
-            <path d="M6 30 L30 44 L46 34 L22 20 Z" fill={METAL} {...stroke} />
-            <path d="M22 20 L22 2 L46 16 L46 34 Z" fill="#eef0f1" {...stroke} />
-            <ellipse cx={34} cy={18} rx={2.6} ry={3.2} fill="#fff" {...stroke} />
-            <ellipse cx={21} cy={31} rx={3} ry={1.8} fill="#fff" {...stroke} />
-            <ellipse cx={31} cy={37} rx={3} ry={1.8} fill="#fff" {...stroke} />
+            {/* a narrow L strip: the long leg flat with its screw slot, the short leg up with its wall hole */}
+            <path d="M4 36 L32 21 L41 26 L13 41 Z" fill={METAL} {...stroke} />
+            <path d="M32 21 L32 3 L41 8 L41 26 Z" fill="#eef0f1" {...stroke} />
+            <path d="M11 36.5 L27 28 L30 29.6 L14 38.1 Z" fill="#fff" {...stroke} strokeLinejoin="round" />
+            <ellipse cx={36.5} cy={11} rx={1.6} ry={3} fill="#fff" {...stroke} />
           </g>
         ),
       };
@@ -185,9 +185,12 @@ function draw(kind: HwKind, len: number, dia: number): Drawn {
           <g>
             <path d="M0 -6 H114 L120 0 L114 6 H0 Z" fill={METAL} {...stroke} />
             <path d="M0 -10 H112 V-6 H0 Z" fill="#eef0f1" {...stroke} />
-            {[16, 60, 104].map((x) => (
+            {[12, 52, 92].map((x) => (
               <circle key={x} cx={x} cy={0} r={2} fill="#fff" {...stroke} />
             ))}
+            {/* the roller wheel at the runner's end */}
+            <circle cx={106} cy={0} r={5.5} fill="#fff" {...stroke} />
+            <circle cx={106} cy={0} r={1.2} fill="#fff" {...stroke} />
           </g>
         ),
       };

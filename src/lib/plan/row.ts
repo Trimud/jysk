@@ -44,7 +44,7 @@ export function jointFits(j: RowJoint, a: string, c: string, at: Vec3, dir: Vec3
 /**
  * Several identical frames side by side (two BILLY bookcases, two BESTÅ TV benches, a row of PAX wardrobes).
  * The first is built step by step exactly as its own guide does, the others the same way off to the side;
- * then they're pushed together (and screwed to each other through their sides when IKEA joins them),
+ * then they're pushed together (and screwed to each other through their sides when JYSK joins them),
  * and fixed to the wall last, every one of them.
  */
 export function buildRow(b: PlanBuilder, s: ProductSpec, one: (b: PlanBuilder, s: ProductSpec) => void, opts: RowOpts = {}) {

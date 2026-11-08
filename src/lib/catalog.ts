@@ -1,7 +1,7 @@
 import type { ProductSpec } from "./types";
 import { ROWS, specFor, type Kind, type X } from "./products";
 import { fold } from "./fold";
-import { decodeRows, type IkeaRow } from "./ikea";
+import { decodeRows, type JyskRow } from "./jysk";
 import { JYSK_ROWS } from "@/data/jysk-rows";
 import { FIXES, SAME } from "@/data/fixes";
 
@@ -12,13 +12,13 @@ type Entry = Omit<ProductSpec, "source" | "slug" | "variants" | "siblings"> & {
   keywords?: string[];
   featured?: boolean;
   checked?: boolean;
-  /** drawn later than the family's other pieces under IKEA's own name for it: comes after them in search */
+  /** drawn later than the family's other pieces under JYSK's own name for it: comes after them in search */
   late?: boolean;
   /** sold in the US and not in the UK: comes after the family's UK pieces, even when the query has its US words */
   us?: boolean;
-  /** IKEA's listing's variant, when src/data/fixes.ts gives the product its own name (slugs.json knows it by this one) */
+  /** JYSK's listing's variant, when src/data/fixes.ts gives the product its own name (slugs.json knows it by this one) */
   listed?: string;
-  /** what the browse filters read (src/lib/ikea.ts) */
+  /** what the browse filters read (src/lib/jysk.ts) */
   facts?: Record<string, string[]>;
   /** JYSK's breadcrumb for it, room first and product type last: the browse filters go by it */
   path?: string[];
@@ -68,7 +68,7 @@ const CATEGORY_KIND: Record<string, Kind> = {
 export const BASE: Entry[] = [...CATALOG.map((c) => ({ ...c, checked: true, kind: CATEGORY_KIND[c.category] })), ...GENERATED].filter((e) => !SAME[e.slug]);
 
 /** A catalog row with its correction from src/data/fixes.ts, when it has one. */
-function fixed(r: IkeaRow, slug: string): IkeaRow & { listed?: string } {
+function fixed(r: JyskRow, slug: string): JyskRow & { listed?: string } {
   const f = FIXES[slug];
   if (!f) return r;
   const x = { ...r.x, ...f.x } as X;
@@ -121,7 +121,7 @@ export function catalogSpec(slug: string): ProductSpec | null {
 function sizeLabel(x: Entry, same: Entry[]) {
   const head = x.variant.split(",")[0];
   if (x.shelf?.style === "grid" && x.shelf.cols && x.shelf.rows) return `${head}, ${x.shelf.cols} × ${x.shelf.rows}`;
-  // a corner cabinet or wardrobe goes by IKEA's own measure, leg by leg
+  // a corner cabinet or wardrobe goes by JYSK's own measure, leg by leg
   if (x.cabinet?.corner || x.kind === "cornerrobe") return x.variant;
   if ((x.archetype === "shelf" || x.archetype === "cabinet") && /\d+ × \d+/.test(x.variant)) {
     const twin = same.some((o) => o !== x && o.size.w === x.size.w && o.size.h === x.size.h);

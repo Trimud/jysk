@@ -3,9 +3,9 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { faceMaterial, hullMaterial, lineMaterial, withBoxHullDir, withCylHullDir, withHullDir } from "./materials";
-import type { HwKind, Hole, PartType } from "@/lib/types";
+import type { HwType, Hole, PartMark, PartType, Pose, Vec3 } from "@/lib/types";
 import { FACE } from "./materials";
-import { RUNNER } from "./sizes";
+import { BRACKET, RUNNER } from "./sizes";
 
 export class Drawable {
   root = new THREE.Group();
@@ -13,6 +13,8 @@ export class Drawable {
   lines: LineMaterial[] = [];
   thin: LineMaterial[] = [];
   hulls: THREE.ShaderMaterial[] = [];
+  /** printed text on a face (PartType.mark), faded with the rest */
+  decals: THREE.MeshBasicMaterial[] = [];
   meshes: THREE.Mesh[] = [];
   base: THREE.Color[] = [];
   /** a part's material per face (parts only), so a product colour can go on its board panels */
@@ -131,6 +133,7 @@ export function partDrawable(p: PartType, holes: Hole[]) {
     addSolid(d, `box:${sx}:${sy}:${sz}`, () => new THREE.BoxGeometry(sx, sy, sz), color);
   }
   if (!p.pieces) d.mats.push(p.material);
+  if (p.mark) addMark(d, p.size, p.mark);
   // a hole is drawn only where it sits on the part: one recorded off it would float in the air
   const near = (h: Hole) => h.p.every((v, i) => Math.abs(v) <= p.size[i] / 2 + 3);
   holes = holes.filter(near);
@@ -165,6 +168,59 @@ export function partDrawable(p: PartType, holes: Hole[]) {
     d.thin.push(lm);
   }
   return d;
+}
+
+/** A w x h plate, t thick (from y = 0 up, then extruded along +z), with a 5 mm wide round-ended slot from y0 to y1. */
+function slotted(w: number, h: number, t: number, y0: number, y1: number) {
+  const plate = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(w / 2, h), new THREE.Vector2(-w / 2, h)]);
+  const r = 2.5, slot = new THREE.Path();
+  slot.absarc(0, y0 + r, r, Math.PI, 0, true);
+  slot.absarc(0, y1 - r, r, 0, Math.PI, true);
+  slot.closePath();
+  plate.holes.push(slot);
+  return new THREE.ExtrudeGeometry(plate, { depth: t, bevelEnabled: false, curveSegments: 8 });
+}
+
+// a face's in-plane size [along, across], how to turn a plane (drawn facing +z) onto it, and which way it faces
+const MARK_FACE: Record<Pose, { dims: (s: Vec3) => [number, number]; rot: Vec3; n: Vec3 }> = {
+  "+z": { dims: (s) => [s[0], s[1]], rot: [0, 0, 0], n: [0, 0, 1] },
+  "-z": { dims: (s) => [s[0], s[1]], rot: [0, Math.PI, 0], n: [0, 0, -1] },
+  "+y": { dims: (s) => [s[0], s[2]], rot: [-Math.PI / 2, 0, 0], n: [0, 1, 0] },
+  "-y": { dims: (s) => [s[0], s[2]], rot: [Math.PI / 2, 0, 0], n: [0, -1, 0] },
+  "+x": { dims: (s) => [s[2], s[1]], rot: [0, Math.PI / 2, 0], n: [1, 0, 0] },
+  "-x": { dims: (s) => [s[2], s[1]], rot: [0, -Math.PI / 2, 0], n: [-1, 0, 0] },
+};
+const markTex = new Map<string, THREE.CanvasTexture>();
+let markPlane: THREE.PlaneGeometry | undefined; // one unit plane for every mark, scaled to fit
+
+/** Text printed on a face, as on the real part: our own lettering, centred, along the face's length. */
+function addMark(d: Drawable, size: Vec3, mark: PartMark) {
+  const f = MARK_FACE[mark.face];
+  const [w, h] = f.dims(size);
+  let tex = markTex.get(mark.text);
+  if (!tex) {
+    const c = document.createElement("canvas");
+    c.width = 1024;
+    c.height = 128;
+    const x = c.getContext("2d")!;
+    x.fillStyle = "#1b2430";
+    x.font = "700 84px system-ui, sans-serif";
+    x.textAlign = "center";
+    x.textBaseline = "middle";
+    x.fillText(`▼  ${mark.text.toUpperCase()}  ▼`, 512, 66, 1000);
+    tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    markTex.set(mark.text, tex);
+  }
+  const mw = Math.min(w * 0.6, h * 0.62 * 8), mh = mw / 8;
+  const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const mesh = new THREE.Mesh((markPlane ??= new THREE.PlaneGeometry(1, 1)), m);
+  mesh.scale.set(mw, mh, 1);
+  mesh.rotation.set(...f.rot);
+  mesh.position.set(...(f.n.map((v, i) => v * (size[i] / 2 + 0.2)) as Vec3));
+  d.root.add(mesh);
+  d.decals.push(m);
 }
 
 /** A flat board cut to an outline of [x, z] corners, each corner rounded, centred on its thickness. */
@@ -236,7 +292,7 @@ const cyl = (r: number, h: number, seg = 18) => () => new THREE.CylinderGeometry
  * Hardware is modelled along +Y with the origin on the surface it goes into.
  * Everything below y = 0 ends up inside the panel.
  */
-export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false) {
+export function hwDrawable({ kind, len, dia, flush = false, roller }: Pick<HwType, "kind" | "len" | "dia" | "flush" | "roller">) {
   const d = new Drawable();
   const metal = FACE.hwMetal, wood = FACE.hwWood, plastic = FACE.hwPlastic;
   const r = dia / 2;
@@ -251,7 +307,8 @@ export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false
       addSolid(d, "cs:head", () => new THREE.SphereGeometry(3.6, 14, 10), metal, { hull: "radial", position: [0, 19.5, 0], edges: false });
       break;
     case "cam": {
-      addSolid(d, "cam:body", cyl(7.4, 12.4, 22), metal, { hull: "cyl", position: [0, -6.2, 0] });
+      // its top a hair proud of the face, so the two don't flicker into each other where they meet
+      addSolid(d, "cam:body", cyl(7.4, 12.4, 22), metal, { hull: "cyl", position: [0, -5.9, 0] });
       addSolid(d, "cam:slot", () => new THREE.BoxGeometry(9, 0.8, 1.6), FACE.hwMetal, { position: [0, 0.4, 0] });
       addSolid(d, "cam:arrow", () => new THREE.ConeGeometry(1.4, 2.6, 3), FACE.hwMetal, { position: [5.2, 0.4, 0], rotation: [0, 0, -Math.PI / 2], edges: true });
       break;
@@ -278,22 +335,29 @@ export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false
       break;
     case "bolt":
       addSolid(d, `bolt:${len}:${dia}`, cyl(r, len, 12), metal, { hull: "cyl", position: [0, -len / 2, 0] });
-      // a flush head (a connector screw) sinks level with the surface instead of standing on it
-      addSolid(d, `bolt:head:${dia}`, cyl(dia * 0.85, 5, 18), metal, { hull: "cyl", position: [0, flush ? -2.5 : 2.5, 0] });
+      // a flush head (a connector screw) sinks level with the surface instead of standing on it, a hair proud like a cam's top
+      addSolid(d, `bolt:head:${dia}`, cyl(dia * 0.85, 5, 18), metal, { hull: "cyl", position: [0, flush ? -2.3 : 2.5, 0] });
       addSolid(d, `bolt:hex:${dia}`, cyl(dia * 0.4, 0.6, 6), FACE.hwMetal, { position: [0, flush ? 0.3 : 5.2, 0] });
       break;
     case "plate":
       addSolid(d, "plate", () => new THREE.BoxGeometry(70, 3, 70), metal, { position: [0, 1.5, 0] });
       addSolid(d, "plate:sock", cyl(9, 10, 18), metal, { hull: "cyl", position: [0, 8, 0] });
       break;
-    case "bracket":
-      addSolid(d, "br:h", () => new THREE.BoxGeometry(40, 2, 32), metal, { position: [0, 1, 0] });
-      addSolid(d, "br:v", () => new THREE.BoxGeometry(40, 42, 2), metal, { position: [0, 21, -15] });
+    case "bracket": {
+      // a 15 mm strip bent into an L (78 x 32 x 15): the long leg (len) flat on the panel with a long slot for its two
+      // screws, the short leg (dia) standing up at the back with an oval hole for the wall; the bend 16 mm behind the origin
+      const { w: W, t: T } = BRACKET, b0 = -BRACKET.bend;
+      // each leg a plate with its opening cut through, so the panel shows through the slot round the screws
+      addSolid(d, `br:h:${len}`, () => slotted(W, len, T, 12, 12 + len * 0.6).rotateX(-Math.PI / 2).rotateY(Math.PI), metal, { position: [0, 0, b0] });
+      addSolid(d, `br:v:${dia}`, () => slotted(W, dia, T, dia * 0.53, dia * 0.83), metal, { position: [0, 0, b0] });
       break;
+    }
     case "runner":
-      // a rail with a lip along one edge on top (sizes.ts)
+      // an L: a thin flange the screws go through, and a lip along one edge (sizes.ts)
       addSolid(d, `run:${len}`, () => new THREE.BoxGeometry(RUNNER.w, RUNNER.body, len), metal, { position: [0, RUNNER.body / 2, 0] });
       addSolid(d, `run:lip:${len}`, () => new THREE.BoxGeometry(RUNNER.lipW, RUNNER.lip, len), metal, { position: [-(RUNNER.w - RUNNER.lipW) / 2, RUNNER.body + RUNNER.lip / 2, 0] });
+      // the white roller wheel at one end (the front on a cabinet runner, the back on a drawer's), on its axle
+      addSolid(d, "run:roller", cyl(RUNNER.roller, 7, 20), plastic, { hull: "cyl", position: [0, RUNNER.body + 3.5, (roller === "back" ? -1 : 1) * (len / 2 - RUNNER.roller - 2)] });
       break;
     case "knob":
       addSolid(d, "knob:stem", cyl(5.5, 12, 14), wood, { hull: "cyl", position: [0, 6, 0] });
@@ -368,7 +432,8 @@ export function hwDrawable(kind: HwKind, len: number, dia: number, flush = false
       break;
     case "clamp":
       addSolid(d, `cl:${len}:${dia}`, () => new THREE.BoxGeometry(len, 2.5, dia), metal, { position: [0, 1.25, 0] });
-      for (const x of [-1, 1]) addSolid(d, `cl:lip:${dia}`, () => new THREE.BoxGeometry(2.5, 9, dia), metal, { position: [x * (len / 2 - 1.25), 6, 0] });
+      // the bent ends, each with a 5 mm hole for its screw (its middle 6 mm from the bar)
+      for (const x of [-1, 1]) addSolid(d, `cl:lip:${dia}`, () => slotted(dia, 9, 2.5, 2, 7).rotateY(Math.PI / 2), metal, { position: [x < 0 ? -len / 2 : len / 2 - 2.5, 1.5, 0] });
       break;
     case "angle":
       addSolid(d, `an:h:${len}:${dia}`, () => new THREE.BoxGeometry(dia, 2, len), metal, { position: [0, 1, 0] });

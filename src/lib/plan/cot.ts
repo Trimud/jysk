@@ -5,7 +5,7 @@ import { clamp } from "./math";
 /**
  * A cot: two ends, two barred sides and a slatted base that bolts in at one of two heights.
  * It stands lengthways across the view (x), so the front side faces the camera.
- * Built like IKEA's: one side between the ends, the base at the top height, then the front side.
+ * Built like JYSK's: one side between the ends, the base at the top height, then the front side.
  */
 export function buildCot(b: PlanBuilder, s: ProductSpec) {
   const p = s.bed ?? {};

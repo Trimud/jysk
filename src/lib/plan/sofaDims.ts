@@ -2,9 +2,9 @@ import type { ProductSpec } from "../types";
 import { clamp } from "./math";
 
 /**
- * How an upholstered seat stands, in mm: the legs, the frame, the cushions, the armrests and the backrest. From IKEA's
+ * How an upholstered seat stands, in mm: the legs, the frame, the cushions, the armrests and the backrest. From JYSK's
  * own measurements where the product has them (seat height, armrest height and width, backrest height, room under
- * it), otherwise what most IKEA sofas measure. The backrest frame stops below the top of the back cushions, which
+ * it), otherwise what most sofas measure. The backrest frame stops below the top of the back cushions, which
  * stand up above it: that is what makes a sofa read as a sofa and not a box with a board at the back.
  */
 export function sofaDims(s: ProductSpec, W: number, D: number) {
@@ -18,10 +18,10 @@ export function sofaDims(s: ProductSpec, W: number, D: number) {
   const seatT = clamp(Math.round(seatTop * 0.3), 100, 170);
   const baseTop = Math.max(legH + 90, seatTop - seatT);
   const armH = clamp(p.armH ? p.armH * 10 : Math.min(H - 60, Math.max(seatTop + 180, 620)), seatTop + 80, H);
-  // the backrest frame: as tall as IKEA says, or a little under the cushions' top
+  // the backrest frame: as tall as JYSK says, or a little under the cushions' top
   const backH = clamp(p.backH ? p.backH * 10 : H - 110, seatTop + 150, H);
   const backT = Math.min(200, D * 0.22);
-  // the seat cushions are as deep as the seat IKEA measures; the back cushions fill what is left
+  // the seat cushions are as deep as the seat JYSK measures; the back cushions fill what is left
   const seatD = clamp(p.seatD ? p.seatD * 10 : D - backT - 190, 350, D - backT - 60);
   const cushT = clamp(D - backT - seatD - 10, 90, 260);
   const cushH = clamp(H - seatTop - 10, 220, 700);

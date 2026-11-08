@@ -23,7 +23,7 @@ import { buildPlan } from "@/lib/plan";
 import type { HwItem, Opening, PartItem, PartPiece, PartType, Plan, Vec3 } from "@/lib/types";
 import { RUNNER } from "@/engine/sizes";
 import { JYSK_ROWS } from "@/data/jysk-rows";
-import { decodeRows } from "@/lib/ikea";
+import { decodeRows } from "@/lib/jysk";
 
 const TOUCH = 2; // mm of overlap that still counts as touching: a tilted leg's end corner, too small to see
 const GROOVE = 12; // mm a thin board may reach into another part

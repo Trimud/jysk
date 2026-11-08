@@ -99,6 +99,9 @@ interface Callout {
   at?: { a: number; d: number; cost: number };
 }
 
+/** The way to the camera from what it looks at, for an azimuth and elevation. */
+const camDir = (az: number, el: number) => new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+
 export class Stage {
   el: HTMLElement;
   renderer: THREE.WebGLRenderer;
@@ -384,7 +387,7 @@ export class Stage {
     for (const it of plan.items) {
       if (it.kind !== "hw") continue;
       const ht = hwTypes.get(it.ref)!;
-      const d = hwDrawable(ht.kind, ht.len, ht.dia, ht.flush);
+      const d = hwDrawable(ht);
       const out = Math.max(0, new THREE.Box3().setFromObject(d.root).max.y); // read before it has a parent
       const holder = new THREE.Group();
       const inner = new THREE.Group();
@@ -670,16 +673,6 @@ export class Stage {
         this.frameLocal.push(...this.corners(p, st.pos, st.rot));
         if (st.step === s) end = Math.max(end, st.delay + PART_DUR + (st.spin ? 0.4 : 0));
       }
-      const firsts = new Map<string, HNode>(); // the first of each fitting type to go in
-      for (const h of this.hws) {
-        if (h.item.step !== s) continue;
-        const dur = HW_DUR + (h.item.turn ? CAM_TURN : 0);
-        end = Math.max(end, h.item.delay + dur);
-        const f = firsts.get(h.item.ref);
-        if (h.item.travel > 0 && (!f || h.item.delay < f.item.delay)) firsts.set(h.item.ref, h);
-      }
-      this.stepEnd = Math.max(end, 0.6);
-      this.cornerItems = Math.min(4, new Set(this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => h.item.ref)).size);
       // where a fitting ends up in this step, in the root's frame
       const settled = (h: HNode) => {
         const loc = new THREE.Vector3(...h.item.pos);
@@ -692,9 +685,23 @@ export class Stage {
         }
         return { loc, dir };
       };
-      this.stepFits = this.callout ? this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => settled(h).loc) : [];
+      // a fitting faces the camera when it goes in away from it: its circle should show one of those, not one on a hidden face
+      const { az, el } = this.camAngles();
+      const toCam = camDir(az, el).applyQuaternion(this.targetPoseQ().invert());
+      const at = new Map(this.hws.filter((h) => h.item.step === s).map((h) => [h, settled(h)] as const));
+      const seen = (h: HNode) => at.get(h)!.dir.dot(toCam) < 0.05;
+      const firsts = new Map<string, HNode>(); // the first of each fitting type to go in, the first in sight when any is
+      for (const h of at.keys()) {
+        const dur = HW_DUR + (h.item.turn ? CAM_TURN : 0);
+        end = Math.max(end, h.item.delay + dur);
+        const f = firsts.get(h.item.ref);
+        if (h.item.travel > 0 && (!f || (seen(h) === seen(f) ? h.item.delay < f.item.delay : seen(h)))) firsts.set(h.item.ref, h);
+      }
+      this.stepEnd = Math.max(end, 0.6);
+      this.cornerItems = Math.min(4, new Set(this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => h.item.ref)).size);
+      this.stepFits = this.callout ? [...at].filter(([h]) => !h.item.preset).map(([, p]) => p.loc) : [];
       for (const first of this.callout ? [...firsts.values()].sort((a, b) => a.item.delay - b.item.delay) : []) {
-        const { loc, dir } = settled(first);
+        const { loc, dir } = at.get(first)!;
         const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
@@ -873,6 +880,7 @@ export class Stage {
       l.depthWrite = depth;
       l.linewidth = Math.max(0.8, o.width * 0.62);
     }
+    for (const m of d.decals) m.opacity = o.opacity;
     for (const hm of d.hulls) {
       hm.uniforms.uColor.value.copy(col);
       hm.uniforms.uOpacity.value = o.opacity;
@@ -1011,12 +1019,13 @@ export class Stage {
         h.inner.position.set(0, it.travel * (1 - e), 0);
         let ang = (it.spin ?? 0) * Math.PI * 2 * e;
         if (it.turn) ang += it.turn * easeInOut(clamp01((t - it.delay - HW_DUR) / CAM_TURN));
-        h.inner.quaternion.setFromAxisAngle(Y, ang);
+        // clockwise as you look at it: local +Y points out of the surface toward you, so a negative angle
+        h.inner.quaternion.setFromAxisAngle(Y, -ang);
         const op = clamp01((t - it.delay) / 0.15) * fadeOut;
         this.styleDrawable(h.d, { opacity: op, ink: true, tint: 0, width: 1.6 });
       } else {
         h.inner.position.set(0, 0, 0);
-        h.inner.quaternion.setFromAxisAngle(Y, (it.spin ?? 0) * Math.PI * 2 + (it.turn ?? 0));
+        h.inner.quaternion.setFromAxisAngle(Y, -((it.spin ?? 0) * Math.PI * 2 + (it.turn ?? 0)));
         const lit = this.highlight?.has(it.ref) ?? false;
         // in a step, a fitting already on a part shows only as much as that part does: one fading in (on the step's
         // own pieces, or coming over from the prep table) brings its fittings with it
@@ -1072,6 +1081,7 @@ export class Stage {
       az = 0.7;
       el = 0.5;
     }
+    if (this.mode.kind === "step") az += this.plan?.steps[this.mode.index]?.turn ?? 0;
     return { az, el };
   }
 
@@ -1094,7 +1104,7 @@ export class Stage {
       this.userZoom += (1 - this.userZoom) * k;
     }
     const az = this.camAz + this.userAz, el = Math.max(0.05, Math.min(1.45, this.camEl + this.userEl));
-    const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+    const dir = camDir(az, el);
     const right = new THREE.Vector3().crossVectors(Y, dir).normalize();
     const up = new THREE.Vector3().crossVectors(dir, right).normalize();
     // fit
@@ -1535,7 +1545,7 @@ export class Stage {
       }
     }
 
-    const camDir = new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
+    const look = new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
     // switched over for the close-ups on the first circle that shows, and back after the last
     let shadow: boolean | null = null;
     co.items.forEach((c, i) => {
@@ -1559,7 +1569,7 @@ export class Stage {
 
       const world = worlds[i];
       const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
-      const view = dirW.clone().multiplyScalar(0.85).addScaledVector(camDir, 0.55).normalize();
+      const view = dirW.clone().multiplyScalar(0.85).addScaledVector(look, 0.55).normalize();
       const cam = co.camera;
       const half = f.size;
       cam.left = -half;
@@ -1594,7 +1604,8 @@ export class Stage {
       const a = proj(world.clone().addScaledVector(dirW, -half * 1.15));
       const b = proj(world.clone().addScaledVector(dirW, -half * 0.45));
       let html = "";
-      const op1 = k < 1 ? 1 : clamp01(1 - (t - it.delay - HW_DUR) * 2);
+      // the push-in arrow goes once it's in; at once for a cam lock, whose turn arrow takes over
+      const op1 = k < 1 ? 1 : it.turn ? 0 : clamp01(1 - (t - it.delay - HW_DUR) * 2);
       if (Math.hypot(b.x - a.x, b.y - a.y) > 18) html += `<path class="arrow" style="opacity:${op1}" d="${arrowPath(a, b, 0.9)}"/>`;
       if ((it.turn ?? 0) > 0 || (it.spin ?? 0) > 0) {
         // centred on the hole and wide enough to clear what sticks out of it (a cam bolt stands ~23 mm proud)
@@ -1798,9 +1809,10 @@ function disposeDrawable(d: Drawable) {
   d.lines.forEach((m) => m.dispose());
   d.thin.forEach((m) => m.dispose());
   d.hulls.forEach((m) => m.dispose());
+  d.decals.forEach((m) => m.dispose());
 }
 
-/** Thick IKEA style arrow from a to b (screen space). */
+/** Thick manual style arrow from a to b (screen space). */
 export function arrowPath(a: { x: number; y: number }, b: { x: number; y: number }, s = 1) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const L = Math.hypot(dx, dy) || 1;

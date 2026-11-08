@@ -2,17 +2,17 @@ import type { Kind, X } from "./products";
 import type { Colour } from "./types";
 import { fold } from "./fold";
 // ponytail: IKEA's name data was removed in Phase 0; these lookups find nothing until JYSK has an equivalent
-const IKEA_GUARD = "";
+const JYSK_GUARD = "";
 
 /**
  * Catalog rows (src/data/jysk-rows.ts, written by scripts/jysk/build.ts), one per line:
  * name|kind|variant|w|h|d|params|keywords|slug|manual|colours|path|facts, colours as name=article=tone/tone… (tones optional),
  * separated by ";" (a colour's name can hold a comma); path is JYSK's breadcrumb, room first and type last, split by ">";
  * facts are what the browse filters read, as key=value/value;key=value (src/lib/facets.ts).
- * The IKEA name lookups below are stubs left from Bygga until they are replaced or removed.
+ * The name lookups below are stubs left from Bygga (its IKEA data is gone) until JYSK data fills them or they are removed.
  */
 
-export interface IkeaRow {
+export interface JyskRow {
   name: string;
   kind: Kind;
   variant: string;
@@ -56,15 +56,15 @@ export function decodeX(s: string): X {
   return x as X;
 }
 
-export function encodeRow(r: IkeaRow): string {
+export function encodeRow(r: JyskRow): string {
   const cells = [r.name, r.kind, r.variant, r.w, r.h, r.d, encodeX(r.x), (r.keywords ?? []).join(" "), r.slug ?? "", r.manual ?? "", (r.colours ?? []).map((c) => [c.name, c.sku, ...(c.tones?.length ? [c.tones.join("/")] : [])].join("=")).join(";"), (r.path ?? []).join(">"), Object.entries(r.facts ?? {}).map(([k, v]) => `${k}=${v.join("/")}`).join(";")].map(String);
   for (const c of cells) if (/[|\n`\\]|\$\{/.test(c)) throw new Error(`can't store ${JSON.stringify(c)}`);
   while (cells.length && !cells[cells.length - 1]) cells.pop();
   return cells.join("|");
 }
 
-export function decodeRows(text: string): IkeaRow[] {
-  const out: IkeaRow[] = [];
+export function decodeRows(text: string): JyskRow[] {
+  const out: JyskRow[] = [];
   for (const line of text.split("\n")) {
     if (!line) continue;
     const [name, kind, variant, w, h, d, x = "", kw = "", slug = "", manual = "", colours = "", path = "", facts = ""] = line.split("|");
@@ -75,9 +75,9 @@ export function decodeRows(text: string): IkeaRow[] {
 
 /* ---------- names ---------- */
 
-const guard = new Set(IKEA_GUARD.split(" "));
+const guard = new Set(JYSK_GUARD.split(" "));
 
-/** A real IKEA name we can't draw, which search must not read as a typo of one we can (FRÖSÖN is not FRÖSET). */
+/** A real JYSK name we can't draw, which search must not read as a typo of one we can. */
 export function isGuardedName(word: string) {
   return guard.has(fold(word).replace(/\s+/g, ""));
 }
@@ -85,9 +85,9 @@ export function isGuardedName(word: string) {
 let names: Promise<Map<string, string[]>> | null = null;
 
 function nameMap() {
-  names ??= Promise.resolve({ IKEA_NAMES: "" }).then(({ IKEA_NAMES }) => {
+  names ??= Promise.resolve({ JYSK_NAMES: "" }).then(({ JYSK_NAMES }) => {
     const map = new Map<string, string[]>();
-    for (const line of IKEA_NAMES.split("\n")) {
+    for (const line of JYSK_NAMES.split("\n")) {
       if (!line) continue;
       const [n, t = ""] = line.split("|");
       map.set(fold(n), t ? t.split(";") : []);
@@ -97,21 +97,21 @@ function nameMap() {
   return names;
 }
 
-/** True when this is the name of a real IKEA product family, drawable or not. */
-export async function isIkeaName(name: string) {
+/** True when this is the name of a real JYSK product family, drawable or not. */
+export async function isJyskName(name: string) {
   return (await nameMap()).has(fold(name));
 }
 
-/** IKEA's own product types for a family name, most common first ("BESTÅ" gives ["TV bench", "TV bench with doors"]). */
-export async function ikeaTypes(name: string): Promise<string[]> {
+/** JYSK's own product types for a family name, most common first ("LIMFJORDEN" gives ["Chest of drawers", "Wardrobe", ...]). */
+export async function jyskTypes(name: string): Promise<string[]> {
   return (await nameMap()).get(fold(name)) ?? [];
 }
 
 /**
- * The main IKEA product type for a family name ("MARKUS" gives "Office chair"), or null when it isn't
+ * The main JYSK product type for a family name ("LIMFJORDEN" gives "Chest of drawers"), or null when it isn't
  * a name we know. Also takes a whole query and uses its first word: "markus chair" works too.
  */
-export async function ikeaType(name: string): Promise<string | null> {
+export async function jyskType(name: string): Promise<string | null> {
   const map = await nameMap();
   const f = fold(name);
   return (map.get(f) ?? map.get(f.split(" ")[0]) ?? [])[0] ?? null;
