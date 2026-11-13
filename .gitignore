@@ -52,7 +52,8 @@ next-env.d.ts
 .env*.local
 
 # local agent sessions and worktrees
-.claude/
+.claude/*
+!.claude/settings.json
 .gstack/
 
 # taste-skill inspector output
