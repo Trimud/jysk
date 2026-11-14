@@ -11,12 +11,12 @@ import type { Family } from "./family";
  * (E), and it is turned over and levelled on its feet. Part numbers are the manual's; sizes in mm are its parts page.
  */
 
-// fittings as the manual lists them on page 12 (F, the T25 key, is the "allen" tool here)
-const A: HwDef = { kind: "bolt", len: 60, dia: 6, name: "Torx bolt" }; // M6x60
-const B: HwDef = { kind: "bolt", len: 25, dia: 6, name: "Torx bolt" }; // M6x25
-const C: HwDef = { kind: "bolt", len: 20, dia: 6, name: "Torx bolt" }; // M6x20
+// fittings as the manual lists them on page 12 (F, the T25 key, is the "torx" tool)
+const A: HwDef = { kind: "bolt", len: 60, dia: 6, name: "Torx bolt", drive: "torx" }; // M6x60
+const B: HwDef = { kind: "bolt", len: 25, dia: 6, name: "Torx bolt", drive: "torx" }; // M6x25
+const C: HwDef = { kind: "bolt", len: 20, dia: 6, name: "Torx bolt", drive: "torx" }; // M6x20
 const D: HwDef = { kind: "washer", len: 1.5, dia: 14 }; // 6/14
-const E: HwDef = { kind: "cap", len: 2, dia: 16 };
+const E: HwDef = { kind: "cap", len: 7, dia: 16, form: "cup" }; // a cup over A's head and washer D (1.5 + 5 + a hair)
 
 // x along the table (1500), y up from the floor, z across (890); the frame tube is 23 thick
 const T = 23;
@@ -34,9 +34,12 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
 
   /* ---------- parts ---------- */
 
-  // end frame: legs 42.5 wide, a 45 mm rail across the top (805 x 695 inside, as page 2 draws it)
+  // end frame: legs 42.5 wide, a 45 mm rail across the top (805 x 695 inside, as page 2 draws it), and under each leg
+  // the adjustable foot page 17 turns by hand (about 20 across, 8 tall)
+  const FOOT = 8;
   const endPieces = (x: number): PartPiece[] => [
-    ...g2.map((g): PartPiece => ({ shape: "box", size: [T, 740, 42.5], pos: [x, 370, g * 423.75] })),
+    ...g2.map((g): PartPiece => ({ shape: "box", size: [T, 740 - FOOT, 42.5], pos: [x, (740 + FOOT) / 2, g * 423.75] })),
+    ...g2.map((g): PartPiece => ({ shape: "cyl", size: [20, FOOT, 20], pos: [x, FOOT / 2, g * 423.75] })),
     { shape: "box", size: [T, 45, 805], pos: [x, 717.5, 0] },
   ];
   const endFrame = (g: number, label: string) => {
@@ -100,7 +103,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       title: "Bolt the side frames (2) between the end frames (1 and 4)",
       detail:
         "Two of you, on a rug. Stand the side frames just inside the end frames, holes lined up. At each corner, two 60 mm bolts (A), each with a washer (D), from inside through the side frame's leg into the end frame. Turn them only about 80% of the way in with the T25 key (F).",
-      tools: ["allen"],
+      tools: ["torx"],
       people: 2,
       kind: "bolts",
       warnings: ["floor"],
@@ -120,14 +123,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       title: "Turn the frame over onto the top (3) and screw them together",
       detail:
         "Lay the top face down on the rug and lower the frame over it, upside down. Six 20 mm screws (C), each with a washer (D), through the tabs at the ends of the top's three cross bars into the side frames, about 80% of the way in. Use C here, not the longer B.",
-      tools: ["allen"],
+      tools: ["torx"],
       people: 2,
       pose: "-y",
       kind: "screws",
       warnings: ["floor", "two"],
     },
     () => {
-      b.add(top3, [0, -300, 0]);
+      b.add(top3, [0, 300, 0]); // model space, before the pose: the top comes from its own side, clear of the rails
       b.then(0.15);
       b.stagger(0.06);
       washered(C, screwsC);
@@ -137,7 +140,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     {
       title: "Screw the top to the end frames",
       detail: "Three 25 mm screws (B), each with a washer (D), through each of the top's end plates into the end frame's rail, about 80% of the way in.",
-      tools: ["allen"],
+      tools: ["torx"],
       pose: "-y",
       kind: "screws",
     },
@@ -151,7 +154,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       title: "Tighten everything fully",
       detail:
         "First check the top lies flush with the frame's edges, not sticking out, and with no gap at the corners: press it down. Then turn all 20 bolts and screws the whole way with the T25 key.",
-      tools: ["allen"],
+      tools: ["torx"],
       pose: "-y",
       kind: "bolts",
     },

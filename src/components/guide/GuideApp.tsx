@@ -123,15 +123,25 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
     };
   }, [mounted, initial, cached, local, isScan, slug, q, step, router, attempt]);
 
+  // the manual's layouts picked for this product (Plan.layouts, ids joined: "C,R"), kept in the browser; each choice's first until picked
+  const [picks, setPicks] = useState<Record<string, string>>({});
+  const layout = picks[slug] ?? (mounted ? getPref<string | null>(`layout:${slug}`, null) : null);
+  const pickLayout = useCallback(
+    (id: string) => {
+      setPref(`layout:${slug}`, id);
+      setPicks((p) => ({ ...p, [slug]: id }));
+    },
+    [slug],
+  );
   const plan = useMemo(() => {
     if (!spec) return null;
     try {
-      return buildPlan(spec);
+      return buildPlan(layout ? { ...spec, layout } : spec);
     } catch (e) {
       console.error(e);
       return null;
     }
-  }, [spec]);
+  }, [spec, layout]);
 
   const draftKey = (
     <AnimatePresence>
@@ -201,7 +211,7 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
       : undefined;
   return (
     <>
-      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} crumbs={crumbs} />
+      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} crumbs={crumbs} onLayout={(id) => pickLayout(plan.layouts!.map((c) => (c.options.some((o) => o.id === id) ? id : c.pick)).join(","))} />
       {draftKey}
     </>
   );
@@ -345,7 +355,7 @@ function NotFound({
 
 /* ------------------------------------------------------------------ */
 
-function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<{ plan: Plan; slug: string; via: Via; ai: boolean; startStep?: number; onOwnSteps?: { text: string; act: () => void }; crumbs?: Crumb[] }>) {
+function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs, onLayout }: Readonly<{ plan: Plan; slug: string; via: Via; ai: boolean; startStep?: number; onOwnSteps?: { text: string; act: () => void }; crumbs?: Crumb[]; onLayout: (id: string) => void }>) {
   const steps = plan.steps;
   const deep = startStep ? Math.min(startStep, steps.length) - 1 : null;
   const [phase, setPhase] = useState<Phase>(deep !== null ? "steps" : "cover");
@@ -367,10 +377,13 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
   const [hl, setHl] = useState<string[] | null>(null);
   const [hover3d, setHover3d] = useState<string | null>(null);
   const [introPlayed, setIntroPlayed] = useState(false);
-  // a pause holds on the screen it was pressed on: moving on (cover to steps, steps to done) plays again
-  const [pausedIn, setPausedIn] = useState<Phase | null>(null);
-  const paused = pausedIn === phase;
-  const togglePause = () => setPausedIn(paused ? null : phase);
+  // a pause holds on the screen and the step it was pressed on: moving on (another step, cover to steps, steps to
+  // done) plays again
+  const here = `${phase}:${step}`;
+  const [pausedIn, setPausedIn] = useState<string | null>(null);
+  if (pausedIn !== null && pausedIn !== here) setPausedIn(null); // left, it's over: coming back plays too
+  const paused = pausedIn === here;
+  const togglePause = useCallback(() => setPausedIn(paused ? null : here), [paused, here]);
   const [slow, setSlow] = useState(false);
   const [xray, setXray] = useState(false);
   const [anyOpen, setAnyOpen] = useState(false);
@@ -524,12 +537,15 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
       if (phase !== "steps" || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") {
-        // a focused button or link answers its own Enter; holding a key shouldn't race through steps
-        if ((t?.tagName === "BUTTON" || t?.tagName === "A") && (e.key === " " || e.key === "Enter")) return;
-        if (e.repeat) return;
+      // only the right arrow moves on (holding it shouldn't race through steps); space plays and pauses, unless a
+      // focused button or link takes it as a press of its own
+      if (e.key === "ArrowRight") {
         e.preventDefault();
-        next();
+        if (!e.repeat) next();
+      } else if (e.key === " ") {
+        if (t?.tagName === "BUTTON" || t?.tagName === "A") return;
+        e.preventDefault();
+        if (!e.repeat) togglePause();
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         if (!e.repeat) back();
@@ -539,7 +555,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, next, back, help, overview, askKey]);
+  }, [phase, next, back, help, overview, askKey, togglePause]);
 
   // the phone's back gesture steps back through the guide instead of leaving it
   const nav = useRef({ phase, back });
@@ -863,7 +879,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
                 <motion.div key={"hw" + step} className="hw-box" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.35 }}>
                   {contents.hardware.slice(0, 4).map(({ type, count }) => (
                     <span key={type.id} className={"hw-box-item" + (highlight?.includes(type.id) ? " lit" : "")}>
-                      <HwArt kind={type.kind} len={type.len} dia={type.dia} fit={40} />
+                      <HwArt kind={type.kind} len={type.len} dia={type.dia} form={type.form} drive={type.drive} fit={40} />
                       <b>{count}&times;</b>
                     </span>
                   ))}
@@ -915,7 +931,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
             </div>
           )}
           {phase === "steps" && (
-            <div className="stage-ctl">
+            <div className="stage-ctl wide">
               <button className="icon-btn float" onClick={() => stage.current?.replay()} aria-label="Replay animation" data-tip="Replay (R)">
                 <IReplay />
               </button>
@@ -932,9 +948,10 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
                   </motion.button>
                 )}
               </AnimatePresence>
+              <Scrub stage={stage} onGrab={() => setPausedIn(here)} />
+              {step === 0 && !moved && <span className="drag-hint">Drag to turn it around</span>}
             </div>
           )}
-          {phase === "steps" && step === 0 && !moved && <span className="drag-hint">Drag to turn it around</span>}
           {phase === "parts" && <span className="sheet-caption">Lay your panels out like this</span>}
           {voiceOn && phase === "steps" && (
             <div className="listening" role="status">
@@ -1058,6 +1075,7 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs }: Readonly<
                   onNext={next}
                   onBack={back}
                   onHover={setHl}
+                  onLayout={onLayout}
                   offer={AI_ENABLED && !voiceOn && offer && (step === 0 || usedVoice) ? { again: usedVoice, listen: canListen || (mounted && micSupported() && !skippedKey()), onStart: turnOnVoice, onDismiss: () => setOffer(false) } : null}
                 />
               )}
@@ -1166,6 +1184,60 @@ function toggle(s: Set<string>, id: string) {
 }
 
 /** Where you are: Tools, Parts, Build, Done. Earlier phases can be revisited. */
+/** The step's animation as a slider: it follows the motion while playing; pressing or keying it pauses there and scrubs. */
+function Scrub({ stage, onGrab }: Readonly<{ stage: React.RefObject<StageHandle | null>; onGrab: () => void }>) {
+  const ref = useRef<HTMLInputElement>(null);
+  // read from the stage every frame, straight into the input: no React render per frame
+  useEffect(() => {
+    let raf = 0;
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      const p = stage.current?.progress();
+      const el = ref.current;
+      if (!p || !el) return;
+      const max = p.end.toFixed(3);
+      if (el.max !== max) el.max = max;
+      el.value = p.t.toFixed(3);
+      el.style.setProperty("--k", String(p.end ? p.t / p.end : 0));
+      const said = `${p.t.toFixed(1)} of ${p.end.toFixed(1)} seconds`;
+      if (el.getAttribute("aria-valuetext") !== said) el.setAttribute("aria-valuetext", said);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [stage]);
+  const pause = () => {
+    stage.current?.setPaused(true); // at once: the paused prop reaches the stage a render later
+    onGrab();
+  };
+  const seek = (t: number) => {
+    pause();
+    stage.current?.seek(t);
+  };
+  return (
+    <input
+      ref={ref}
+      type="range"
+      className="scrub"
+      min={0}
+      max={1}
+      step={0.001}
+      defaultValue={0}
+      aria-label="Animation position"
+      onPointerDown={pause}
+      // let go of with the pointer, it hands the keys back: the arrows change step again (the keyboard can still tab to it)
+      onPointerUp={(e) => e.currentTarget.blur()}
+      onChange={(e) => seek(Number(e.currentTarget.value))}
+      onKeyDown={(e) => {
+        // arrows move one frame (shift: a quarter second); a native step of 1 ms would barely move
+        const d = ({ ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 } as Record<string, number>)[e.key];
+        if (!d) return;
+        e.preventDefault();
+        seek((stage.current?.progress()?.t ?? 0) + d * (e.shiftKey ? 0.25 : 1 / 60));
+      }}
+    />
+  );
+}
+
 function Stepper({ phase, step, total, reached, onJump }: { phase: Phase; step: number; total: number; reached: number; onJump: (p: Phase) => void }) {
   const items: { id: Phase; label: string }[] = [
     { id: "tools", label: "Tools" },

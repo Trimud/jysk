@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import type { HwItem, PartItem, PartState, PartType, Plan, Step, Vec3 } from "@/lib/types";
-import { POSE_EULER, clamp } from "@/lib/plan/math";
-import { Drawable, hwDrawable, partDrawable, wallDrawable } from "./drawable";
+import { POSE_EULER, clamp, insidePart, stateAt } from "@/lib/plan/math";
+import { STEP_CAM } from "@/lib/plan/sight";
+import { Drawable, hwDrawable, partDrawable, pencilLine, wallDrawable } from "./drawable";
 import type { Look } from "./thumbs";
 import { INK, INK_OLD } from "./materials";
 
@@ -52,6 +53,8 @@ interface PNode {
   d: Drawable;
   node: THREE.Group;
   corners: THREE.Vector3[]; // local box corners
+  pencil: { step: number; mesh: THREE.Mesh }[]; // pencil lines drawn on it, each shown from its step on
+  ghosted?: boolean; // drawn as a ghost now: last, after what stands behind it (it writes no depth)
 }
 interface HNode {
   item: HwItem;
@@ -61,6 +64,8 @@ interface HNode {
   parent?: PNode;
   /** how far it stands out of the surface it goes into (mm): the top of its drawing, modelled along +Y from that surface */
   out: number;
+  /** a hinge's second drawing, open flat, for while its door isn't hung yet (see `isLoose`) */
+  loose?: { d: Drawable; out: number };
 }
 
 interface Xf {
@@ -78,12 +83,20 @@ function quatFromEuler(e: Vec3) {
 
 type Pt = { x: number; y: number };
 
-/** A fitting type's close-up: where its first fitting ends up, which way it goes in, and how wide to look (mm). */
+/** A fitting type's close-up: where its first fitting ends up, which way it goes in, and how wide to look (mm). A
+ *  step's `looks` have no fitting: a circle on a part's detail, with no arrows. */
 interface Focus {
   local: THREE.Vector3;
   dir: THREE.Vector3;
   size: number;
-  hw: HNode;
+  hw?: HNode;
+  /** the part it is on or in */
+  parent?: PNode;
+  /** when it comes in (s), and how far the fitting stands out of its surface (mm) */
+  delay: number;
+  out: number;
+  /** what its circle sees, kept while the camera and the step's parts stay put (Stage.blockers) */
+  seen?: { key: string; v: ReturnType<Stage["blockersNow"]> };
 }
 
 /** A zoom circle: its own canvas and arrows, the leader line to its fitting, and where it sits beside it. */
@@ -95,8 +108,8 @@ interface Callout {
   leader: SVGPathElement;
   dot: SVGCircleElement;
   visible: number;
-  /** angle and distance (px) of the circle's centre from its fitting's spot on screen, and its clash when picked */
-  at?: { a: number; d: number; cost: number };
+  /** angle and distance (px) of the circle's centre from its fitting's spot on screen, kept while it still works */
+  at?: { a: number; d: number };
 }
 
 /** The way to the camera from what it looks at, for an azimuth and elevation. */
@@ -150,8 +163,8 @@ export class Stage {
   // view state
   w = 1;
   h = 1;
-  az = 0.62;
-  el0 = 0.46;
+  az = STEP_CAM.az;
+  el0 = STEP_CAM.el;
   userAz = 0;
   userEl = 0;
   userZoom = 1;
@@ -181,6 +194,8 @@ export class Stage {
   speed = 1;
   paused = false;
   stepEnd = 0;
+  private partsEnd = 0; // when the step's parts have all landed
+  private snapCallouts = false; // a still: the next drawing shows the circles fully in, not fading
   loopCount = 0;
   highlight: Set<string> | null = null;
   hovered: string | null = null;
@@ -202,6 +217,7 @@ export class Stage {
   private layout = new Map<string, Xf>();
   /** One zoom target per fitting type in the step, in the order they go in: each gets its own circle as it starts. */
   private focuses: Focus[] = [];
+  /** of the fittings going in this step, how many go into a face turned towards the camera (for scripts/qa/callouts.mjs) */
   /** every fitting going in this step (root frame): the circles keep clear of all of them, not just their own */
   private stepFits: THREE.Vector3[] = [];
   /** How long a step holds once played before it starts over (longer when there are close-ups to look at). */
@@ -379,7 +395,17 @@ export class Stage {
       const [sx, sy, sz] = type.size;
       const corners: THREE.Vector3[] = [];
       for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) corners.push(new THREE.Vector3((a * sx) / 2, (b * sy) / 2, (c * sz) / 2));
-      const pn: PNode = { item: it, type, d, node, corners };
+      const pencil = (it.pencil ?? []).map(({ step, a, b }) => {
+        const mesh = pencilLine(a, b);
+        // no depth: still faded out (a drawer waiting to slide in), it would cut its line out of what's behind it; so
+        // it is drawn after the (see-through) faces, or its own face, sorted after it, would paint over it
+        (mesh.material as THREE.MeshBasicMaterial).depthWrite = false;
+        mesh.renderOrder = 1;
+        d.root.add(mesh);
+        d.decals.push(mesh.material as THREE.MeshBasicMaterial); // fades with the part, and is disposed with it
+        return { step, mesh };
+      });
+      const pn: PNode = { item: it, type, d, node, corners, pencil };
       this.parts.push(pn);
       this.byKey.set(it.key, pn);
     }
@@ -389,18 +415,21 @@ export class Stage {
       const ht = hwTypes.get(it.ref)!;
       const d = hwDrawable(ht);
       const out = Math.max(0, new THREE.Box3().setFromObject(d.root).max.y); // read before it has a parent
+      const ld = ht.kind === "hinge" ? hwDrawable(ht, true) : undefined;
+      const loose = ld && { d: ld, out: Math.max(0, new THREE.Box3().setFromObject(ld.root).max.y) };
       const holder = new THREE.Group();
       const inner = new THREE.Group();
       holder.add(inner);
       inner.add(d.root);
+      if (ld) inner.add(ld.root);
       holder.position.set(...it.pos);
       const dir = new THREE.Vector3(...it.dir).normalize();
       holder.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
       if (it.twist) holder.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(dir, it.twist));
       const parent = it.parent ? this.byKey.get(it.parent) : undefined;
       (parent ? parent.node : this.root).add(holder);
-      d.meshes.forEach((m) => (m.userData.ref = it.ref));
-      this.hws.push({ item: it, d, holder, inner, parent, out });
+      [...d.meshes, ...(ld?.meshes ?? [])].forEach((m) => (m.userData.ref = it.ref));
+      this.hws.push({ item: it, d, holder, inner, parent, out, loose });
     }
     this.computeExtents();
     this.computeArrangements();
@@ -436,7 +465,10 @@ export class Stage {
       this.root.remove(p.node);
       disposeDrawable(p.d);
     }
-    for (const h of this.hws) disposeDrawable(h.d);
+    for (const h of this.hws) {
+      disposeDrawable(h.d);
+      if (h.loose) disposeDrawable(h.loose.d);
+    }
     this.root.clear();
     this.parts = [];
     this.hws = [];
@@ -452,16 +484,15 @@ export class Stage {
     }
   }
 
+  /** A hinge whose door, in this step, isn't yet where it ends up (lying on the floor, or held open to clip on): its
+   *  arm is drawn open flat along the door. Once the door is in its last place, the fitted drawing. */
+  private isLoose(h: HNode) {
+    const st = this.mode.kind === "step" && h.loose && h.parent && this.stepXf.get(h.parent)?.st;
+    return !!st && st !== h.parent!.item.states[h.parent!.item.states.length - 1];
+  }
+
   private stateAt(p: PNode, s: number) {
-    let st = null;
-    let prev = null;
-    for (const x of p.item.states) {
-      if (x.step <= s) {
-        prev = st;
-        st = x;
-      }
-    }
-    return { st, prev };
+    return stateAt(p.item.states, s);
   }
 
   private corners(p: PNode, pos: Vec3, rot: Vec3) {
@@ -556,6 +587,7 @@ export class Stage {
       this.carryT = 0;
     }
     this.mode = mode;
+    this.snapCallouts = !!o.instant;
     this.t = o.instant ? 999 : 0;
     // when the model turns over for this step, its parts wait until it has nearly finished turning
     if (!o.instant && this.rootReady) {
@@ -586,6 +618,15 @@ export class Stage {
 
   setPaused(p: boolean) {
     this.paused = p;
+  }
+  /** Moves the step's animation to `t` seconds in (the scrub slider); the drawing follows on the next frame. */
+  seek(t: number) {
+    this.t = Math.max(0, Math.min(this.stepEnd, t));
+    this.snapCallouts = true; // the circles as they are at that moment, not easing over from where the scrub was
+  }
+  /** Where the step's motion is, 0 to `stepEnd`: the turn over before it reads 0, the hold after it reads the end. */
+  get progress() {
+    return { t: Math.max(0, Math.min(this.stepEnd, this.t)), end: this.stepEnd };
   }
   setSpeed(s: number) {
     this.speed = s;
@@ -655,6 +696,7 @@ export class Stage {
     this.cornerItems = 0;
     this.stepXf.clear();
     const m = this.mode;
+    for (const p of this.parts) for (const l of p.pencil) l.mesh.visible = m.kind === "step" && m.index >= l.step;
     if (m.kind === "step") {
       const s = m.index;
       const step = plan.steps[s];
@@ -662,7 +704,8 @@ export class Stage {
       for (const p of this.parts) {
         const { st, prev } = this.stateAt(p, s);
         if (!st || st.scene !== step.scene) continue;
-        const moves = st.step === s && prev && prev.scene === st.scene;
+        // a ghost (a layout's parts shown where they'd go) is no place to come from: they arrive as new
+        const moves = st.step === s && prev && prev.scene === st.scene && !prev.ghost;
         this.stepXf.set(p, {
           st,
           prev,
@@ -673,6 +716,7 @@ export class Stage {
         this.frameLocal.push(...this.corners(p, st.pos, st.rot));
         if (st.step === s) end = Math.max(end, st.delay + PART_DUR + (st.spin ? 0.4 : 0));
       }
+      this.partsEnd = end;
       // where a fitting ends up in this step, in the root's frame
       const settled = (h: HNode) => {
         const loc = new THREE.Vector3(...h.item.pos);
@@ -690,6 +734,7 @@ export class Stage {
       const toCam = camDir(az, el).applyQuaternion(this.targetPoseQ().invert());
       const at = new Map(this.hws.filter((h) => h.item.step === s).map((h) => [h, settled(h)] as const));
       const seen = (h: HNode) => at.get(h)!.dir.dot(toCam) < 0.05;
+      const fresh = [...at.keys()].filter((h) => !h.item.preset);
       const firsts = new Map<string, HNode>(); // the first of each fitting type to go in, the first in sight when any is
       for (const h of at.keys()) {
         const dur = HW_DUR + (h.item.turn ? CAM_TURN : 0);
@@ -698,15 +743,25 @@ export class Stage {
         if (h.item.travel > 0 && (!f || (seen(h) === seen(f) ? h.item.delay < f.item.delay : seen(h)))) firsts.set(h.item.ref, h);
       }
       this.stepEnd = Math.max(end, 0.6);
-      this.cornerItems = Math.min(4, new Set(this.hws.filter((h) => h.item.step === s && !h.item.preset).map((h) => h.item.ref)).size);
-      this.stepFits = this.callout ? [...at].filter(([h]) => !h.item.preset).map(([, p]) => p.loc) : [];
+      this.cornerItems = Math.min(4, new Set(fresh.map((h) => h.item.ref)).size);
+      this.stepFits = this.callout ? fresh.map((h) => at.get(h)!.loc) : [];
       for (const first of this.callout ? [...firsts.values()].sort((a, b) => a.item.delay - b.item.delay) : []) {
         const { loc, dir } = at.get(first)!;
         const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
-        this.focuses.push({ local: loc, dir, size, hw: first });
+        this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: first.item.delay, out: this.isLoose(first) ? first.loose!.out : first.out });
       }
+      for (const l of this.callout ? (step.looks ?? []) : []) {
+        const p = this.byKey.get(l.on);
+        const st = p && this.stateAt(p, s).st;
+        if (!st) continue;
+        const q = quatFromEuler(st.rot);
+        const local = new THREE.Vector3(...l.at).applyQuaternion(q).add(new THREE.Vector3(...st.pos));
+        const dir = l.dir ? new THREE.Vector3(...l.dir).normalize().applyQuaternion(q) : toCam.clone().negate();
+        this.focuses.push({ local, dir, size: l.size, parent: p, delay: l.delay, out: 0 });
+      }
+      this.focuses.sort((a, b) => a.delay - b.delay);
       for (const c of this.callout?.items ?? []) c.at = undefined;
       // wall
       if (step.wall) this.ensureWall();
@@ -741,12 +796,19 @@ export class Stage {
     if (this.wall) return;
     const fin = this.extents.get("final") ?? [];
     const box = new THREE.Box3().setFromPoints(fin);
-    const w = box.max.x - box.min.x + 700;
+    // behind it unless the plan stands it with another face to the wall (Plan.view.wall)
+    const v = this.plan?.view, side = v?.wall ?? "-z", g = side[0] === "+" ? 1 : -1, onX = side[1] === "x";
+    const w = onX ? box.max.z - box.min.z + 700 : box.max.x - box.min.x + 700;
     const h = box.max.y + 420;
     const d = wallDrawable(w, h);
     const node = new THREE.Group();
     node.add(d.root);
-    node.position.set((box.min.x + box.max.x) / 2, h / 2, box.min.z - 20);
+    const face = v?.wallZ ?? (onX ? (g > 0 ? box.max.x : box.min.x) : g > 0 ? box.max.z : box.min.z);
+    const c = face + g * 20; // the 40 mm wall's face there
+    if (onX) {
+      node.rotation.y = Math.PI / 2;
+      node.position.set(c, h / 2, (box.min.z + box.max.z) / 2);
+    } else node.position.set((box.min.x + box.max.x) / 2, h / 2, c);
     this.root.add(node);
     for (const l of d.lines) l.color.copy(INK_OLD);
     this.wall = { d, node, on: 0 };
@@ -902,6 +964,12 @@ export class Stage {
     const visibleParts = new Set<PNode>();
     for (const p of this.parts) {
       const node = p.node;
+      // a ghost writes no depth, so it draws after everything else, or what stands behind it would paint over it
+      const ghost = m.kind === "step" && !!this.stepXf.get(p)?.st.ghost;
+      if (ghost !== !!p.ghosted) {
+        p.ghosted = ghost;
+        node.traverse((o) => (o.renderOrder = ghost ? 3 : 0));
+      }
       const ref = p.item.ref;
       const hover = this.hovered === ref;
       const lit = hl?.has(ref) ?? false;
@@ -915,7 +983,12 @@ export class Stage {
         node.visible = true;
         visibleParts.add(p);
         const isNew = st.step === sIdx;
-        if (isNew) {
+        if (st.ghost) {
+          // faded in where it will go, its outline only, so the parts it stands among stay readable
+          node.position.copy(fin.p);
+          node.quaternion.copy(fin.q);
+          this.styleDrawable(p.d, { opacity: 0.32 * easeOut(clamp01((t - st.delay) / 0.4)) * fadeOut, ink: true, tint: 0.5, width: 1.8, depth: false });
+        } else if (isNew) {
           const k = clamp01((t - st.delay) / (PART_DUR + (st.spin ? 0.4 : 0)));
           const e = easeLand(k);
           let op = easeOut(clamp01((t - st.delay) / 0.3)) * fadeOut;
@@ -1012,8 +1085,15 @@ export class Stage {
       else if (m.kind === "intro") vis = t > this.stepEnd - 0.7 && !it.wall && this.outside.has(h);
       h.holder.visible = vis;
       if (!vis) continue;
+      const loose = this.isLoose(h);
+      if (h.loose) {
+        h.d.root.visible = !loose;
+        h.loose.d.root.visible = loose;
+      }
+      const d = loose ? h.loose!.d : h.d;
       const isNew = m.kind === "step" && it.step === sIdx;
-      if (isNew && it.travel > 0) {
+      // a new fitting appears at its turn, sliding in when it travels and fading in where it sits when it doesn't
+      if (isNew) {
         const k = clamp01((t - it.delay) / HW_DUR);
         const e = easeInOut(k);
         h.inner.position.set(0, it.travel * (1 - e), 0);
@@ -1022,7 +1102,7 @@ export class Stage {
         // clockwise as you look at it: local +Y points out of the surface toward you, so a negative angle
         h.inner.quaternion.setFromAxisAngle(Y, -ang);
         const op = clamp01((t - it.delay) / 0.15) * fadeOut;
-        this.styleDrawable(h.d, { opacity: op, ink: true, tint: 0, width: 1.6 });
+        this.styleDrawable(d, { opacity: op, ink: true, tint: 0, width: 1.6 });
       } else {
         h.inner.position.set(0, 0, 0);
         h.inner.quaternion.setFromAxisAngle(Y, -((it.spin ?? 0) * Math.PI * 2 + (it.turn ?? 0)));
@@ -1030,7 +1110,7 @@ export class Stage {
         // in a step, a fitting already on a part shows only as much as that part does: one fading in (on the step's
         // own pieces, or coming over from the prep table) brings its fittings with it
         const op = m.kind === "intro" ? clamp01((t - this.stepEnd + 0.7) / 0.5) : m.kind === "step" && h.parent && !lit ? h.parent.d.opacity : 1;
-        this.styleDrawable(h.d, { opacity: op, ink: isNew || lit || m.kind !== "step", tint: lit ? 0.8 : 0, width: lit ? 1.7 : 1.25 });
+        this.styleDrawable(d, { opacity: op, ink: isNew || lit || m.kind !== "step", tint: lit ? 0.8 : 0, width: lit ? 1.7 : 1.25 });
       }
     }
 
@@ -1067,6 +1147,8 @@ export class Stage {
 
   private camAngles() {
     let az = this.az, el = this.el0;
+    // the finished piece from its own side (a bed with its drawers on the left)
+    if (this.mode.kind === "intro" || this.mode.kind === "assembled") az = this.plan?.view?.az ?? az;
     if (this.mode.kind === "layout") {
       az = 0.22;
       el = 1.0;
@@ -1081,7 +1163,11 @@ export class Stage {
       az = 0.7;
       el = 0.5;
     }
-    if (this.mode.kind === "step") az += this.plan?.steps[this.mode.index]?.turn ?? 0;
+    if (this.mode.kind === "step") {
+      const st = this.plan?.steps[this.mode.index];
+      az += st?.turn ?? 0;
+      el = st?.el ?? el;
+    }
     return { az, el };
   }
 
@@ -1224,7 +1310,10 @@ export class Stage {
     };
     void dpr;
     this.parts.forEach((p) => set(p.d));
-    this.hws.forEach((x) => set(x.d));
+    this.hws.forEach((x) => {
+      set(x.d);
+      if (x.loose) set(x.loose.d);
+    });
     if (this.wall) set(this.wall.d);
   }
 
@@ -1511,13 +1600,64 @@ export class Stage {
     return { worlds, spots, fits, r, ...this.placeCallouts(spots, fits, r) };
   }
 
+  /**
+   * How a fitting's circle looks at it: tilted towards the main view, or straight down the fitting's axis when its own
+   * part is in the way of that. `depth`: how far in front of the fitting it draws; `hide`: the other parts within it,
+   * which the circle leaves out; `own`: its own part still covers it (a counterbore), drawn see-through.
+   */
+  private blockers(f: Focus) {
+    // worked out again only while parts move or fade, or when the camera or the model turns
+    const q = this.root.quaternion, look = this.look();
+    const key = [look.x, look.y, look.z, q.x, q.y, q.z, q.w].map((v) => v.toFixed(3)).join() + (this.t < this.partsEnd ? this.t : "") + this.solidParts().length;
+    if (f.seen?.key !== key) f.seen = { key, v: this.blockersNow(f, look) };
+    return f.seen.v;
+  }
+  private blockersNow(f: Focus, look: THREE.Vector3) {
+    const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
+    const tip = this.root.localToWorld(f.local.clone().addScaledVector(f.dir, -f.out));
+    const depth = Math.max(120, f.size * 2.2);
+    const solid = this.solidParts();
+    // a part the tip is inside: the circle draws it from within (a bolt head where two parts meet)
+    const within = new Set(solid.filter((p) => insidePart(p.type, p.node.worldToLocal(tip.clone()).toArray(), 0.5)));
+    const from = (view: THREE.Vector3) => {
+      this.circleRay.set(tip.clone().addScaledVector(view, -depth), view);
+      this.circleRay.far = depth - 2;
+      const meshes = solid.flatMap((p) => p.d.meshes);
+      // both sides: the circle's camera can start inside a part, seeing it from within
+      const sides = meshes.map((m) => [m.material as THREE.Material, (m.material as THREE.Material).side] as const);
+      for (const [mat] of sides) mat.side = THREE.DoubleSide;
+      const hit = new Set(this.circleRay.intersectObjects(meshes, false).map((h) => h.object));
+      for (const [mat, side] of sides) mat.side = side;
+      const parts = solid.filter((p) => within.has(p) || p.d.meshes.some((m) => hit.has(m)));
+      return { view, dirW, depth, own: !!f.parent && parts.includes(f.parent), hide: parts.filter((p) => p !== f.parent) };
+    };
+    const tilted = from(dirW.clone().multiplyScalar(0.85).addScaledVector(look, 0.55).normalize());
+    if (!tilted.own) return tilted;
+    const straight = from(dirW);
+    return straight.own ? tilted : straight;
+  }
+  private circleRay = new THREE.Raycaster();
+  /** The main camera's looking direction. */
+  private look() {
+    return new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
+  }
+  /** Parts drawn solid: what the pointer picks and what stands in a circle's way. */
+  private solidParts() {
+    return this.parts.filter((p) => p.node.visible && p.d.opacity > 0.5);
+  }
+
   /** The step's circle layout, for scripts/qa/callouts.mjs (through /dev/og): worked out without drawing anything. */
-  calloutLayout() {
+  calloutLayout(notes = true) {
     const co = this.callout;
     if (!co || this.mode.kind !== "step" || !this.focuses.length) return null;
     this.root.updateMatrixWorld(true);
     const { circles, fits, box, bar, r } = this.layoutCallouts(this.calloutSize(co.size, this.focuses.length) / 2);
-    return { w: this.w, h: this.h, r, circles, fits, box, bar };
+    // circles that see their fitting only through its own part, drawn see-through there (any other part in the way is
+    // left out of the circle): a counterbore, or a fitting placed inside its part
+    const blind = (notes ? this.focuses : [])
+      .filter((f) => f.hw && this.blockers(f).own)
+      .map((f) => this.plan!.hardware.find((x) => x.id === f.hw!.item.ref)!.name);
+    return { w: this.w, h: this.h, r, circles, fits, box, bar, blind };
   }
 
   private renderCallout() {
@@ -1545,14 +1685,13 @@ export class Stage {
       }
     }
 
-    const look = new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
     // switched over for the close-ups on the first circle that shows, and back after the last
     let shadow: boolean | null = null;
     co.items.forEach((c, i) => {
       const f = fs[i];
       // each circle comes in as its fitting starts and stays until the step starts over
-      const target = f ? clamp01((t - f.hw.item.delay + 0.5) / 0.4) : 0;
-      c.visible += (target - c.visible) * 0.18;
+      const target = f ? clamp01((t - f.delay + 0.5) / 0.4) : 0;
+      c.visible = this.snapCallouts ? target : c.visible + (target - c.visible) * 0.18;
       const show = !!f && c.visible > 0.02;
       c.wrap.style.visibility = show ? "visible" : "hidden";
       c.leader.style.opacity = c.dot.style.opacity = String(show ? c.visible : 0);
@@ -1568,8 +1707,7 @@ export class Stage {
       c.wrap.style.transform = `translate(${cx - s / 2}px, ${cy - s / 2}px) scale(${0.85 + 0.15 * c.visible})`;
 
       const world = worlds[i];
-      const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
-      const view = dirW.clone().multiplyScalar(0.85).addScaledVector(look, 0.55).normalize();
+      const { view, dirW, depth, hide, own } = this.blockers(f);
       const cam = co.camera;
       const half = f.size;
       cam.left = -half;
@@ -1579,11 +1717,36 @@ export class Stage {
       cam.position.copy(world).addScaledVector(view, -900);
       cam.up.copy(Math.abs(view.y) > 0.92 ? new THREE.Vector3(0, 0, -1) : Y);
       cam.lookAt(world);
-      cam.near = 900 - Math.max(120, half * 2.2);
+      cam.near = 900 - depth;
       cam.far = 900 + 900;
       cam.updateProjectionMatrix();
       cam.updateMatrixWorld();
+      // parts in front of the fitting are left out; its own part, when it covers it (a head sunk in a counterbore), is
+      // drawn see-through, and so is the wall for a fitting that goes into it (a plug in its hole)
+      for (const p of hide) p.d.root.visible = false; // the part only: the fittings on it stay (a wall bracket under a desk top)
+      const d = f.parent ? (own ? f.parent.d : null) : f.hw?.item.wall ? this.wall?.d : null;
+      const undo: (() => void)[] = [];
+      if (d) {
+        for (const m of d.faces) {
+          const [o, w] = [m.uniforms.uOpacity.value, m.depthWrite];
+          undo.push(() => ((m.uniforms.uOpacity.value = o), (m.depthWrite = w)));
+          m.uniforms.uOpacity.value *= 0.3;
+          m.depthWrite = false;
+        }
+        for (const m of [...d.lines, ...d.thin, ...d.decals]) {
+          const o = m.opacity;
+          undo.push(() => (m.opacity = o));
+          m.opacity *= 0.4;
+        }
+        for (const m of d.hulls) {
+          const o = m.uniforms.uOpacity.value;
+          undo.push(() => (m.uniforms.uOpacity.value = o));
+          m.uniforms.uOpacity.value = 0; // its dark outline shell would show through the faces
+        }
+      }
       co.renderer.render(this.scene, cam);
+      for (const p of hide) p.d.root.visible = true;
+      for (const u of undo) u();
       // copied out straight after the render, while the drawing buffer still holds it
       c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
       c.ctx.drawImage(co.renderer.domElement, 0, 0);
@@ -1594,8 +1757,12 @@ export class Stage {
       c.dot.setAttribute("cx", String(sp.x));
       c.dot.setAttribute("cy", String(sp.y));
 
-      // callout arrows: insertion + rotation
-      const it = f.hw.item;
+      // callout arrows: insertion + rotation (none on a part's detail)
+      const it = f.hw?.item;
+      if (!it) {
+        if (c.svg.innerHTML) c.svg.innerHTML = "";
+        return;
+      }
       const k = clamp01((t - it.delay) / HW_DUR);
       const proj = (v: THREE.Vector3) => {
         const p = v.clone().project(cam);
@@ -1609,7 +1776,7 @@ export class Stage {
       if (Math.hypot(b.x - a.x, b.y - a.y) > 18) html += `<path class="arrow" style="opacity:${op1}" d="${arrowPath(a, b, 0.9)}"/>`;
       if ((it.turn ?? 0) > 0 || (it.spin ?? 0) > 0) {
         // centred on the hole and wide enough to clear what sticks out of it (a cam bolt stands ~23 mm proud)
-        const p0 = proj(world), p1 = proj(world.clone().addScaledVector(dirW, -f.hw.out));
+        const p0 = proj(world), p1 = proj(world.clone().addScaledVector(dirW, -f.out));
         const rr = Math.min(s * 0.45, Math.max(Math.min(34, s * 0.2), Math.hypot(p1.x - p0.x, p1.y - p0.y) + 12));
         const tk = it.turn ? clamp01((t - it.delay - HW_DUR) / CAM_TURN) : k;
         const op2 = it.turn ? (tk > 0 ? 1 : 0) : 1;
@@ -1617,6 +1784,7 @@ export class Stage {
       }
       if (c.svg.innerHTML !== html) c.svg.innerHTML = html;
     });
+    this.snapCallouts = false;
     if (shadow !== null) {
       this.shadow.visible = shadow;
       this.setRes(this.w, this.h);
@@ -1636,6 +1804,7 @@ export class Stage {
     const bar = this.h - this.bottomBar(), floor = bar - 4;
     const mid = this.project(this.camTarget);
     const placed: Pt[] = [];
+    const outside = (x: number, y: number) => x - r < 0 || x + r > this.w || y - r < 0 || y + r > bar;
     const clash = (x: number, y: number) => {
       let p = Math.max(0, pad + r - x) + Math.max(0, x + r - (this.w - pad)) + Math.max(0, pad + r - y) + Math.max(0, y + r - floor);
       const qx = clamp(x, 0, box.w), qy = clamp(y, 0, box.h);
@@ -1643,28 +1812,37 @@ export class Stage {
       for (const o of placed) p += Math.max(0, 2 * r + 14 - Math.hypot(x - o.x, y - o.y));
       // any fitting under the circle, its own type's others included (its own spot is never under it)
       let cover = 0;
-      for (const o of fits) cover += Math.max(0, r + 14 - Math.hypot(x - o.x, y - o.y));
+      // (one inside the circle counts as much as 20 px into the margins: a longer leader line, or a circle a little
+      // nearer the edge, beats hiding a fitting)
+      for (const o of fits) {
+        const dist = Math.hypot(x - o.x, y - o.y);
+        cover += Math.max(0, r + 14 - dist) + (dist < r ? 1000 : 0);
+      }
       return p * 50 + cover;
     };
     spots.forEach((sp, i) => {
       const c = items[i];
       const at = (a: number, d: number) => ({ x: sp.x + Math.cos(a) * d, y: sp.y + Math.sin(a) * d });
       const keep = c.at && at(c.at.a, c.at.d);
-      // move only when the spot got worse than when it was picked (a crowded view may have no perfect spot)
-      if (!keep || clash(keep.x, keep.y) > c.at!.cost + 0.5) {
-        // nearest first, and rather out away from the middle of the drawing than over it
-        const out = Math.atan2(sp.y - mid.y, sp.x - mid.x);
-        let best = { a: 0, d: 0, cost: 0, score: Infinity };
-        for (const d of [r + 110, r + 160, r + 220, r + 300]) // well clear of the piece, so the drawing stays readable
-          for (let k = 0; k < 16; k++) {
-            const a = (k / 16) * Math.PI * 2;
-            const q = at(a, d);
-            const cost = clash(q.x, q.y);
-            const score = cost * 10 + d + 40 * (1 - Math.cos(a - out));
-            if (score < best.score) best = { a, d, cost, score };
-          }
-        c.at = { a: best.a, d: best.d, cost: best.cost };
-      }
+      // nearest first, and rather out away from the middle of the drawing than over it
+      const out = Math.atan2(sp.y - mid.y, sp.x - mid.x);
+      let best = { a: 0, d: 0, cost: 0, score: Infinity };
+      // well clear of the piece, so the drawing stays readable; further out (a long leader line), or close in over the
+      // drawing, only when every such place covers a fitting, as round a back panel nailed all round on a small screen
+      for (const d of [r + 40, r + 70, r + 110, r + 160, r + 220, r + 300, r + 400, r + 520, r + 660])
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * Math.PI * 2;
+          const q = at(a, d);
+          const cost = clash(q.x, q.y);
+          const score = cost * 10 + d + 40 * (1 - Math.cos(a - out)) + (d < r + 110 ? 250 : 0);
+          if (score < best.score) best = { a, d, cost, score };
+        }
+      // a circle keeps its place (no jumping about as the drawing turns) until that leaves the view, covers more
+      // fittings, or a clearly better place opens up: compared with what is free now, not when it was picked, since it may have been picked
+      // mid-swing with every place off screen, or in the step before
+      const under = (q: Pt) => fits.filter((o) => Math.hypot(q.x - o.x, q.y - o.y) < r).length;
+      const bq = at(best.a, best.d);
+      if (!keep || outside(keep.x, keep.y) || under(keep) > under(bq) || clash(keep.x, keep.y) > best.cost + 10) c.at = { a: best.a, d: best.d };
       placed.push(at(c.at!.a, c.at!.d));
     });
     return { circles: placed, box, bar };
@@ -1746,9 +1924,7 @@ export class Stage {
   private pick(x: number, y: number) {
     const r = this.el.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.camera);
-    const meshes: THREE.Object3D[] = [];
-    for (const p of this.parts) if (p.node.visible && p.d.opacity > 0.5) meshes.push(...p.d.meshes);
-    return this.ray.intersectObjects(meshes, false)[0]?.object;
+    return this.ray.intersectObjects(this.solidParts().flatMap((p) => p.d.meshes), false)[0]?.object;
   }
   /** The opening under the pointer on the preview, if any. */
   private openAt(x: number, y: number) {

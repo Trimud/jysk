@@ -23,6 +23,16 @@ const ART: Record<ToolId, React.ReactNode> = {
       <path d="M50 76 h28" fill="none" strokeWidth={1.2} opacity={0.5} />
     </g>
   ),
+  torx: (
+    <g {...S}>
+      <g transform="rotate(-28 48 48)">
+        <path d="M40 10 h10 v58 a4 4 0 0 0 4 4 h24 v10 h-30 a8 8 0 0 1 -8 -8 z" fill={W} />
+        <path d="M45 10 v58" fill="none" strokeWidth={1.2} opacity={0.5} />
+      </g>
+      {/* the six-lobed tip, end on */}
+      <path d="M76 12 l3 5 h6 l-3 5 l3 5 h-6 l-3 5 l-3 -5 h-6 l3 -5 l-3 -5 h6 z" fill={G} />
+    </g>
+  ),
   screwdriver: (
     <g transform="rotate(38 48 48)" {...S}>
       <rect x="38" y="6" width="20" height="38" rx="8" fill={W} />
@@ -113,6 +123,7 @@ const ART: Record<ToolId, React.ReactNode> = {
 };
 
 export const TOOL_INFO: Record<ToolId, { name: string; hint: string; alt?: string; short?: string }> = {
+  torx: { name: "T25 Torx key", hint: "An L-shaped key with a star tip", alt: "It comes in the box, with the bolts.", short: "It's in the box, with the bolts." },
   allen: { name: "Allen key", hint: "The small L-shaped key", alt: "It comes in the box, usually in the bag with the screws.", short: "It's in the box, with the screws." },
   screwdriver: { name: "Phillips screwdriver", hint: "Cross-shaped tip", alt: "A drill on its lowest setting works. Do the last turn by hand so the screw doesn't strip.", short: "A drill on low. Finish by hand." },
   flathead: { name: "Flat screwdriver", hint: "Straight tip", alt: "A coin works for turning the round metal locks.", short: "A coin turns the round locks." },

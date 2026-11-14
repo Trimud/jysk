@@ -1,6 +1,6 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
 import type { FitOpts, HwDef, PlanBuilder, StepDef } from "../builder";
-import { add, neg, rotate } from "../math";
+import { add, bentPiece, neg, rotate } from "../math";
 import type { Family } from "./family";
 
 /*
@@ -30,8 +30,7 @@ const uFront = (y: number) => -215 - (50 * (y - 445)) / 313;
 const uBack = (y: number) => -250 - (40 * (y - 445)) / 313;
 const CY = [690, 735]; // the backrest bolts' heights
 const BETA = Math.atan((50 / 313) / K); // the backrest leans back with the posts
-const RO = -uFront(712), RI = RO - 15; // the backrest's back and front radius, round the crossing at the bolts' mid height
-const ALPHA = Math.asin(232 / RO); // its ends at 464 wide
+const RO = -uFront(712); // the backrest's back radius, round the crossing at the bolts' mid height
 
 /** A flat piece cut to an outline of [u, y] corners in a frame's plane, 25 thick. */
 function flat(pts: [number, number][], material: "board" | "wood" = "board"): PartPiece {
@@ -82,12 +81,30 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   /** where a point in a frame's plane is: u along it, y up */
   const at = (g: number, u: number, y: number): Vec3 => [g * S * u, y, K * u];
 
-  // the backrest: a band of the circle round the crossing, leaning back with the posts about the bolts' mid height
-  const arc = (r: number, k: number) => Array.from({ length: 17 }, (_, i): [number, number] => {
-    const a = -ALPHA + (2 * ALPHA * (k > 0 ? i : 16 - i)) / 16;
-    return [r * Math.sin(a), RO * K - r * Math.cos(a)];
-  });
-  const backBand = b.compound("Backrest", [slab([...arc(RO, 1), ...arc(RI, -1)], 158, 0, "wood")], { material: "wood", label: "3" });
+  // the backrest: one 15 mm board bent round the crossing, leaning back with the posts about the bolts' mid height.
+  // Page 9 draws it from the front as a D, 464 x 158: straight along the top with rounded corners, the sides about 85
+  // deep, a smooth curve down to 158 in the middle. Its outline here is that view [x, y], y 0 at mid height, unrolled
+  // onto the middle surface, so the ends still land 464 apart.
+  const RM = RO - 7.5;
+  const half: [number, number][] = [
+    [0, 79],
+    ...Array.from({ length: 9 }, (_, i): [number, number] => [202 + 30 * Math.sin((i * Math.PI) / 16), 49 + 30 * Math.cos((i * Math.PI) / 16)]), // top corner
+    ...Array.from({ length: 7 }, (_, i): [number, number] => {
+      const k = i / 6; // the lower end's round, a curve from the side into the lower edge
+      return [(1 - k) ** 2 * 232 + 2 * k * (1 - k) * 232 + k * k * 205, (1 - k) ** 2 * 19 - 2 * k * (1 - k) * 7 - k * k * 22];
+    }),
+    ...Array.from({ length: 20 }, (_, i): [number, number] => {
+      const x = 205 - ((i + 1) * 205) / 20; // the lower edge, 158 down in the middle
+      return [x, -79 + 73 * (x / 232) ** 2];
+    }),
+  ];
+  const right = half.filter((p, i) => i === 0 || p[0] !== half[i - 1][0] || p[1] !== half[i - 1][1]);
+  const front: [number, number][] = [...right, ...right.slice(1, -1).reverse().map(([x, y]): [number, number] => [-x, y])];
+  const backBand = b.compound(
+    "Backrest",
+    [bentPiece(front.map(([x, y]) => [RM * Math.asin(x / RM), y]), { r: RM, t: 15 }, [0, 0, RO * K - RM], { material: "wood" })],
+    { material: "wood", label: "3" },
+  );
   const backRot: Vec3 = [-BETA, 0, 0];
   const back = b.place(backBand.type, add([0, 712, -RO * K], rotate(backBand.mid, backRot)), backRot);
 
@@ -119,6 +136,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
 
   const step = (d: StepDef, body = () => {}) => b.step(d, body);
   step({
+    page: 10,
     title: "Drop side frame 1 into side frame 2",
     detail: "Stand frame 2 on its legs and lower frame 1 into it from above, so the notches in their rails slot together in a cross. Check which is which: the posts end up at the back. Then screw the connector screw (B) up through the crossing with the allen key, about 80% tight.",
     tools: ["allen"],
@@ -132,21 +150,24 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     b.fit(B, { on: f2.key, at: [0, yr, 0], dir: [0, 1, 0] });
   });
   step({
+    page: 10,
     title: "Bolt the backrest (3) to the posts",
     detail: "Hold it in front of the two posts and put two 20 mm bolts (C) through each post from behind. Not the 60 mm ones (E). About 80% tight.",
     tools: ["allen"],
     kind: "bolts",
     warnings: ["loose"],
+    turn: Math.PI * 0.7, // from behind and to the left, near post on the left, as the manual draws it (p10): both posts' backs show
   }, () => {
     b.add(back, [0, 120, 260]);
     b.then(0.15);
     b.stagger(0.1);
     for (const c of cBolts) {
       b.hole(c.f.key, c.face, neg(c.dir), 6.5);
-      b.fit(C, { on: c.f.key, at: add(c.face, at(c.f.g, 13, 0)), dir: c.dir, hole: false });
+      b.fit(C, { on: c.f.key, at: add(c.face, at(c.f.g, 13, 0)), dir: c.dir, hole: false, sunk: true }); // its head down a counterbore
     }
   });
   step({
+    page: 11,
     title: "Turn it over onto the seat (4) and bolt it on",
     detail: "Lay the seat face down on something soft and stand the chair upside down on it, centred. Four 60 mm bolts (E) up through the rails into the seat, about 80% tight. Peel the felt pads (F) and press one onto each foot.",
     tools: ["allen"],
@@ -160,12 +181,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     b.fits(F, pads, 0.1);
   });
   step({
+    page: 11,
     title: "Stand it up and tighten the seat",
     detail: "Turn it onto its feet and press the seat down all round, so all four feet sit flat and it doesn't rock. Then tighten the screw under the crossing (B) and the four seat bolts (E) all the way.",
     tools: ["allen"],
     kind: "bolts",
   });
   step({
+    page: 12,
     title: "Screw in the two corner blocks (5)",
     detail: "Upside down again. A block goes into each side angle of the cross, tight under the seat: two screws (A) through it into each rail, with a cross-head screwdriver.",
     tools: ["screwdriver"],
@@ -178,12 +201,15 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     b.fits(A, aScrews, 0.08);
   });
   step({
+    page: 12,
     title: "Tighten the backrest",
     detail: "Back on its feet: turn the four backrest bolts (C) all the way, and check the screw under the crossing (B) is tight.",
     tools: ["allen"],
     kind: "bolts",
+    turn: Math.PI * 0.7, // from behind and to the left, as the manual draws it (p12), so all four C heads show
   });
   step({
+    page: 13,
     title: "Done: retighten later",
     detail: "Tested for 110 kg in the home. Tighten every bolt and screw again after 2 weeks, then every 3 months.",
     kind: "general",

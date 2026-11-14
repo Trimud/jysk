@@ -1,5 +1,5 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
-import type { FitOpts, HwDef, PlanBuilder } from "../builder";
+import { HW, type FitOpts, type HwDef, type PlanBuilder } from "../builder";
 import { rod } from "./_seat";
 import { ladder } from "./_metal";
 import type { Family } from "./family";
@@ -9,20 +9,23 @@ import type { Family } from "./family";
  * Two chrome ladder frames (3: 1505 tall, 330 deep, 19 mm tube, a rung at each shelf) are joined by ten 730 mm
  * rails (2), a front and a back one at each level, and five oval glass shelves (1: 1100x290x5) lie on them on felt
  * pads, overhanging the frames at both ends. An X brace of two Ø6 rods (4) crosses the back over the two lowest bays.
- * Built lying on its back: the brace crossed and bolted at the middle (A, nut C), bolted to the frames (A), the rails
- * between the frames (B, two per rail), every bolt tightened, then the pads (F), fixed to the wall (G), the glass on.
+ * The brace crossed and bolted at the middle (A, nut C), then bolted to the frames lying front down (A, p12); stood up,
+ * the rails go between the frames' rungs (B, two per rail, p13), every bolt tightened, then the pads (F), fixed to the wall
+ * (G, p15), the glass slid on from the side (p16).
  */
 
 const A: HwDef = { kind: "bolt", len: 12, dia: 6 }; // M6x12
 const B: HwDef = { kind: "bolt", len: 30, dia: 6 }; // M6x30
 const C: HwDef = { kind: "nut", len: 5, dia: 6, name: "Nut" }; // M6/10
 const F: HwDef = { kind: "glide", len: 3, dia: 20, name: "Felt pad" }; // Ø20
-const G: HwDef = { kind: "clamp", len: 20, dia: 19, name: "Wall clip" }; // Ø19x20
+const G: HwDef = { kind: "spacer", len: 20, dia: 19, name: "Wall spacer", form: "saddle" }; // Ø19x20: between the back post and the wall, its hollow end on the post
+const SCREW: HwDef = { ...HW.wallScrew, len: 70 }; // not included: through the post (19) and G (20) into the plug
 
 const W = 1100, FW = 725, DEP = 330, T = 19, RT = 15, GD = 290, GT = 5, HT = 1505;
 const X0 = FW / 2 + T / 2; // the frames' centres
 const LEVELS = [254, 598, 892, 1186, 1480]; // each rung's top, bottom up: 235, 325 and 3 x 275 clear between them
-const RZ = 292 / 2; // the rails, front and back, at the posts' inner faces
+const RZ = 86; // the rails, front and back, into each rung 86 off its middle: its two holes, 79 in from the frame's edges (p11)
+const PZ = 120; // the pads on each rung, between the post and the rail (p14, not to scale: estimated)
 
 function build(b: PlanBuilder, s: ProductSpec): boolean {
   if (Math.round(s.size.w) !== 110 || Math.round(s.size.d) !== 33 || Math.round(s.size.h) !== 151) return false;
@@ -69,6 +72,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
 
   b.step(
     {
+      page: 12,
       title: "Bolt the two brace rods together",
       detail: "Cross the two thin rods (4) at their middle holes. One short bolt (A) through both and the nut (C) on the back: hold the nut with the spanner (E) and turn the bolt with the allen key (D).",
       kind: "bolts",
@@ -87,11 +91,12 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   );
   b.step(
     {
+      page: 12,
       title: "Bolt the brace to the side frames",
-      detail: "Lay the two side frames (3) on the floor, rungs facing each other, and lay the brace across their back posts over the two lowest bays. A short bolt (A) through each rod end into the post: about 80% tight. Mind that the bolt holes for the rails face inward.",
+      detail: "Lay the two side frames (3) on the floor on their front posts, rungs facing each other, so the back posts are on top. Lay the brace across the back posts over the two lowest bays and drop a short bolt (A) through each rod end into the post: about 80% tight. Mind that the bolt holes for the rails face inward.",
       kind: "bolts",
       tools: ["allen"],
-      pose: "+z",
+      pose: "-z", // front down, back up, the brace on top (p12)
       warnings: ["floor"],
     },
     () => {
@@ -107,12 +112,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   );
   b.step(
     {
+      page: 13,
       title: "Bolt the ten rails between the frames",
-      detail: "A rail (2) at the front and the back of every rung, with the holes for the pads facing up. Two of the long bolts (B) through the posts into each rail, one at each end: 20 in all, about 80% tight.",
+      detail: "Two of you: stand the frames up on their feet. Then a rail (2) at the front and the back of every rung, with the holes for the pads facing up. Two of the long bolts (B) through the rungs into each rail, one at each end: 20 in all, about 80% tight.",
       kind: "bolts",
       tools: ["allen"],
-      pose: "+z",
-      warnings: ["floor"],
+      people: 2,
+      turn: Math.PI, // seen from behind, the brace on the near side (p13)
+      warnings: ["two"],
     },
     () => {
       b.stagger(0.06);
@@ -124,57 +131,78 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   );
   b.step(
     {
-      title: "Stand it up and tighten every bolt",
-      detail: "Two of you: stand it on its feet, check it stands square and doesn't rock, then tighten all the bolts the whole way with the allen key (D).",
-      kind: "standup",
+      page: 13,
+      title: "Tighten every bolt",
+      detail: "Check it stands square and doesn't rock, then tighten all the bolts the whole way with the allen key (D): the rails' and the brace's.",
+      kind: "bolts",
       tools: ["allen"],
-      people: 2,
-      warnings: ["two", "square"],
+      turn: Math.PI, // from behind again (p13)
+      warnings: ["square"],
     },
     () => {},
   );
   b.step(
     {
+      page: 14,
       title: "Press in the felt pads",
-      detail: "Three pads (F) into the holes along the top of each rail: 30 in all. The glass sits on these, never on bare metal.",
+      detail: "One pad (F) into the hole in the middle of each rail and two into the holes at the ends of each frame's rung, by the posts: 30 in all. The glass sits on these, never on bare metal.",
       kind: "general",
     },
     () => {
       b.fits(
         F,
-        rails.flatMap((rk, i) => [-300, 0, 300].map((x): FitOpts => ({ on: rk, at: [x, LEVELS[i >> 1] + 3, i % 2 ? RZ : -RZ], dir: [0, -1, 0], hole: false }))),
+        LEVELS.flatMap((y, l) => [
+          // one in the middle of each rail, then two on each frame's rung (p14)
+          ...[-RZ, RZ].map((z, k): FitOpts => ({ on: rails[2 * l + k], at: [0, y + 3, z], dir: [0, -1, 0], hole: false })),
+          ...sides.flatMap((f, k) => [-PZ, PZ].map((z): FitOpts => ({ on: f, at: [(k ? 1 : -1) * X0, y + 3, z], dir: [0, -1, 0], hole: false }))),
+        ]),
         0.03,
       );
     },
   );
   b.step(
     {
+      page: 15,
       title: "Fix it to the wall",
-      detail: "Push it back against the wall, mark where the two wall clips (G) meet it on the back posts near the top, drill, plug and screw the clips to the wall, then snap them round the posts. Wall plugs and screws aren't included: pick ones made for your wall.",
+      detail: "Push it back against the wall. Through the hole in each back post, just under the second rung from the top, mark the wall. Move the shelf away, drill and plug the marks, then put it back with a spacer (G) between each post and the wall, its hollow end against the post, and drive a screw through the post and the spacer into the plug. Wall plugs and screws aren't included: pick ones made for your wall.",
       kind: "anchor",
-      tools: ["drill", "pencil", "screwdriver", "hammer"],
+      tools: ["drill", "pencil", "hammer"],
+      turn: -0.35, // 3/4 from the front left with the wall behind, the two back posts' fixings apart (p15)
       wall: true,
       warnings: ["wall", "tip"],
     },
     () => {
-      b.fits(G, [-1, 1].map((g): FitOpts => ({ at: [g * X0, HT - 120, -DEP / 2 - 12], dir: [0, 0, 1], wall: true })), 0.1);
+      // through the hole in each back post just under the rung of the second level from the top (p15, insets I and IV):
+      // the plug in the wall, G between the post's back and the wall, its hollow end on the post, and the screw from
+      // the room side through the post and G into the plug. The wall's face is at the brace's back (stage's ensureWall),
+      // 7 behind the posts: G's back on it, its hollow end round the post
+      const yc = LEVELS[3] - RT - 15, wz = zb - 3;
+      const xs = [-1, 1].map((g) => g * X0);
+      b.fits(HW.plug, xs.map((x): FitOpts => ({ at: [x, yc, wz], dir: [0, 0, -1], wall: true })), 0.1);
+      b.then(0.1);
+      b.fits(G, xs.map((x, k): FitOpts => ({ on: sides[k], at: [x, yc, wz], dir: [0, 0, -1], hole: false, wall: true })), 0.1);
+      b.then(0.1);
+      b.fits(SCREW, xs.map((x, k): FitOpts => ({ on: sides[k], at: [x, yc, -DEP / 2 + T], dir: [0, 0, -1], wall: true })), 0.1);
     },
   );
   b.step(
     {
-      title: "Lay the glass shelves on",
-      detail: "Each oval glass shelf (1) centred on its pads, its round ends overhanging the frames by the same amount (about 170 mm) each side. Lower it on, don't slide it.",
+      page: 16,
+      title: "Slide the glass shelves on",
+      detail: "Slide each oval glass shelf (1) in from the side, round end first, between the posts and over its pads. Centre it so it overhangs both frames by the same amount, about 170 mm: measure it with the tape.",
       kind: "shelves",
+      tools: ["tape"],
       people: 2,
       warnings: ["two"],
     },
     () => {
+      // in from the right end at its own level, as the manual's arrows (p16): 290 wide between posts 292 apart
       b.stagger(0.15);
-      shelves.forEach((k) => b.add(k, [0, 200, 0]));
+      shelves.forEach((k) => b.add(k, [1000, 0, 0]));
       b.stagger(0);
     },
   );
-  b.step({ title: "Keep to the weight limit", detail: "5 kg on each glass shelf.", kind: "general" }, () => {});
+  b.step({ page: 16, title: "Keep to the weight limit", detail: "5 kg on each glass shelf.", kind: "general" }, () => {});
   return true;
 }
 

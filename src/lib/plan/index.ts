@@ -25,7 +25,9 @@ export function buildPlan(spec: ProductSpec): Plan {
   } else if (spec.row?.units) buildUnits(b, spec, buildOne);
   else if (spec.row) buildRow(b, spec, buildOne);
   else buildOne(b, spec);
-  const plan = b.build();
+  let plan = b.build();
+  // the manual's two-person mark on every step (TRAPPEDAL's p10) outweighs the listing's one
+  if (plan.steps.length && plan.steps.every((st) => st.people === 2) && plan.spec.people !== 2) plan = { ...plan, spec: { ...plan.spec, people: 2 } };
   cache.set(key, plan);
   return plan;
 }

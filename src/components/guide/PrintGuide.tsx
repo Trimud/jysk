@@ -128,7 +128,7 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
               {plan.hardware.map((h) => (
                 <li key={h.id}>
                   <span className="pp-hw-art">
-                    <HwArt kind={h.kind} len={h.len} dia={h.dia} fit={36} />
+                    <HwArt kind={h.kind} len={h.len} dia={h.dia} form={h.form} drive={h.drive} fit={36} />
                   </span>
                   <span>
                     {h.name} <small>{h.spec}</small>
@@ -160,7 +160,7 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
                       <span className="ps-hw">
                         {c.hardware.slice(0, 4).map(({ type, count }) => (
                           <span key={type.id}>
-                            <HwArt kind={type.kind} len={type.len} dia={type.dia} fit={26} />
+                            <HwArt kind={type.kind} len={type.len} dia={type.dia} form={type.form} drive={type.drive} fit={26} />
                             <b>{count}&times;</b>
                           </span>
                         ))}

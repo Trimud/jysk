@@ -15,8 +15,9 @@ declare global {
     __draw?: (o: { slug?: string; kind?: Kind; mode?: StageMode; look?: Look; w: number; h: number }) => Promise<string | null>;
     __steps?: (slug: string) => string[] | null;
     __info?: (slug: string) => { family: string; steps: number; opens: number } | null;
-    __callouts?: (slug: string, w: number, h: number) => Promise<ReturnType<Stage["calloutLayout"]>[] | null>;
+    __callouts?: (slug: string, w: number, h: number, notes?: boolean, stepped?: boolean) => Promise<ReturnType<Stage["calloutLayout"]>[] | null>;
     __compare?: (ref: string, url: string, min: number) => Promise<{ changed: number; diff: string | null }>;
+    __live?: (slug: string, w: number, h: number, index: number) => Promise<boolean>;
   }
 }
 
@@ -49,27 +50,55 @@ export default function Renderer() {
       const plan = planOf(slug);
       return plan && { family: familyOf(plan.spec), steps: plan.steps.length, opens: plan.opens?.length ?? 0 };
     };
-    // where each step's zoom circles land in a guide's live view of w x h, for scripts/qa/callouts.mjs
-    let live: { stage: Stage; host: HTMLDivElement } | null = null;
-    window.__callouts = async (slug, w, h) => {
-      const plan = planOf(slug);
-      if (!plan) return null;
+    // one live stage (zoom circles on), on screen in #live so a script can screenshot it, sized and set to a guide
+    let live: { stage: Stage; host: HTMLDivElement; plan: Plan | null } | null = null;
+    const liveStage = async (plan: Plan, w: number, h: number) => {
       if (!live) {
         const { Stage } = await import("@/engine/stage");
-        const host = document.createElement("div");
-        host.style.cssText = "position:fixed;left:-10000px;top:0;pointer-events:none;";
+        const host = Object.assign(document.createElement("div"), { id: "live" });
+        host.style.cssText = "position:fixed;left:0;top:0;background:#fff;pointer-events:none;";
         document.body.appendChild(host);
-        live = { stage: new Stage(host, { callout: true, labels: false, loop: false }), host };
+        live = { stage: new Stage(host, { callout: true, labels: false, loop: false }), host, plan: null };
       }
-      const { stage, host } = live;
-      host.style.width = w + "px";
-      host.style.height = h + "px";
-      stage.resize(w, h);
-      stage.setPlan(plan);
+      live.host.style.width = w + "px";
+      live.host.style.height = h + "px";
+      live.stage.resize(w, h);
+      if (live.plan !== plan) live.stage.setPlan(plan);
+      live.plan = plan;
+      return live.stage;
+    };
+    // where each step's zoom circles land in a guide's live view of w x h, for scripts/qa/callouts.mjs
+    // `stepped`: as a visitor going step by step (Next), each step's camera swing played out frame by frame with the
+    // circles laid out on every frame, as the live view does: circles keep their place from frame to frame and step to
+    // step, so a place picked mid-swing must not stick. Laid out once the step has played (the circles are all in)
+    window.__callouts = async (slug, w, h, notes = true, stepped = false) => {
+      const plan = planOf(slug);
+      if (!plan) return null;
+      const stage = await liveStage(plan, w, h);
       return plan.steps.map((_, index) => {
-        stage.setMode({ kind: "step", index }, { instant: true });
-        return stage.calloutLayout();
+        stage.setMode({ kind: "step", index }, { instant: !stepped });
+        if (stepped) {
+          // (never tick(0): that snaps the camera and the model's turn straight to their end)
+          for (let k = 0; k < 60 && stage.t < stage.stepEnd; k++) {
+            stage.tick(1 / 20);
+            stage.calloutLayout(false);
+          }
+        }
+        return stage.calloutLayout(notes);
       });
+    };
+    // a step as the guide shows it at the end of its animation, zoom circles and all, for scripts/qa/manual.ts to
+    // screenshot: an instant step draws its circles fully in, so two frames are enough (the first lays them out)
+    window.__live = async (slug, w, h, index) => {
+      const plan = planOf(slug);
+      if (!plan) return false;
+      (await liveStage(plan, w, h)).setMode({ kind: "step", index }, { instant: true });
+      await new Promise<void>((done) => {
+        let n = 0;
+        const frame = () => (++n >= 2 ? done() : requestAnimationFrame(frame));
+        requestAnimationFrame(frame);
+      });
+      return true;
     };
     // how many pixels of two drawings differ, and when at least `min` do, the difference: changed pixels in red over a
     // faint copy of the second (scripts/qa/snapshots.mjs)

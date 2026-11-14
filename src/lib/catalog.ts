@@ -111,10 +111,13 @@ export function catalogEntry(slug: string): Entry | null {
   return BY_SLUG.get(slug) ?? BY_SLUG.get(SAME[slug] ?? "") ?? null;
 }
 
+/** A product's spec; "slug@B" is the same product in its manual's layout B (Plan.layouts), for the QA scripts. */
 export function catalogSpec(slug: string): ProductSpec | null {
-  const e = catalogEntry(slug);
+  const [base, layout] = slug.split("@");
+  const e = catalogEntry(base);
   if (!e) return null;
-  return toSpec(e);
+  const s = toSpec(e);
+  return layout ? { ...s, layout } : s;
 }
 
 /** One way of naming sizes per family: grids as columns × rows, shelves and cabinets as width × height (and depth when two share those). */

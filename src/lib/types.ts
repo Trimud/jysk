@@ -259,6 +259,7 @@ export interface ProductSpec {
   variants?: { label: string; slug: string }[];
   siblings?: { label: string; slug: string }[];
   row?: { n: number; join?: boolean; of?: string; slide?: number; units?: RowUnit[] }; // several identical units side by side, built one after another, with sliding doors across them all
+  layout?: string; // the manual's either/or layouts to build (Plan.layouts), their ids joined by commas ("C,R"); each choice's first when unset
 }
 
 /** One frame of a row whose frames aren't all alike, or of a corner: its own size and parameters, and where it stands. */
@@ -278,9 +279,13 @@ export type PartMaterial = "board" | "fiber" | "wood" | "metal" | "soft" | "glas
 
 /** One box or cylinder of a part made of several (a star base, a cot side with bars), in the part's own frame. */
 export interface PartPiece {
-  shape: "box" | "cyl" | "halfcyl" | "slab" | "arc"; // halfcyl: half a disc, [dia, thickness, dia / 2], flat edge at the back (-z)
+  shape: "box" | "cyl" | "halfcyl" | "slab" | "arc" | "bent" | "ball"; // halfcyl: half a disc, [dia, thickness, dia / 2], flat edge at the back (-z)
+  // ball: a sphere [dia, length, dia] cut flat at its -y end to that length (a knob's ball on its neck)
   // arc: a round tube bent in a half circle standing in the y-z plane, its open ends down: [tube dia, bend radius + dia / 2, 2 x bend radius + dia]
-  outline?: [number, number][]; // slab: its corners as [x, z] (mm, from pos), drawn as one board of size[1] thickness
+  // bent: a board cut to `outline` and bent round a vertical axis (a chair's backrest); make it with bentPiece (plan/math.ts),
+  // which sets size to its bounding box, centred on pos
+  outline?: [number, number][]; // slab: its corners as [x, z] (mm, from pos), drawn as one board of size[1] thickness; bent: [along its middle surface, up] from the middle of that surface
+  bend?: { r: number; t: number }; // bent: the middle surface's radius (its centre towards +z; negative: towards -z) and the thickness
   round?: number; // slab: corner radius
   size: Vec3; // mm, box extents or cylinder [dia, length, dia]
   foot?: number; // cyl: its diameter at the -y end, when it tapers (a table leg); size[0] is then the +y end's
@@ -339,11 +344,27 @@ export type HwKind =
   | "nut"
   | "washer"
   | "stud"
+  | "rod"
+  | "barrel"
   | "clamp"
   | "angle"
+  | "wedge"
   | "foot"
   | "cap"
   | "spacer";
+
+/** A fitting's shape where its kind has more than one: a handle that is a curved edge pull, a bolt with a
+ *  countersunk head, a washer bent to sit on a tube or split as a spring washer, a rod with a round flange near one end, a
+ *  domed cap nut, a square felt pad, a clip that is half a split sleeve round a pole or a back panel clip (a U channel
+ *  beside a low boss its nail goes through), a clamp bent round a pole (omega) to fix it to the wall, a drawer runner
+ *  screwed under a drawer side's bottom edge instead of to its face, a double cam bolt (a knob on a neck at each end,
+ *  a collar part-way along), an open-topped cup (a clothes rail holder) or a cap over a bolt head, a shelf support (an L
+ *  plate on a pin, a small clip on its ledge), a castor on a screwed plate, a cross dowel barrel nut, a cam housing, a
+ *  grub screw, a leg cup (a flange plate and its socket), an adjustable leg (a shaft with a disc at its foot), a bolt with
+ *  a low domed button head; a saddle spacer is a block hollowed at its end round a post. */
+export type HwForm =
+  | "pull" | "countersunk" | "saddle" | "split" | "collar" | "acorn" | "square" | "sleeve" | "channel" | "omega" | "under"
+  | "double" | "cup" | "support" | "plate" | "cross" | "housing" | "grub" | "flange" | "disc" | "button" | "euro";
 
 export interface HwType {
   id: string;
@@ -355,6 +376,9 @@ export interface HwType {
   qty: number;
   notIncluded?: boolean;
   flush?: boolean;
+  form?: HwForm;
+  /** a bolt or screw driven by a Torx key (six lobes) instead of a hex key or a cross head */
+  drive?: "torx";
   /** a runner with its roller at the back end (most drawer runners); unset, it is at the front */
   roller?: "back";
 }
@@ -374,6 +398,7 @@ export interface PartState {
   from?: Vec3; // approach offset in scene frame
   spin?: number; // revolutions about local Y while approaching
   delay: number;
+  ghost?: boolean; // only shown, faded, where it will go (a layout being picked): the next step brings it in for real
 }
 
 export interface PartItem {
@@ -383,6 +408,7 @@ export interface PartItem {
   final: { pos: Vec3; rot: Vec3 };
   states: PartState[];
   holes: Hole[];
+  pencil?: { step: number; a: Vec3; b: Vec3 }[]; // pencil lines drawn on it from that step on (its own frame, mm, on its surface)
 }
 
 export interface HwItem {
@@ -402,6 +428,7 @@ export interface HwItem {
   scale?: number;
   preset?: boolean;
   wall?: boolean; // fixes it to the wall (a bracket and its screws): kept out of the preview
+  sunk?: boolean; // starts below its part's surface on purpose: a head in a counterbore
 }
 
 export type Item = PartItem | HwItem;
@@ -416,6 +443,7 @@ export type ToolId =
   | "tape"
   | "pencil"
   | "wrench"
+  | "torx"
   | "knife";
 
 export type WarnId =
@@ -467,6 +495,11 @@ export interface Step {
   quiet?: boolean;
   minutes: number;
   turn?: number; // radians the view turns round for this step, to look at faces that point away (a part's marking)
+  el?: number; // the view's height for this step (radians up), when STEP_CAM.el looks over what it shows
+  page?: number; // the manual page it is drawn on (qa:manual pairs by it when it cannot read the step numbers)
+  /** zoom circles on a detail of a part rather than a fitting (a keyhole plate, a latch): its frame, mm; `dir` looks
+   *  into its face (unset: along the view), `size` the half width the circle sees, `delay` when it comes in */
+  looks?: { on: string; at: Vec3; dir?: Vec3; size: number; delay: number }[];
 }
 
 export interface ToolNeed {
@@ -491,6 +524,10 @@ export interface Opening {
   hinge?: { at: Vec3; axis: Vec3; angle: number }; // a door: a point on its hinge line, the line's direction, radians open
 }
 
+export type PlanView = { az?: number; wall?: "+x" | "-x" | "+z" | "-z"; wallZ?: number };
+
+export type LayoutOption ={ id: string; label: string; leaves?: string; first?: boolean }; // first: built by default when not the manual's first (it leaves parts in the box)
+
 export interface Plan {
   spec: ProductSpec;
   parts: PartType[];
@@ -499,4 +536,14 @@ export interface Plan {
   steps: Step[];
   tools: ToolNeed[];
   opens?: Opening[];
+  /** the finished piece's view, round from the front (radians), when STEP_CAM.az looks at its plain side */
+  // wall: the face it stands with to the wall (behind, -z, when unset); wallZ: the wall's face on that axis (z, or x for
+  // a side wall), when the parts' furthest point that way isn't it
+  view?: PlanView;
+  /**
+   * The manual's either/or choices (shelves on one side or the other, a door hinged left or right), in order, each picked
+   * at its step `step`; `pick` is the option this plan builds (spec.layout). Options build the same fittings, placed
+   * differently, unless one `leaves` something out (the manual's "without the door"), then it has fewer.
+   */
+  layouts?: { step: number; pick: string; options: LayoutOption[] }[];
 }

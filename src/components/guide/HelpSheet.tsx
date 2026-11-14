@@ -388,7 +388,7 @@ export default function HelpSheet({
 
 /** What an answer points at, drawn from this guide: the panel, the fitting, the step. */
 function Pictures({ plan, index, shows, onShow, onGoto }: { plan: Plan; index: number; shows: Show[]; onShow?: (ids: string[] | null) => void; onGoto?: (index: number) => void }) {
-  const id = plan.spec.name + plan.spec.variant;
+  const id = plan.spec.name + plan.spec.variant + (plan.spec.layout ?? "");
   return (
     <div className="msg-pics">
       {shows.map((x) => {
@@ -423,7 +423,7 @@ function Pictures({ plan, index, shows, onShow, onGoto }: { plan: Plan; index: n
         return (
           <figure key={"h" + h.id} className="pic fit" onMouseEnter={() => onShow?.([h.id])} onMouseLeave={() => onShow?.(null)}>
             <span className="pic-art">
-              <HwArt kind={h.kind} len={h.len} dia={h.dia} fit={76} />
+              <HwArt kind={h.kind} len={h.len} dia={h.dia} form={h.form} drive={h.drive} fit={76} />
             </span>
             <figcaption className="pic-cap">
               <b>{h.notIncluded ? (h.kind === "plug" ? "Wall plug" : "Wall screw") : h.name}</b>

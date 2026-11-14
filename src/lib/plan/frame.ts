@@ -1,5 +1,5 @@
 import type { Pose, ToolId, Vec3 } from "../types";
-import { HW, PlanBuilder } from "./builder";
+import { HW, PlanBuilder, type FitOpts } from "./builder";
 
 /**
  * Shared carcass used by bookcases, chests and wardrobes:
@@ -391,12 +391,7 @@ export function anchorStep(
       warnings: ["wall", "tip"],
     },
     () => {
-      b.stagger(0.2);
-      for (const x of xs) b.fit(HW.bracket, { on: o.top, at: [x, o.y, o.backZ + 16], dir: [0, -1, 0], travel: 60 });
-      b.then(0.1);
-      const sc: Parameters<PlanBuilder["fits"]>[1] = [];
-      for (const x of xs) for (const dx of [-11, 11]) sc.push({ on: o.top, at: [x + dx, o.y + 2, o.backZ + 22], dir: [0, -1, 0], hole: false });
-      b.fits(HW.screwS, sc, 0.1);
+      b.brackets(HW.bracket, HW.screwS, xs.map((x): FitOpts => ({ on: o.top, at: [x, o.y, o.backZ + 16], dir: [0, -1, 0], travel: 60 })), 0.2);
       b.then(0.1);
       for (const x of xs) b.fit(HW.plug, { at: [x, o.y + 26, o.backZ], dir: [0, 0, -1] });
       b.then(0.05);

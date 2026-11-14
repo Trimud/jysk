@@ -34,15 +34,15 @@ export function body(b: PlanBuilder, o: Body): string {
   return b.place(type, mid);
 }
 
-/** A round leg (or rail) from a to c, `dia` thick, as a piece. */
-export function rod(a: Vec3, c: Vec3, dia: number): PartPiece {
+/** A round leg (or rail) from a to c, `dia` thick, as a piece: `foot` thick at a when it tapers, `shape` "box" for a square tube. */
+export function rod(a: Vec3, c: Vec3, dia: number, foot?: number, shape: "cyl" | "box" = "cyl"): PartPiece {
   const v = sub(c, a);
   const len = Math.hypot(...v);
   const u = v.map((k) => k / len);
   // turns the piece's own y axis onto a -> c (Rz first, then Ry: see math.rotate)
   const tz = Math.acos(u[1]);
   const ty = Math.sin(tz) < 1e-6 ? 0 : Math.atan2(u[2], -u[0]);
-  return { shape: "cyl", size: [dia, len, dia], pos: [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2], rot: [0, ty, tz] };
+  return { shape, size: [dia, len, dia], ...(foot ? { foot } : {}), pos: [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2], rot: [0, ty, tz] };
 }
 
 /** Bolts with a washer under each head: both start at the face the bolt goes in through. */
@@ -72,12 +72,18 @@ export type Crossed = {
   crossWasher: boolean; // whether A takes a washer too
   steps: "five" | "three"; // the manual's own split: cross, bolt, seat, stand, tighten; or cross+bolt, seat, stand+tighten
   tested?: string;
+  /** crossed feet up, as both manuals draw it: this frame is lowered onto the other, A going in from its rail's underside */
+  feetUp?: 2 | 3;
+  /** the legs taper to this at the foot (mm), and the rails are square tube, when the manual draws them so */
+  foot?: number;
+  squareRail?: boolean;
 };
 
 export function crossed(o: Crossed) {
   return (b: PlanBuilder, s: ProductSpec): boolean => {
     if (s.archetype !== "seat" || Math.round(s.size.w) !== o.w || Math.round(s.size.h) !== o.h || Math.round(s.size.d) !== o.d) return false;
-    const base = o.seat.base, RAIL = 40, LEG = 32, RD = 26; // RD: the rail tube's diameter
+    const base = o.seat.base, LEG = 32, RD = 26; // RD: the rail tube's diameter
+    const under = base - RD; // the rail's underside: its top is flat against the seat (p11 insets)
     const seat = body(b, o.seat);
 
     // the frames run corner to corner: 2 from back left to front right, 3 from back right to front left
@@ -88,9 +94,10 @@ export function crossed(o: Crossed) {
       const { type, mid } = b.compound(
         "Leg frame",
         [
-          rod(at(g, -o.frame.top / 2, base), at(g, -o.frame.len / 2 + LEG / 2, 0), LEG),
-          rod(at(g, o.frame.top / 2, base), at(g, o.frame.len / 2 - LEG / 2, 0), LEG),
-          rod(at(g, -o.frame.top / 2, base - RAIL / 2), at(g, o.frame.top / 2, base - RAIL / 2), RD),
+          // each leg drawn from its foot up, so a taper's narrow end is at the floor
+          rod(at(g, -o.frame.len / 2 + LEG / 2, 0), at(g, -o.frame.top / 2, base), LEG, o.foot),
+          rod(at(g, o.frame.len / 2 - LEG / 2, 0), at(g, o.frame.top / 2, base), LEG, o.foot),
+          rod(at(g, -o.frame.top / 2, base - RD / 2), at(g, o.frame.top / 2, base - RD / 2), RD, undefined, o.squareRail ? "box" : "cyl"),
         ],
         { material: "metal", label },
       );
@@ -98,28 +105,33 @@ export function crossed(o: Crossed) {
     };
     const f2 = frame("2", 1), f3 = frame("3", -1);
 
-    const cross: FitOpts = { on: f3, at: [0, base, 0], dir: [0, -1, 0], mate: f2 };
+    const [first, last] = o.feetUp === 2 ? [f3, f2] : [f2, f3];
+    const cross: FitOpts = o.feetUp
+      ? { on: last, at: [0, under, 0], dir: [0, 1, 0], mate: first }
+      : { on: f3, at: [0, base, 0], dir: [0, -1, 0], mate: f2 };
     // B: up through each rail end, just inside the legs, into the seat's frame
     const ups = [[f2, 1], [f3, -1]].flatMap(([f, g]) =>
-      [-1, 1].map((k): FitOpts => ({ on: f as string, at: at(g as number, (k * o.frame.top) / 2 - k * 45, base - RAIL / 2 - RD / 2), dir: [0, 1, 0], mate: seat })), // from the rail's underside
+      [-1, 1].map((k): FitOpts => ({ on: f as string, at: at(g as number, (k * o.frame.top) / 2 - k * 45, under), dir: [0, 1, 0], mate: seat })), // from the rail's underside
     );
 
     const crossIt = () => {
-      b.add(f2, [250, 0, 0]);
+      b.add(first, [250, 0, 0]);
       b.then(0.15);
-      b.add(f3, [0, 300, 0]);
+      b.add(last, [0, o.feetUp ? -300 : 300, 0]); // feet up, model -y is up on screen
       b.then(0.15);
     };
     const boltCross = () => (o.crossWasher ? washered(b, o.A, o.D, [cross]) : b.fit(o.A, cross));
     const crossTitle = "Cross the two leg frames (2, 3)";
-    const crossDetail = "Stand frame 2 on its legs and lower frame 3 into it from above, so the notches in their rails slot together. The arrows printed on the rails must point the same way.";
+    const n1 = first === f2 ? 2 : 3, n2 = last === f2 ? 2 : 3;
+    const crossDetail = `${o.feetUp ? `Lay frame ${n1} feet up` : `Stand frame ${n1} on its legs`} and lower frame ${n2} onto it from above, so the notches in their rails slot together. The arrows printed on the rails must point the same way.`;
+    const crossStep = o.feetUp ? { pose: "-y" as const } : { warnings: ["floor" as const] };
     const aDetail = `${o.crossWasher ? "One short bolt (A) with a washer (D)" : "One short bolt (A)"} down through the middle of the cross with the allen key, about 80% tight. Not one of the long bolts (B): they are too long here.`;
 
     if (o.steps === "five") {
-      b.step({ title: crossTitle, detail: crossDetail, kind: "join", warnings: ["floor"] }, crossIt);
-      b.step({ title: "Bolt the cross together", detail: aDetail, kind: "bolts", tools: ["allen"] }, boltCross);
+      b.step({ title: crossTitle, detail: crossDetail, kind: "join", ...crossStep }, crossIt);
+      b.step({ title: "Bolt the cross together", detail: aDetail, kind: "bolts", tools: ["allen"], ...(o.feetUp ? { pose: "-y" as const } : {}) }, boltCross);
     } else {
-      b.step({ title: `${crossTitle} and bolt them`, detail: `${crossDetail} Then: ${aDetail[0].toLowerCase()}${aDetail.slice(1)}`, kind: "join", tools: ["allen"], warnings: ["floor"] }, () => {
+      b.step({ title: `${crossTitle} and bolt them`, detail: `${crossDetail} Then: ${aDetail[0].toLowerCase()}${aDetail.slice(1)}`, kind: "join", tools: ["allen"], ...crossStep }, () => {
         crossIt();
         boltCross();
       });

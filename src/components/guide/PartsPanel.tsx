@@ -122,7 +122,7 @@ export default function PartsPanel({
               p.id,
               i,
               <>
-                <Thumb id={plan.spec.name + plan.spec.variant} plan={plan} mode={{ kind: "part", ref: p.id }} w={120} h={84} className="pthumb" />
+                <Thumb id={plan.spec.name + plan.spec.variant + (plan.spec.layout ?? "")} plan={plan} mode={{ kind: "part", ref: p.id }} w={120} h={84} className="pthumb" />
                 <span className="letter sm">{p.label}</span>
                 <span className="ptext">
                   <b>{p.name}</b>
@@ -154,7 +154,7 @@ export default function PartsPanel({
               h.id,
               panels.length + i,
               <>
-                <span className="part-art">{actual && canActualSize(h.kind) ? <HwArt kind={h.kind} len={h.len} dia={h.dia} pxPerMm={ppm} /> : <HwArt kind={h.kind} len={h.len} dia={h.dia} fit={56} />}</span>
+                <span className="part-art">{actual && canActualSize(h.kind) ? <HwArt kind={h.kind} len={h.len} dia={h.dia} form={h.form} drive={h.drive} pxPerMm={ppm} /> : <HwArt kind={h.kind} len={h.len} dia={h.dia} form={h.form} drive={h.drive} fit={56} />}</span>
                 <span className="ptext">
                   <b>{h.name}</b>
                   <span>{h.spec || " "}</span>
@@ -217,7 +217,9 @@ export default function PartsPanel({
   );
 }
 
-function dims(s: [number, number, number]) {
+/** A part's size in cm, longest first: to the mm when `exact` (a 16 and an 18 mm board told apart), else whole cm. */
+export function dims(s: [number, number, number], exact = false) {
+  if (exact) return `${[...s].sort((a, b) => b - a).map((x) => +(x / 10).toFixed(2)).join(" × ")} cm`;
   const v = [...s].sort((a, b) => b - a).map((x) => Math.round(x / 10));
   return v[2] < 1 ? `${v[0]} × ${v[1]} cm` : `${v[0]} × ${v[1]} × ${Math.max(1, v[2])} cm`;
 }

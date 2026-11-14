@@ -5,7 +5,12 @@
  *
  * Every circle must sit inside the view, clear of the step number and fittings box (top left) and the buttons along
  * the bottom, clear of the other circles, and not over any fitting of the step (Stage.placeCallouts aims for this;
- * here it is checked on every step of every guide). Writes .qa/callouts.json and exits 1 when anything breaks a rule.
+ * here it is checked on every step of every guide). A zoom circle leaves out parts in front of its fitting and draws
+ * its own part see-through when that covers it: listed as notes (fine for a counterbore, else it sits inside it).
+ * Each size is checked twice: each step drawn straight in, and as a visitor steps through with Next, the camera swinging
+ * round frame by frame (a circle keeps its place while it still works, so one picked mid-swing could stick off screen).
+ * Which way a step faces its fittings is checked without a browser, by qa:overlaps (stepSight).
+ * Writes .qa/callouts.json and exits 1 when anything breaks a rule.
  * Needs the dev server (QA_BASE if it isn't on port 3000) and Playwright (PLAYWRIGHT_FROM, see scripts/og/browser.mjs).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -13,8 +18,14 @@ import path from "node:path";
 import { arg, guideList, openRenderer } from "../og/browser.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
-// the guide's drawing on a laptop, and roughly on a phone (above the step's text)
-const SIZES = [{ name: "desktop", w: 930, h: 740 }, { name: "phone", w: 390, h: 480 }];
+// the guide's drawing on a laptop, on a big screen, and roughly on a phone (above the step's text); each drawn straight
+// in, and stepped through
+const VIEWS = [
+  { name: "desktop", w: 930, h: 740 },
+  { name: "wide", w: 1514, h: 1120 },
+  { name: "phone", w: 390, h: 480 },
+];
+const SIZES = VIEWS.flatMap((v) => [v, { ...v, name: v.name + ", stepped", stepped: true }]);
 const base = arg("--base", process.env.QA_BASE ?? "http://localhost:3000");
 const only = arg("--only")?.split(",").filter(Boolean);
 const family = arg("--family")?.toUpperCase().split(",");
@@ -42,17 +53,19 @@ function problems(l) {
 
 const { browser, page } = await openRenderer(base);
 const found = [];
+const notes = []; // circles that see their fitting only through its own part: a counterbore, or a fitting placed inside it
 let steps = 0, done = 0;
 for (const slug of slugs) {
   for (const size of SIZES) {
-    const layouts = await page.evaluate(({ slug, w, h }) => window.__callouts(slug, w, h), { slug, w: size.w, h: size.h }).catch((e) => {
+    const layouts = await page.evaluate(({ slug, w, h, notes, stepped }) => window.__callouts(slug, w, h, notes, stepped), { slug, w: size.w, h: size.h, notes: size === SIZES[0], stepped: !!size.stepped }).catch((e) => {
       found.push({ slug, size: size.name, step: 0, problems: [`failed: ${e.message.split("\n")[0]}`] });
       return [];
     });
     (layouts ?? []).forEach((l, k) => {
-      if (!l) return;
-      steps++;
-      const p = problems(l);
+      const p = l ? problems(l) : [];
+      if (l) steps++;
+      // what a circle sees doesn't depend on the size: noted once
+      if (size === SIZES[0] && l?.blind.length) notes.push(`${slug} step ${k + 1}: ${l.blind.join(", ")} seen through its own part`);
       if (p.length) found.push({ slug, size: size.name, step: k + 1, problems: p });
     });
   }
@@ -63,6 +76,7 @@ await browser.close();
 mkdirSync(path.join(ROOT, ".qa"), { recursive: true });
 writeFileSync(path.join(ROOT, ".qa", "callouts.json"), JSON.stringify(found, null, 2));
 for (const f of found.slice(0, 40)) console.log(`${f.slug} step ${f.step} (${f.size}): ${f.problems.join("; ")}`);
+for (const n of notes) console.log(`note ${n} (drawn see-through: fine for a counterbore, else it sits inside the part)`);
 if (found.length > 40) console.log(`... and ${found.length - 40} more in .qa/callouts.json`);
 console.log(`${found.length} of ${steps} step views with circles break a rule, over ${slugs.length} guide${slugs.length === 1 ? "" : "s"}`);
 if (found.length) process.exit(1);

@@ -59,10 +59,11 @@ function count(n: number, kind: HwKind, name: string) {
   return `${numWords(n)} ${lower}s`;
 }
 
-const HW_ORDER: HwKind[] = ["dowel", "camScrew", "cam", "legScrew", "bolt", "pin", "plate", "bracket", "runner", "hinge", "knob", "handle", "screw", "nail", "glide", "plug", "stud", "clamp", "angle", "nut", "washer", "clip", "strap", "foot", "cap", "spacer"];
+const HW_ORDER: HwKind[] = ["dowel", "camScrew", "cam", "legScrew", "bolt", "pin", "plate", "bracket", "runner", "hinge", "knob", "handle", "screw", "nail", "glide", "plug", "stud", "rod", "barrel", "clamp", "angle", "wedge", "nut", "washer", "clip", "strap", "foot", "cap", "spacer"];
 
 const TOOL_SPOKEN: Record<ToolId, string> = {
   allen: "the Allen key",
+  torx: "the Torx key",
   screwdriver: "the screwdriver",
   flathead: "the flat screwdriver",
   hammer: "the hammer",

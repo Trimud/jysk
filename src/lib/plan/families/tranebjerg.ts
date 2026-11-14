@@ -17,8 +17,8 @@ const FX = 350, FZ = 340; // the feet, in from the corners
 
 function build(b: PlanBuilder, s: ProductSpec): boolean {
   if (s.archetype !== "sofa" || Math.round(s.size.w) !== 88 || Math.round(s.size.h) !== 78 || Math.round(s.size.d) !== 88) return false;
-  const chair = body(b, { name: "Armchair", label: "1", w: 880, d: 875, h: 780, base: BASE, seat: 430, back: 180, arm: 600, armW: 160 });
-  const feet = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([gx, gz]): FitOpts => ({ on: chair, at: [gx * FX, BASE, gz * FZ], dir: [0, 1, 0], hole: false }));
+  const chair = body(b, { name: "Armchair", label: "1", w: 890, d: 875, h: 780, base: BASE, seat: 430, back: 180, arm: 600, armW: 160 });
+  const feet = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([gx, gz]): FitOpts => ({ on: chair, at: [gx * FX, BASE, gz * FZ], dir: [0, 1, 0], hole: 5 })); // the threaded holes, dots on page 10
 
   b.step(
     {
@@ -28,7 +28,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       pose: "-y",
       warnings: ["floor"],
     },
-    () => b.add(chair, [0, 0, 300]),
+    () => {
+      b.add(chair, [0, 0, 300]);
+      // the zip, opened: a half oval flap on the underside, a little towards the back (page 10)
+      const zx = 130, zz = -120, zd = 90;
+      b.pencil(chair, [-zx, BASE, zz], [zx, BASE, zz]);
+      const flap = Array.from({ length: 11 }, (_, i): [number, number, number] => [zx * Math.cos((Math.PI * i) / 10), BASE, zz - zd * Math.sin((Math.PI * i) / 10)]);
+      flap.slice(1).forEach((p, i) => b.pencil(chair, flap[i], p));
+    },
   );
   b.step(
     {

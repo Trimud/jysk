@@ -15,9 +15,15 @@ const B: HwDef = { kind: "bolt", len: 50, dia: 6 }; // M6x50
 const D: HwDef = { kind: "washer", len: 1.5, dia: 16 }; // Ø16; C is the 5 mm allen key
 
 const build = crossed({
+  feetUp: 2, // the manual crosses them feet up, lowering frame 2 on
+
   w: 52, h: 83, d: 60,
+  // the frames are 410 tall on p9, but 445 of seat on them would make it 855, not 830: they rise about 25 into a recess
+  // under the seat. ponytail: no recess drawn, so the frames stop at the seat's underside, 385 (about 391 with the leg ends)
   seat: { name: "Seat", label: "1", w: 520, d: 585, h: 830, base: 385, seat: 480, back: 90 },
   frame: { len: 630, top: 440 },
+  foot: 20, // the legs taper from 32 at the rail to a small capped foot (p9, p10)
+  squareRail: true, // square tube rails (p9, p10)
   A, B, D,
   crossWasher: true,
   steps: "five",

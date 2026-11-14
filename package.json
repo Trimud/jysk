@@ -19,7 +19,8 @@
     "families": "node scripts/families.mjs",
     "qa:snapshots": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/snapshots.mjs",
     "qa:callouts": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/callouts.mjs",
-    "qa:overlaps": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/overlaps.ts"
+    "qa:overlaps": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/overlaps.ts",
+    "qa:manual": "node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/manual.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",

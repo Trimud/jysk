@@ -9,6 +9,8 @@ export interface StageHandle {
   resetView(): void;
   setSpeed(s: number): void;
   setPaused(p: boolean): void;
+  seek(t: number): void;
+  progress(): { t: number; end: number } | null;
   openAll(open: boolean): void;
 }
 
@@ -82,6 +84,8 @@ export default function StageView({
         resetView: () => s?.resetView(),
         setSpeed: (v) => s?.setSpeed(v),
         setPaused: (v) => s?.setPaused(v),
+        seek: (v) => s?.seek(v),
+        progress: () => s?.progress ?? null,
         openAll: (v) => s?.openAll(v),
       });
     });

@@ -1,8 +1,11 @@
 import type {
+  PlanView,
+  HwForm,
   HwItem,
   HwKind,
   HwType,
   Item,
+  LayoutOption,
   Opening,
   PartItem,
   PartMaterial,
@@ -19,7 +22,8 @@ import type {
   Vec3,
   WarnId,
 } from "../types";
-import { add, mul, neg, rotate, sub, toLocal, unrotate } from "./math";
+import { add, insidePart, mul, neg, rotate, sub, toLocal, unrotate } from "./math";
+import { BRACKET, bracketScrews } from "@/engine/sizes";
 
 const LETTERS = "ABCDEFGHJKLMNPRSTUVWXYZ";
 
@@ -31,6 +35,8 @@ export interface HwDef {
   name?: string; // the fitting's own name when the kind's general one doesn't fit ("Catch", "Knob bolt")
   flush?: boolean; // a bolt whose head sinks level with the surface (a connector screw)
   roller?: "back"; // a runner with its roller at the back end (most drawer runners); unset, it is at the front
+  form?: HwForm; // its shape, where the kind has more than one (types.ts)
+  drive?: "torx"; // turned with a Torx key
 }
 
 /** The marking on a rail's underside, where its cam locks go in: the face that goes down. */
@@ -109,8 +115,11 @@ const HW_NAMES: Record<HwKind, string> = {
   nut: "Nut",
   washer: "Washer",
   stud: "Stud",
+  rod: "Threaded rod",
+  barrel: "Barrel nut",
   clamp: "Clamp",
   angle: "Angle bracket",
+  wedge: "Corner block",
   foot: "Foot",
   cap: "Cover cap",
   spacer: "Wall spacer",
@@ -118,7 +127,7 @@ const HW_NAMES: Record<HwKind, string> = {
 
 /** The fitting a placed one was made from, own name included, to fit the same again (rows repeating a frame). */
 export function defOf(ht: HwType): HwDef {
-  return { kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded, ...(ht.name !== HW_NAMES[ht.kind] ? { name: ht.name } : {}) };
+  return { kind: ht.kind, len: ht.len, dia: ht.dia, notIncluded: ht.notIncluded, form: ht.form, drive: ht.drive, ...(ht.name !== HW_NAMES[ht.kind] ? { name: ht.name } : {}) };
 }
 
 export function hwSpecText(kind: HwKind, len: number, dia: number) {
@@ -144,7 +153,11 @@ export function hwSpecText(kind: HwKind, len: number, dia: number) {
     case "washer":
       return `${dia} mm`;
     case "stud":
+    case "rod":
+    case "barrel":
       return `${dia} × ${len} mm`;
+    case "wedge":
+      return `${len} × ${len} mm`;
     default:
       return "";
   }
@@ -166,6 +179,8 @@ export interface StepDef {
   wall?: boolean;
   weight?: number;
   turn?: number; // radians the view turns round, to show faces that point away from it
+  el?: number; // the view's height (radians up), lower to look under a rail or a shelf
+  page?: number; // the manual page this step is drawn on, for qa:manual when the manual has no text to read its step numbers
 }
 
 export interface FitOpts {
@@ -181,6 +196,7 @@ export interface FitOpts {
   mateHole?: number;
   scale?: number;
   wall?: boolean; // fixes it to the wall: kept out of the preview (defaults to the step's own `wall`)
+  sunk?: boolean; // its head sits in a counterbore, below the surface (qa:overlaps checks the rest start at it)
 }
 
 export class PlanBuilder {
@@ -196,6 +212,7 @@ export class PlanBuilder {
   private end = 0;
   private gap = 0;
   private cur: Step | null = null;
+  private view_?: PlanView;
 
   spec: ProductSpec;
   constructor(spec: ProductSpec) {
@@ -300,12 +317,12 @@ export class PlanBuilder {
   }
 
   hwType(def: HwDef) {
-    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}${def.flush ? "-f" : ""}${def.name ? "-" + def.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : ""}`;
+    const id = `${def.kind}-${def.len}-${def.dia}${def.notIncluded ? "-x" : ""}${def.flush ? "-f" : ""}${def.form ? "-" + def.form : ""}${def.drive ? "-" + def.drive : ""}${def.name ? "-" + def.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : ""}`;
     if (!this.hw.has(id)) {
       this.hw.set(id, {
         id,
         kind: def.kind,
-        name: def.name ?? HW_NAMES[def.kind],
+        name: def.name ?? (def.form === "euro" ? "Euro screw" : HW_NAMES[def.kind]),
         spec: hwSpecText(def.kind, def.len, def.dia),
         len: def.len,
         dia: def.dia,
@@ -313,10 +330,33 @@ export class PlanBuilder {
         notIncluded: def.notIncluded,
         ...(def.roller ? { roller: def.roller } : {}),
         flush: def.flush,
+        ...(def.form ? { form: def.form } : {}),
+        ...(def.drive ? { drive: def.drive } : {}),
       });
     }
     return id;
   }
+
+  /** Where the finished piece is seen from (intro, finished view, preview, thumbnails), when not STEP_CAM.az. */
+  view(v: PlanView) {
+    this.view_ = v;
+  }
+
+  /**
+   * One of the manual's either/or choices, offered at the next step (the one where the visitor picks); returns the option
+   * to build: the one of them named in spec.layout ("C,R"), else the first. Option ids are unique across a plan's choices.
+   */
+  layouts(options: LayoutOption[]): string {
+    const pick = this.pick(options);
+    (this.layouts_ ??= []).push({ step: this.steps.length, pick, options });
+    return pick;
+  }
+
+  /** The option of a choice this plan builds (see layouts), for placing parts before the step that offers it. */
+  pick(options: LayoutOption[]): string {
+    return (options.find((o) => this.spec.layout?.split(",").includes(o.id)) ?? options.find((o) => o.first) ?? options[0]).id;
+  }
+  private layouts_?: Plan["layouts"];
 
   /* ---------- step context ---------- */
 
@@ -336,6 +376,8 @@ export class PlanBuilder {
       wall: def.wall,
       minutes: def.weight ?? 0,
       ...(def.turn ? { turn: def.turn } : {}),
+      ...(def.el !== undefined ? { el: def.el } : {}),
+      ...(def.page ? { page: def.page } : {}),
     };
     this.steps.push(s);
     this.cur = s;
@@ -369,22 +411,38 @@ export class PlanBuilder {
     return d;
   }
 
+  /** Parts shown faded where they will go, in this step only (the layout a visitor is picking); a later step adds them. */
+  ghost(keys: string[]) {
+    const s = this.step_;
+    for (const k of keys) {
+      const it = this.partItem(k);
+      it.states.push({ step: s.n, scene: s.scene, pos: it.final.pos, rot: it.final.rot, delay: this.slot(DUR.part), ghost: true });
+    }
+  }
+
   /** Part reaches its assembled position in this step. */
   add(key: string, from?: Vec3, o: { spin?: number } = {}) {
     const it = this.partItem(key);
     const s = this.step_;
-    it.states.push({ step: s.n, scene: s.scene, pos: it.final.pos, rot: it.final.rot, from, spin: o.spin, delay: this.slot(DUR.part + (o.spin ? 0.4 : 0)) });
+    // a piece put together in a side scene (a plinth screwed to its bottom) comes in as one: parts last shown in the same
+    // other scene, added in this step from the same way, share one slot instead of arriving one after another
+    const last = it.states.at(-1);
+    const group = last && last.scene !== s.scene ? `${s.n}|${last.scene}|${from?.join() ?? ""}` : null;
+    const delay = group && this.group?.key === group ? this.group.delay : this.slot(DUR.part + (o.spin ? 0.4 : 0));
+    if (group) this.group = { key: group, delay };
+    it.states.push({ step: s.n, scene: s.scene, pos: it.final.pos, rot: it.final.rot, from, spin: o.spin, delay });
   }
+  private group?: { key: string; delay: number };
 
   /** Part is shown somewhere else (laid flat, upside down...) from this step until it is added. */
   /** Where a fitting going in at `at` along `dir` meets a part: its hole is there, not where the fitting starts. */
   entry(key: string, at: Vec3, dir: Vec3, len: number): Vec3 {
     const it = this.partItem(key);
-    const size = this.parts.find((p) => p.id === it.ref)?.size;
-    if (!size) return at;
+    const t = this.parts.find((p) => p.id === it.ref);
+    if (!t) return at;
     const l = toLocal(at, it.final.pos, it.final.rot);
     const n = unrotate(dir, it.final.rot);
-    const inside = (q: Vec3) => q.every((v, i) => Math.abs(v) <= size[i] / 2 + 0.5);
+    const inside = (q: Vec3) => insidePart(t, q, -0.5);
     if (inside(l)) return at;
     for (let t = 1; t <= len + 2; t++) {
       if (inside([l[0] + n[0] * t, l[1] + n[1] * t, l[2] + n[2] * t])) return [at[0] + dir[0] * t, at[1] + dir[1] * t, at[2] + dir[2] * t];
@@ -395,12 +453,12 @@ export class PlanBuilder {
   /** How far `at` reaches into a part along `dir` (mm, 0 when it isn't in the part). */
   private depth(key: string, at: Vec3, dir: Vec3): number {
     const it = this.partItem(key);
-    const size = this.parts.find((p) => p.id === it.ref)?.size;
-    if (!size) return 0;
+    const type = this.parts.find((p) => p.id === it.ref);
+    if (!type) return 0;
     const l = toLocal(at, it.final.pos, it.final.rot);
     const n = unrotate(dir, it.final.rot);
     let t = 0;
-    while (t < 2000 && [0, 1, 2].every((i) => Math.abs(l[i] + n[i] * (t + 0.5)) <= size[i] / 2 + 0.5)) t++;
+    while (t < 2000 && insidePart(type, [l[0] + n[0] * (t + 0.5), l[1] + n[1] * (t + 0.5), l[2] + n[2] * (t + 0.5)], -0.5)) t++;
     return t;
   }
 
@@ -425,11 +483,13 @@ export class PlanBuilder {
     }
     if (o.mate) this.hole(o.mate, this.entry(o.mate, o.at, o.dir, def.len), o.dir, o.mateHole ?? Math.max(holeR(def), 3));
     // a dowel is drawn 12 mm into its part and the rest out (a cam bolt ~23 mm out): when that is more than the part it
-    // goes into, start it deeper in its own part, so its end stays inside (an edge-drilled dowel into a 16 mm face)
+    // goes into, start it deeper in its own part, so its end stays inside (an edge-drilled dowel into a 16 mm face).
+    // Its end stays 9 mm under the far face, about where a real hole stops: a face's depth offset (a pixel's worth of its
+    // slope, a few mm zoomed out) let the dark outline of an end 2 mm under it show through as a ring
     if (o.on && o.mate && (def.kind === "dowel" || def.kind === "camScrew")) {
       const room = this.depth(o.mate, o.at, neg(o.dir));
       const spare = this.depth(o.on, o.at, o.dir) - (def.kind === "dowel" ? 12 : 11) - 2;
-      const k = room > 0 ? Math.min(Math.max(0, (def.kind === "dowel" ? def.len - 12 : 23) - (room - 2)), Math.max(0, spare)) : 0;
+      const k = room > 0 ? Math.min(Math.max(0, (def.kind === "dowel" ? def.len - 12 : 23) - (room - 9)), Math.max(0, spare)) : 0;
       if (k > 0) pos = add(pos, mul(dir, k));
     }
     const travel = o.travel ?? defaultTravel(def);
@@ -450,6 +510,7 @@ export class PlanBuilder {
       delay: this.slot(DUR.hw + extra),
       scale: o.scale,
       ...((o.wall ?? s.wall) ? { wall: true } : {}),
+      ...(o.sunk ? { sunk: true } : {}),
     };
     this.items.push(it);
     this.map.set(key, it);
@@ -462,6 +523,30 @@ export class PlanBuilder {
     const keys = list.map((o) => this.fit(def, o));
     this.gap = g;
     return keys;
+  }
+
+  /** A pencil line drawn on part `on` in this step, from a to b (assembled frame, on its surface): shown from now on. */
+  pencil(on: string, a: Vec3, b: Vec3) {
+    const p = this.partItem(on);
+    (p.pencil ??= []).push({ step: this.step_.n, a: toLocal(a, p.final.pos, p.final.rot), b: toLocal(b, p.final.pos, p.final.rot) });
+  }
+
+  /** A zoom circle in this step on a detail of part `on` at `at` (assembled frame) rather than on a fitting: no arrows.
+   *  `dir` looks into its face (unset: along the view); `size` is the half width it sees (mm). */
+  look(on: string, at: Vec3, o: { dir?: Vec3; size?: number } = {}) {
+    const p = this.partItem(on);
+    (this.step_.looks ??= []).push({ on, at: toLocal(at, p.final.pos, p.final.rot), ...(o.dir ? { dir: unrotate(o.dir, p.final.rot) } : {}), size: o.size ?? 40, delay: this.t });
+  }
+
+  /**
+   * Wall brackets at each of `list`, then two `screw`s through each one's slot, heads on its plate.
+   * ponytail: the flat leg runs along +z, as on a top or shelf with the bracket at its back edge (dir up or down, no
+   * twist); turn the offsets by dir and twist when a bracket goes on another face.
+   */
+  brackets(def: HwDef, screw: HwDef, list: FitOpts[], gap = 0.06) {
+    this.fits(def, list, gap);
+    this.then(0.1);
+    return this.fits(screw, list.flatMap(({ on, at, dir, wall }) => bracketScrews(def.len).map((dz): FitOpts => ({ on, wall, dir, at: add(at, add([0, 0, dz], mul(dir, -BRACKET.t))), hole: false }))), gap);
   }
 
   /** Hardware already in place on a part (e.g. the 2nd and 3rd drawer): appears with the part, no animation. */
@@ -520,12 +605,12 @@ export class PlanBuilder {
     // tools
     const toolSet = new Set<ToolId>();
     this.steps.forEach((s) => s.tools.forEach((t) => toolSet.add(t)));
-    const order: ToolId[] = ["allen", "screwdriver", "flathead", "hammer", "wrench", "tape", "drill", "pencil", "level", "knife"];
+    const order: ToolId[] = ["allen", "torx", "screwdriver", "flathead", "hammer", "wrench", "tape", "drill", "pencil", "level", "knife"];
     const tools: ToolNeed[] = order
       .filter((t) => toolSet.has(t) || t === "knife")
       .map((id) => {
         const n: ToolNeed = { id };
-        if (id === "allen" || id === "wrench") n.included = true;
+        if (id === "allen" || id === "torx" || id === "wrench") n.included = true;
         if (id === "drill") {
           n.optional = true;
           n.why = "Only for fixing it to the wall";
@@ -547,7 +632,7 @@ export class PlanBuilder {
 
     const hardware = [...this.hw.values()].sort((a, b) => (a.notIncluded ? 1 : 0) - (b.notIncluded ? 1 : 0));
 
-    return { spec: this.spec, parts: used, hardware, items: this.items, steps: this.steps, tools, ...(this.opens.length ? { opens: this.opens } : {}) };
+    return { spec: this.spec, parts: used, hardware, items: this.items, steps: this.steps, tools, ...(this.opens.length ? { opens: this.opens } : {}), ...(this.view_ ? { view: this.view_ } : {}), ...(this.layouts_ ? { layouts: this.layouts_ } : {}) };
   }
 }
 
@@ -558,7 +643,7 @@ export function holeR(def: HwDef) {
     case "camScrew":
       return 2.5;
     case "cam":
-      return 7.5;
+      return def.dia / 2;
     case "screw":
       return def.notIncluded ? 0 : 1.6;
     case "pin":
@@ -567,6 +652,8 @@ export function holeR(def: HwDef) {
       return 4;
     case "bolt":
     case "stud":
+    case "rod":
+    case "barrel":
       return 3.5;
     default:
       return 0;
@@ -582,6 +669,7 @@ function defaultTravel(def: HwDef) {
     case "cam":
       return 24;
     case "screw":
+    case "barrel":
       return def.len + 14;
     case "nail":
       return 22;
@@ -600,6 +688,7 @@ function defaultTravel(def: HwDef) {
     case "nut":
     case "washer":
     case "stud":
+    case "rod":
     case "clip":
       return 26;
     case "cap":

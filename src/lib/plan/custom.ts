@@ -236,8 +236,11 @@ const KIND_OF: Partial<Record<HwKind, StepKind>> = {
   bracket: "anchor",
   strap: "anchor",
   angle: "screws",
+  wedge: "screws",
   nut: "bolts",
   stud: "bolts",
+  rod: "bolts",
+  barrel: "bolts",
   foot: "legs",
 };
 
@@ -245,6 +248,7 @@ const TOOLS_OF: Partial<Record<HwKind, ToolId>> = {
   camScrew: "screwdriver",
   cam: "screwdriver",
   screw: "screwdriver",
+  barrel: "screwdriver",
   nail: "hammer",
   bolt: "allen",
   hinge: "screwdriver",
@@ -253,6 +257,7 @@ const TOOLS_OF: Partial<Record<HwKind, ToolId>> = {
   bracket: "drill",
   strap: "drill",
   angle: "screwdriver",
+  wedge: "screwdriver",
   nut: "allen",
 };
 

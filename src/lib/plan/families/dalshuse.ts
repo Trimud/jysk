@@ -54,10 +54,19 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   );
   const sofa = b.place(body.type, body.mid);
 
-  const cushion = (label: string) => b.part("Back cushion", [CW, CH, CT], { material: "soft", label });
-  const c1 = cushion("1"), c2 = cushion("2");
-  // ponytail: the outer cushions' flared outer edge is drawn square, like the middle one's
-  const backs = CX.map((x, i) => b.place(i === 1 ? c2 : c1, [x, CY, CZ], [-TILT, 0, 0]));
+  const c2 = b.part("Back cushion", [CW, CH, CT], { material: "soft", label: "2" });
+  // an outer cushion (1) flares out at its top outer corner (p12's right and wrong insets): drawn for the right end
+  // (+x) and turned round for the left, so the flare faces the arm at both. ponytail: the curve drawn as a step
+  const FL = 40, FH = 250;
+  const c1 = b.compound(
+    "Back cushion",
+    [
+      { shape: "box", size: [CW - FL, CH, CT], pos: [-FL / 2, 0, 0] },
+      { shape: "box", size: [FL, FH, CT], pos: [CW / 2 - FL / 2, CH / 2 - FH / 2, 0] },
+    ],
+    { material: "soft", label: "1" },
+  ).type;
+  const backs = CX.map((x, i) => b.place(i === 1 ? c2 : c1, [x, CY, CZ], [-TILT, x < 0 ? Math.PI : 0, 0]));
 
   // a corner leg (4): a steel tube under an 80 x 80 plate, 182 high in all
   const leg = b.compound(
@@ -69,13 +78,14 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     { material: "metal", label: "4" },
   );
   const legs = corners.map(([x, z]) => b.place(leg.type, [x + leg.mid[0], leg.mid[1], z + leg.mid[2]]));
-  // the middle leg (5): a Ø25 tube with a threaded stud on top and a screw-in foot under it.
+  // the middle leg (5): a Ø25 tube with a round flange and a threaded stud on top (p11), and a screw-in foot under it.
   // ponytail: 177 mm with its foot screwed home (the manual's size); drawn with the foot 17 mm out, down to the floor
   const mid = b.compound(
     "Middle leg",
     [
       { shape: "cyl", size: [8, 12, 8], pos: [0, LEG + 6, 0] },
-      { shape: "cyl", size: [25, LEG - 17, 25], pos: [0, (LEG + 17) / 2, 0] },
+      { shape: "cyl", size: [40, 3, 40], pos: [0, LEG - 1.5, 0] },
+      { shape: "cyl", size: [25, LEG - 20, 25], pos: [0, (LEG + 14) / 2, 0] },
       { shape: "cyl", size: [10, 7, 10], pos: [0, 13.5, 0] },
       { shape: "cyl", size: [25, 10, 25], pos: [0, 5, 0] },
     ],
@@ -83,15 +93,17 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   );
   const middle = b.place(mid.type, mid.mid);
 
-  // four bolts up through each plate's corners into the frame's threaded inserts
-  const bolts = corners.flatMap(([x, z], i) =>
-    [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]): FitOpts => ({ on: legs[i], at: [x + u * 27, LEG - PLATE, z + v * 27], dir: [0, 1, 0], mate: sofa })),
+  // four bolts up through each plate's corners into the frame's threaded inserts, a leg at the right end first so
+  // its zoom circle goes out past that end and keeps clear of the middle leg (p12 step 3)
+  const bolts = [1, 2, 3, 0].flatMap((i) =>
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]): FitOpts => ({ on: legs[i], at: [corners[i][0] + u * 27, LEG - PLATE, corners[i][1] + v * 27], dir: [0, 1, 0], mate: sofa })),
   );
 
   /* ---------- on its back ---------- */
 
   b.step(
     {
+      page: 11,
       title: "Lay the sofa (3) on its back",
       detail: "Two of you, onto a rug or the flattened box. The legs (4, 5), the 16 bolts (A) and the allen key (B) are in the pouch on the underside.",
       pose: "+z",
@@ -99,14 +111,19 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       people: 2,
       warnings: ["two", "floor"],
     },
-    () => b.add(sofa, [0, 0, 300]),
+    () => {
+      b.add(sofa, [0, 0, 300]);
+      // p11: the middle leg's threaded hole in the centre of the base
+      b.hole(sofa, [0, LEG, 0], [0, -1, 0], 4);
+    },
   );
   b.step(
-    { title: "Screw the middle leg (5) into the centre", detail: "Into the threaded hole in the middle of the base, clockwise by hand until it is snug.", pose: "+z", kind: "legs", warnings: ["hand"] },
+    { page: 11, title: "Screw the middle leg (5) into the centre", detail: "Into the threaded hole in the middle of the base, clockwise by hand until it is snug.", pose: "+z", kind: "legs", warnings: ["hand"] },
     () => b.add(middle, [0, -220, 0], { spin: 3 }),
   );
   b.step(
     {
+      page: 12,
       title: "Bolt the four legs (4) to the corners",
       detail: "Each plate over its four holes, then four bolts (A) through it with the allen key (B): 16 in all. Tighten each leg's bolts in turn.",
       tools: ["allen"],
@@ -125,6 +142,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
 
   b.step(
     {
+      page: 12,
       title: "Stand it up and push in the back cushions (1, 2, 1)",
       detail: "Two of you, onto its legs. The middle cushion (2) goes in the middle and the two shaped ones (1) at the ends, their curved edge out towards the arm: push each down into the gap behind the seat. Then turn the foot of the middle leg until it meets the floor.",
       pose: "+y",
@@ -135,6 +153,9 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     () => {
       b.stagger(0.25);
       for (const k of backs) b.add(k, [0, 360, 0]);
+      b.then(0.2);
+      // the middle leg's foot, turned down to the floor
+      b.look(middle, [0, 8, 13], { dir: [0, 0, -1], size: 40 });
     },
   );
   return true;

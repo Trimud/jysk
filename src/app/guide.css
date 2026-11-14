@@ -920,6 +920,76 @@
   top: 14px;
   bottom: auto;
 }
+/* a step's row runs the width of the drawing: the scrub slider takes what the buttons leave; drags between them still turn the model */
+.stage-ctl.wide {
+  right: 14px;
+  align-items: center;
+  pointer-events: none;
+}
+.stage-ctl.wide > :not(.drag-hint) {
+  pointer-events: auto;
+}
+.stage-ctl .drag-hint {
+  position: static;
+  margin: 0 10px 0 6px;
+}
+.scrub {
+  --thumb: 14px;
+  flex: 1;
+  min-width: 48px;
+  height: 40px;
+  margin: 0;
+  padding: 0 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 1px var(--line);
+  backdrop-filter: blur(6px);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.scrub:hover {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+.scrub:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+/* the played part fills up to the thumb's middle */
+.scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--brand) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--k, 0)), var(--line-2) 0);
+}
+.scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc(2px - var(--thumb) / 2);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+.scrub::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.scrub::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+.scrub::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
 .drag-hint,
 .sheet-caption {
   position: absolute;
@@ -3075,9 +3145,16 @@ button.pic:disabled {
   .stage-ctl.top {
     top: 10px;
   }
+  .stage-ctl.wide {
+    right: 10px;
+  }
   .stage-ctl .icon-btn,
-  .stage-ctl .pill-btn {
+  .stage-ctl .pill-btn,
+  .scrub {
     height: 36px;
+  }
+  .scrub {
+    padding: 0 12px;
   }
   .stage-ctl .icon-btn {
     width: 36px;
@@ -3896,4 +3973,86 @@ button.pic:disabled {
   .key-form {
     margin-top: 14px;
   }
+}
+/* the hover zoom of a "You need" row (StepPanel NeedZoom), outside the clipped list */
+.need-zoom {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  animation: need-zoom-in 0.15s var(--ease);
+}
+.need-zoom-art {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.need-zoom-art .thumb {
+  width: 100%;
+}
+.need-zoom > span {
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  color: var(--ink-2);
+}
+@keyframes need-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .need-zoom {
+    animation: none;
+  }
+}
+/* the manual's either/or layouts, on the step that offers them (StepPanel) */
+.layout-pick {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+.layout-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  text-align: left;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.layout-opt b {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 15px;
+}
+.layout-opt:hover {
+  background: var(--accent-soft);
+}
+.layout-opt.on {
+  border-color: var(--brand);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.layout-opt:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }

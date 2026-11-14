@@ -15,6 +15,9 @@ const B: HwDef = { kind: "bolt", len: 45, dia: 6 }; // M6x45
 const D: HwDef = { kind: "washer", len: 1.5, dia: 16 }; // Ø16; C is the 5 mm allen key
 
 const build = crossed({
+  feetUp: 2, // the manual crosses them feet up, lowering frame 2 on, A into its rail (p10)
+  squareRail: true, // square bars, notched at the middle (p9, p10, p11)
+
   w: 59, h: 84, d: 58,
   seat: { name: "Seat", label: "1", w: 590, d: 565, h: 840, base: 395, seat: 490, back: 90, arm: 635, armW: 70 },
   frame: { len: 695, top: 470 },

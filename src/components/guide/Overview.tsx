@@ -12,7 +12,7 @@ export default function Overview({ plan, current, doneUpTo, onPick, onClose }: {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const id = plan.spec.name + plan.spec.variant;
+  const id = plan.spec.name + plan.spec.variant + (plan.spec.layout ?? "");
   return (
     <motion.div className="overlay-back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
       <motion.div

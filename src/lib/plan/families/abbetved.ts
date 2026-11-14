@@ -1,15 +1,15 @@
 import type { PartPiece, ProductSpec, Vec3 } from "../../types";
 import { HW, type FitOpts, type HwDef, type PlanBuilder } from "../builder";
-import { rotate, sub } from "../math";
+import { add, rotate, sub } from "../math";
 import type { Family } from "./family";
 
 /*
  * ABBETVED desk 48x120 (JYSK 3600446, 3600473, 3600497), read from JYSK's 23-page manual (Rev 7, 27.11.2025).
  * A low box on two black metal A-frames. The box is built upside down on its top (1): the end panels (3, 4) and the
  * two dividers (5, 6) stand on cam bolts and are locked, the hardboard back (7) slides into the grooves, the drawer
- * goes in upside down and the bottom (2) is screwed on over it all. Still upside down, the two leg frames (13, 14),
+ * goes in upside down behind the two stops on the top and the bottom (2) is screwed on over it all. Still upside down, the two leg frames (13, 14),
  * joined by a rail (15), are bolted on, the wall brackets screwed on, and the two crossed rods (16) bolted between
- * the back legs. Stood up, the cam locks get their caps and it is fixed to the wall. No knobs: a finger cut-out.
+ * the back legs. Stood up, the cam locks in the side openings and the drawer get their caps and it is fixed to the wall. No knobs: a finger cut-out.
  * Panel numbers are the manual's; sizes in mm are from its parts page.
  */
 
@@ -22,7 +22,7 @@ const E: HwDef = { kind: "screw", len: 25, dia: 4, name: "Machine screw" };
 const F: HwDef = { kind: "bolt", len: 12, dia: 6, name: "Barrel nut", flush: true };
 const G: HwDef = HW.dowel; // 8 x 30
 const H: HwDef = { kind: "screw", len: 40, dia: 5 };
-const I: HwDef = { kind: "nut", len: 7, dia: 4, name: "Cap nut" };
+const I: HwDef = { kind: "nut", len: 7, dia: 4, name: "Cap nut", form: "acorn" }; // M4, domed
 const K: HwDef = { kind: "cam", len: 10, dia: 15 };
 const L: HwDef = { kind: "screw", len: 25, dia: 4 };
 const M: HwDef = { kind: "screw", len: 14, dia: 4 };
@@ -52,6 +52,10 @@ function build(b: PlanBuilder, s: ProductSpec) {
   /* ---------- parts ---------- */
 
   const top = b.place(b.part("Top", [1200, 30, 480], { label: "1" }), [0, YT + 15, 0]);
+  // two small blocks fixed under the top in the middle opening, behind the drawer front: its back catches on them (p11, p16).
+  // ponytail: separate parts, kept out of the parts list (`extra`), as they come fixed to the top
+  const stopT = b.part("Drawer stop", [50, 15, 16], { extra: true });
+  const stops = [-161.5, 176].map((x) => b.place(stopT, [x, YT - 7.5, 216]));
   const bottom = b.place(b.part("Bottom", [1200, 15, 480], { label: "2" }), [0, YB + 7.5, 0]);
   const ends = g2.map((g, i) => b.place(b.part("End panel", [15, 100, 479], { label: ["3", "4"][i] }), [g * XE, Y2 + 50, ZF - 239.5]));
   const divs = g2.map((g, i) => b.place(b.part("Divider", [15, 100, 463], { label: ["5", "6"][i] }), [g * XD, Y2 + 50, ZF - 231.5]));
@@ -71,6 +75,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
   const dback = b.place(b.part("Drawer back", [497, 94, 15], { label: "11" }), [0, DY + 47, ZF - 7.5 - DD]);
   const dbottom = b.place(b.part("Drawer bottom", [507, 4.3, 342], { material: "fiber", label: "12" }), [0, DY + 8, ZF - 181]);
   const drawer = b.drawer({ front, sides: dsides, back: dback, bottom: dbottom }, DD);
+  const drawerParts = [drawer.front, ...drawer.sides, drawer.back, drawer.bottom];
 
   // the legs: two welded frames (13, 14) leaning out, the flat rail (15) and the crossed rods (16), all metal
   // each frame (640 x 460 of 25 mm tube): two legs, a bar across the top and one 160 mm off the floor
@@ -87,15 +92,32 @@ function build(b: PlanBuilder, s: ProductSpec) {
   // the rods' holes: high on one back leg, low on the other (the manual's front view), crossing in the middle
   const hi = YB - 40, lo = YB - 284;
   const ends16 = g2.map((g): [Vec3, Vec3] => [[legX(g, hi), hi, 0], [legX(-g, lo), lo, 0]]);
-  const RODZ = [-200, -190]; // against the back legs' front faces, the second over the first where they cross
-  const rodT = b.part("Cross brace", [9.8, 932, 9.8], { shape: "cyl", material: "metal", label: "16" });
+  // each rod a 9.8 mm tube with flat, pierced ends (p10, p19), the flats on the back legs' back faces (z -230), as
+  // the manual draws step 16 from behind. The tube is cranked 4.9 mm off its flats; the second rod is the same one
+  // turned over, so it crosses behind the first
+  const RODZ = -231.5; // the flats' middle: 3 mm thick on the legs' back faces
+  const [[hx0, hy0], [hx1, hy1]] = ends16[0];
+  const span = Math.hypot(hx1 - hx0, hy1 - hy0); // hole to hole, 932 overall
+  const rod = b.compound(
+    "Cross brace",
+    [
+      { shape: "cyl", size: [9.8, span - 40, 9.8], pos: [0, 0, 4.9] },
+      // each flat 38 long to the 932 ends, its outer end rounded (p10, p19)
+      ...g2.flatMap((k): PartPiece[] => [
+        { shape: "box", size: [16, 30, 3], pos: [0, k * 443, 0] },
+        { shape: "cyl", size: [16, 3, 16], pos: [0, k * 458, 0], rot: [Math.PI / 2, 0, 0] },
+      ]),
+    ],
+    { material: "metal", label: "16" },
+  );
   const rods = ends16.map(([p, q], i) => {
-    const dx = q[0] - p[0], dy = q[1] - p[1];
-    // ponytail: the real rods' flattened ends are cranked onto the legs; drawn straight, the second rod's ends stand 5 mm off
-    return b.place(rodT, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, RODZ[i]], [0, 0, Math.atan2(-dx, dy)]);
+    const a = Math.atan2(-(q[0] - p[0]), q[1] - p[1]);
+    const rot: Vec3 = i ? [Math.PI, 0, -a] : [0, 0, a];
+    return b.place(rod.type, add([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, RODZ], rotate(rod.mid, rot)), rot);
   });
   const [[x0, y0], [x1, y1]] = ends16[0];
   const crossY = y0 + ((y1 - y0) * -x0) / (x1 - x0);
+  const ARROW = [1, 1]; // which end of each rod has the arrow: 1 its low end, -1 its high end
 
   /* ---------- fittings, where they end up ---------- */
 
@@ -103,9 +125,9 @@ function build(b: PlanBuilder, s: ProductSpec) {
     ...g2.flatMap((g, i) => endZ.map((z): FitOpts => ({ on: top, at: [g * XE, YT, z], dir: [0, 1, 0], mate: ends[i], mateHole: 4 }))),
     ...g2.flatMap((g, i) => divZ.map((z): FitOpts => ({ on: top, at: [g * XD, YT, z], dir: [0, 1, 0], mate: divs[i], mateHole: 4 }))),
   ];
-  // the carcass cam locks all face the open side compartments: the end panels' inner faces, the dividers' outer ones
+  // the end panels' cam locks face the side openings, the dividers' the drawer opening (p13, p14)
   const endCams = g2.flatMap((g, i) => endZ.map((z): FitOpts => ({ on: ends[i], at: [g * 585, YT - 20, z], dir: [g, 0, 0] })));
-  const divCams = g2.flatMap((g, i) => divZ.map((z): FitOpts => ({ on: divs[i], at: [g * 283, YT - 20, z], dir: [-g, 0, 0] })));
+  const divCams = g2.flatMap((g, i) => divZ.map((z): FitOpts => ({ on: divs[i], at: [g * 268, YT - 20, z], dir: [g, 0, 0] })));
   const dowels = g2.flatMap((g, i) =>
     [205, -204].flatMap((z): FitOpts[] => [
       { on: ends[i], at: [g * XE, YT, z], dir: [0, -1, 0], mate: top },
@@ -126,14 +148,16 @@ function build(b: PlanBuilder, s: ProductSpec) {
   b.step(
     {
       title: "Screw ten cam bolts into the top (1)",
-      detail: "Lay the top upside down on something soft. Screw the bolts in by hand, straight, until the collar sits on the board: not deeper, not proud.",
+      detail: "Lay the top upside down on something soft. Screw the bolts in by hand, straight, until the collar sits on the board: not deeper, not proud. The two small blocks by the front edge are the drawer stops.",
       tools: ["screwdriver"],
       pose: "-y",
+      turn: Math.PI, // the front towards the view, as the manual draws steps 1 to 14 (p12 to p18)
       kind: "cams",
       warnings: ["floor"],
     },
     () => {
-      b.add(top, [0, -200, 0]);
+      b.stagger(0);
+      for (const k of [top, ...stops]) b.add(k, [0, -200, 0]);
       b.then(0.15);
       b.fits(A, camBolts, 0.08);
     },
@@ -142,7 +166,8 @@ function build(b: PlanBuilder, s: ProductSpec) {
     { title: "Tap four dowels into each end panel (3 and 4)", detail: "8 mm dowels, two in each long edge.", tools: ["hammer"], scene: "prep", kind: "dowels" },
     () => {
       b.stagger(0.25);
-      g2.forEach((g, i) => b.stage(ends[i], [g * 130, 7.5, 0], [0, 0, Math.PI / 2], [0, 140, 0]));
+      // both lying cam holes up (p12): the inner faces, -x on 4 and +x on 3
+      g2.forEach((g, i) => b.stage(ends[i], [g * 130, 7.5, 0], [0, 0, (-g * Math.PI) / 2], [0, 140, 0]));
       b.then(0.15);
       b.fits(G, dowels, 0.08);
     },
@@ -153,6 +178,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
       detail: "Push each onto its cam bolts and dowels, groove to the back, then turn its three cam locks clockwise with a flat screwdriver.",
       tools: ["flathead"],
       pose: "-y",
+      turn: Math.PI,
       kind: "cams",
     },
     () => {
@@ -165,9 +191,10 @@ function build(b: PlanBuilder, s: ProductSpec) {
   b.step(
     {
       title: "Stand the dividers (5 and 6) on the top and lock them",
-      detail: "Holes facing out, towards the end panels, and the clean edge at the front. Two cam locks each.",
+      detail: "Holes facing in, towards the middle (drawer) opening, and the clean edge at the front. Two cam locks each.",
       tools: ["flathead"],
       pose: "-y",
+      turn: Math.PI,
       kind: "cams",
     },
     () => {
@@ -177,7 +204,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
       b.fits(K, divCams, 0.1);
     },
   );
-  b.step({ title: "Slide the back panel (7) into its grooves", detail: "Down the grooves in the end panels until it sits in the groove of the top.", pose: "-y", kind: "join" }, () =>
+  b.step({ title: "Slide the back panel (7) into its grooves", detail: "Down the grooves in the end panels until it sits in the groove of the top.", pose: "-y", turn: Math.PI, kind: "join" }, () =>
     b.add(back, [0, -260, 0]),
   );
 
@@ -219,11 +246,15 @@ function build(b: PlanBuilder, s: ProductSpec) {
       title: "Put the drawer in, upside down",
       detail: "Lower it into the middle opening with its back behind the two small stops on the top, so it can't be pulled all the way out.",
       pose: "-y",
+      turn: Math.PI,
       kind: "drawer",
     },
     () => {
       b.stagger(0);
-      for (const k of [drawer.front, ...drawer.sides, drawer.back, drawer.bottom]) b.add(k, [0, -260, 0]);
+      for (const k of drawerParts) b.add(k, [0, -260, 0]);
+      b.then(0.2);
+      // a stop on the top, inside the drawer behind its front (seen with the front left out): the back catches on it
+      b.look(stops[0], [-161.5, YT - 7.5, 224], { dir: [0, 0, -1], size: 45 });
     },
   );
   b.step(
@@ -232,6 +263,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
       detail: "Groove over the back panel, holes over the panels' edges and the dowels. Ten long screws: three into each end panel, two into each divider.",
       tools: ["screwdriver"],
       pose: "-y",
+      turn: Math.PI,
       kind: "screws",
     },
     () => {
@@ -252,6 +284,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
       tools: ["allen"],
       scene: "legs",
       pose: "-y",
+      turn: Math.PI,
       kind: "legs",
     },
     () => {
@@ -268,16 +301,17 @@ function build(b: PlanBuilder, s: ProductSpec) {
       tools: ["allen"],
       people: 2,
       pose: "-y",
+      turn: Math.PI,
       kind: "legs",
     },
     () => {
       b.stagger(0);
       for (const k of [...frames, rail]) b.add(k, [0, -300, 0]);
       b.then(0.2);
-      b.fits(C, g2.flatMap((g, i) => [150, -150].map((z): FitOpts => ({ on: frames[i], at: [legX(g, YB - 12), YB - 12, z], dir: [0, 1, 0], mate: bottom }))), 0.12);
+      b.fits(C, g2.flatMap((g, i) => [150, -150].map((z): FitOpts => ({ on: frames[i], at: [legX(g, YB - 26), YB - 26, z], dir: [0, 1, 0], mate: bottom }))), 0.12);
     },
   );
-  b.step({ title: "Screw the rail to the bottom", detail: "Two 25 mm screws up through the rail (not the short 14 mm ones).", tools: ["screwdriver"], pose: "-y", kind: "screws" }, () =>
+  b.step({ title: "Screw the rail to the bottom", detail: "Two 25 mm screws up through the rail (not the short 14 mm ones).", tools: ["screwdriver"], pose: "-y", turn: Math.PI, kind: "screws" }, () =>
     b.fits(L, [-224, 224].map((x): FitOpts => ({ on: rail, at: [x, YB - 15, RZ], dir: [0, 1, 0] })), 0.15),
   );
   const bx = [-250, 250];
@@ -287,6 +321,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
       detail: "Under the back edge, upright leg at the back. Two short 14 mm screws each, about 80% of the way in so they can still slide.",
       tools: ["screwdriver"],
       pose: "-y",
+      turn: Math.PI,
       kind: "screws",
     },
     () => {
@@ -305,31 +340,41 @@ function build(b: PlanBuilder, s: ProductSpec) {
       kind: "bolts",
     },
     () => {
+      // the arrow stamped on one flat end of each rod, on its back face, pointing out to the hole (p19 and its warning
+      // inset). ponytail: drawn as three pencil lines, the only mark a family can put on a part
+      ends16.forEach(([p, q], i) => {
+        const u = [(q[0] - p[0]) / span, (q[1] - p[1]) / span], c = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+        for (const o of [ARROW[i]]) {
+          const pt = (s: number, n: number): Vec3 => [c[0] + o * s * u[0] - n * u[1], c[1] + o * s * u[1] + n * u[0], RODZ - 1.5];
+          b.pencil(rods[i], pt(434, 0), pt(445, 0));
+          for (const n of [-4, 4]) b.pencil(rods[i], pt(445, 0), pt(440, n));
+        }
+      });
       b.stagger(0.25);
-      b.stageAround(rods, [0, crossY, -195], [0, -120, 0]);
+      b.stageAround(rods, [0, crossY, RODZ], [0, -120, 0]);
       b.then(0.15);
-      b.fit(E, { on: rods[1], at: [0, crossY, -184.9], dir: [0, 0, -1], hole: false });
+      // the tubes touch at RODZ: the first in front, the second behind; the screw from the back, the nut on the front
+      b.fit(E, { on: rods[1], at: [0, crossY, RODZ - 9.8], dir: [0, 0, 1], hole: false });
       b.then(0.1);
-      b.fit(I, { on: rods[0], at: [0, crossY, -204.9], dir: [0, 0, 1], hole: false });
+      b.fit(I, { on: rods[0], at: [0, crossY, RODZ + 9.8], dir: [0, 0, -1], hole: false });
     },
   );
-  // ponytail: one bolt depth for both rods: on the second rod its head sits in the rod, the shank bridges the 5 mm to the leg
   const rodEnds = ends16.flatMap(([p, q], i) => [p, q].map((e) => ({ rod: rods[i], x: e[0], y: e[1], frame: frames[e[0] < 0 ? 0 : 1] })));
   b.step(
     {
       title: "Bolt the rods between the back legs",
-      detail: "At each flat end, a 20 mm bolt through the rod into the leg and a barrel nut into the back of the leg, an allen key on each. About 80% tight.",
+      detail: "The flat ends go on the backs of the back legs. At each, a 20 mm bolt from behind through the rod into the leg and a barrel nut into the front of the leg, an allen key on each. About 80% tight.",
       tools: ["allen"],
-      pose: "-y",
+      pose: "-y", // upside down, the back towards the view, as the manual draws it (p19)
       kind: "bolts",
     },
     () => {
       b.stagger(0.2);
       for (const k of rods) b.add(k, [0, -200, 0]);
       b.then(0.15);
-      b.fits(D, rodEnds.map((e): FitOpts => ({ on: e.rod, at: [e.x, e.y, -195], dir: [0, 0, -1], hole: false })), 0.12);
+      b.fits(D, rodEnds.map((e): FitOpts => ({ on: e.rod, at: [e.x, e.y, RODZ - 1.5], dir: [0, 0, 1] })), 0.12);
       b.then(0.1);
-      b.fits(F, rodEnds.map((e): FitOpts => ({ on: e.frame, at: [e.x, e.y, -230], dir: [0, 0, 1] })), 0.12);
+      b.fits(F, rodEnds.map((e): FitOpts => ({ on: e.frame, at: [e.x, e.y, -205], dir: [0, 0, -1] })), 0.12);
     },
   );
   b.step({ title: "Tighten every bolt fully", detail: "The legs, the rail and the rods: now turn them all the way, with both allen keys on the rod ends.", tools: ["allen"], pose: "-y", kind: "bolts" }, () => {});
@@ -337,8 +382,22 @@ function build(b: PlanBuilder, s: ProductSpec) {
   /* ---------- standing ---------- */
 
   b.step(
-    { title: "Turn it upright and cap the cam locks", detail: "Ten caps over the cam locks inside the side openings. The drawer's own four stay uncapped.", people: 2, pose: "+y", kind: "standup" },
-    () => b.fits(P, [...endCams, ...divCams].map((o): FitOpts => ({ ...o, hole: false })), 0.08),
+    {
+      title: "Turn it upright and cap the cam locks",
+      detail: "Pull the drawer out. Ten caps: six over the end panels' cam locks in the side openings, four over the drawer's, inside its sides. The dividers' locks stay bare, behind the drawer.",
+      people: 2,
+      pose: "+y",
+      kind: "standup",
+    },
+    () => {
+      b.stagger(0);
+      for (const k of drawerParts) {
+        const f = b.partItem(k).final;
+        b.stage(k, add(f.pos, [0, 0, 200]), f.rot);
+      }
+      b.then(0.1);
+      b.fits(P, [...endCams, ...drawerCams].map((o): FitOpts => ({ ...o, hole: false })), 0.08);
+    },
   );
   b.step(
     {
@@ -351,9 +410,15 @@ function build(b: PlanBuilder, s: ProductSpec) {
       warnings: ["tip", "wall"],
     },
     () => {
-      b.fits(HW.plug, bx.map((x): FitOpts => ({ at: [x, YB - 25, -240], dir: [0, 0, -1] })), 0.2);
+      // the drawer back in, then through the brackets' uprights (z -240 to -238, the hole 17 below the bottom) into the
+      // wall, which stands against the back of the rods
+      b.stagger(0);
+      for (const k of drawerParts) b.add(k);
       b.then(0.1);
-      b.fits(HW.wallScrew, bx.map((x): FitOpts => ({ at: [x, YB - 25, -238], dir: [0, 0, -1] })), 0.2);
+      b.stagger(0.22);
+      b.fits(HW.plug, bx.map((x): FitOpts => ({ at: [x, YB - 17, RODZ - 9.8], dir: [0, 0, -1] })), 0.2);
+      b.then(0.1);
+      b.fits(HW.wallScrew, bx.map((x): FitOpts => ({ at: [x, YB - 17, -238], dir: [0, 0, -1] })), 0.2);
     },
   );
   b.step({ title: "Mind the load limits", detail: "40 kg at most on the top and 5 kg in the drawer.", kind: "general", warnings: ["tip"] }, () => {});

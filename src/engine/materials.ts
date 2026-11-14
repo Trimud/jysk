@@ -87,6 +87,10 @@ export function hullMaterial(width: number) {
     vertexShader: hullVert,
     fragmentShader: hullFrag,
     side: THREE.BackSide,
+    // pushed back as far as the faces are, so a fitting's outline just under a face (a screw tip 2 mm in) stays behind it
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
     transparent: true,
   });
 }
