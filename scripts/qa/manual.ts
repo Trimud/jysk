@@ -25,6 +25,7 @@ import { catalogSpec } from "@/lib/catalog";
 import { buildPlan } from "@/lib/plan";
 import type { HwType, PartItem } from "@/lib/types";
 import { arg, chromiumOrNull, guideList, openRenderer, png } from "../og/browser.mjs";
+import { download } from "../manuals/pdf";
 
 const slug: string | undefined = arg("--only");
 if (!slug) throw new Error("usage: npm run qa:manual -- --only <slug> [--pdf <file>]");
@@ -37,11 +38,7 @@ mkdirSync(out, { recursive: true });
 const pdf = arg("--pdf") ?? `${out}/manual.pdf`;
 if (!arg("--pdf")) {
   if (!spec.manual) throw new Error(`${slug} has no manual link: pass --pdf`);
-  if (!existsSync(pdf)) {
-    const r = await fetch(spec.manual);
-    if (!r.ok) throw new Error(`manual: ${r.status} from ${spec.manual}`);
-    writeFileSync(pdf, Buffer.from(await r.arrayBuffer()));
-  }
+  await download(spec.manual, pdf);
 }
 const run = (cmd: string, args: string[], quiet = false) => execFileSync(cmd, args, { encoding: "utf8", maxBuffer: 1 << 26, ...(quiet ? { stdio: ["ignore", "pipe", "ignore"] } : {}) });
 const pages = Number(/Pages:\s+(\d+)/.exec(run("pdfinfo", [pdf]))?.[1]);
