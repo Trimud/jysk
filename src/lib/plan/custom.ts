@@ -191,6 +191,8 @@ function defFor(f: CustomFix, thick?: number): HwDef {
         return HW.hook;
       case "plug":
         return HW.plug;
+      case "screw":
+        return f.included === false ? HW.wallScrew : HW.screwM;
       case "connector":
         return HW.connector;
       case "castor":
@@ -324,7 +326,11 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
 
   steps.forEach((st, si) => {
     const adds = (st.add ?? []).map((id) => nodes.get(id)).filter((n): n is Node => !!n && !isPlaced(n));
-    const fixes = (st.fix ?? []).filter((f) => f.count > 0 || f.at?.length).slice(0, 24);
+    // a screw in a wall step is the wall screw, not in the box, unless the recipe says it is
+    const fixes = (st.fix ?? [])
+      .filter((f) => f.count > 0 || f.at?.length)
+      .slice(0, 24)
+      .map((f) => (st.wall && f.kind === "screw" && f.included === undefined ? { ...f, included: false } : f));
     const nextPose = st.pose ?? pose;
     const turned = nextPose !== pose;
     pose = nextPose;
