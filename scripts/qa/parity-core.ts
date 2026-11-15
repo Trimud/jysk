@@ -98,8 +98,10 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
   const notes: string[] = [];
 
   // ---- the finished piece's outer size, as printed: w, h and d each within 3 mm or 2 percent of it, whichever is more
+  // none given reads like a manual that prints none: said, so a reader who skipped it is seen
   const o = facts.overallMm;
-  if (o) {
+  if (!o) notes.push("no overallMm: overall size not checked");
+  else {
     const g = finishedSize(plan);
     const mm = (s: { w: number; h: number; d: number }) => `${Math.round(s.w)} x ${Math.round(s.h)} x ${Math.round(s.d)} mm`;
     const axes = { w: "width", h: "height", d: "depth" } as const;

@@ -56,7 +56,8 @@ const failures = (change: Change) => {
 };
 
 const agree = parity(plan(), facts());
-assert.deepStrictEqual(agree, { ok: true, failures: [], unread: ["the wall plug's size"], notes: [] });
+// facts with no overall size: nothing compared, and a note says so
+assert.deepStrictEqual(agree, { ok: true, failures: [], unread: ["the wall plug's size"], notes: ["no overallMm: overall size not checked"] });
 
 // parts: a count, a label missing either way (a part kept out of the box is exempt), a size within 2 mm or not
 assert.deepStrictEqual(kinds((p) => (p.parts[0].qty = 3)), ["part"]);
@@ -73,7 +74,7 @@ const unprinted = (() => {
   delete f.parts[0].sizePage;
   return parity(p, f);
 })();
-assert.deepStrictEqual(unprinted, { ok: true, failures: [], unread: ["the wall plug's size"], notes: ["part sizes with no sizePage (not printed, or an older facts file) were ignored: 1"] });
+assert.deepStrictEqual(unprinted, { ok: true, failures: [], unread: ["the wall plug's size"], notes: ["no overallMm: overall size not checked", "part sizes with no sizePage (not printed, or an older facts file) were ignored: 1"] });
 
 // the overall size: two 20 mm sides `h` high, 240 mm either side of the middle, and the top between them 540 up, all `d`
 // deep: 500 x h x d as built, against the manual's 500 x 1100 x 50 (the side's printed size follows it, so parts agree)
@@ -88,6 +89,14 @@ const body = (d: number, h = 1100): Change => (p, f) => {
 const overall = (guide: string, off: string) => [{ kind: "size-overall", detail: `manual 500 x 1100 x 50 mm (w x h x d, page 1), guide ${guide}: the ${off}` }];
 assert.deepStrictEqual(failures(body(30)), overall("500 x 1100 x 30 mm", "depth differs"));
 assert.deepStrictEqual(failures(body(50)), []);
+assert.deepStrictEqual(parity(...(() => { const [p, f] = [plan(), facts()]; body(50)(p, f); return [p, f] as const; })()).notes, []);
+// w, h and d are directions, not sorted sizes: the same body drawn turned (its width front to back) fails
+const sideways: Change = (p, f) => {
+  body(50)(p, f);
+  const at: Record<string, Vec3> = { "side-a": [0, 0, 240], "side-b": [0, 0, -240], top: [0, 540, 0] };
+  for (const i of p.items) if (i.kind === "part") i.final = { pos: at[i.key], rot: [0, Math.PI / 2, 0] };
+};
+assert.deepStrictEqual(failures(sideways), overall("50 x 1100 x 500 mm", "width and depth differ"));
 // 2 percent of 1100 (22 mm) takes 1120, not 1130; 3 mm at least, past 2 percent of 50 (1 mm): 53 deep, not 54
 assert.deepStrictEqual(failures(body(50, 1120)), []);
 assert.deepStrictEqual(failures(body(50, 1130)), overall("500 x 1130 x 50 mm", "height differs"));
