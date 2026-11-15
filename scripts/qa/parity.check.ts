@@ -50,6 +50,11 @@ const count = facts();
 count.fittings[0].count = 5;
 assert.deepStrictEqual(kinds(parity(plan(), count)).filter((k) => k === "fitting"), ["fitting"]);
 
+// the same count but another length (30 mm dowels read as 14 mm): a pair on count alone fails, once
+const len = facts();
+len.fittings[1].lenMm = 14;
+assert.deepStrictEqual(kinds(parity(plan(), len)), ["fitting"]);
+
 const dropped = plan();
 dropped.steps.pop();
 assert(kinds(parity(dropped, facts())).includes("step-count"));

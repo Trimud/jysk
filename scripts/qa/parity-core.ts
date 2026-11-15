@@ -46,8 +46,10 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     } else legend.push({ ...f, letter: f.letter, count: f.count });
   }
   // paired as qa:manual pairs a legend: by count, a matching length breaking a tie, the letters surest of theirs first,
-  // and on a tie leaving the fitting a letter still to come matches by length
-  const fits = (l: (typeof legend)[number], h: HwType) => (l.lenMm !== undefined && l.lenMm === h.len ? 1 : 0);
+  // and on a tie leaving the fitting a letter still to come matches by length. A pair whose lengths (both known: the
+  // guide's 0 is none) differ by more than 2 mm agrees on count only, and fails; it keeps its letter for the steps.
+  const lenOff = (l: (typeof legend)[number], h: HwType) => l.lenMm !== undefined && h.len > 0 && Math.abs(l.lenMm - h.len) > 2;
+  const fits = (l: (typeof legend)[number], h: HwType) => (l.lenMm !== undefined && h.len > 0 && !lenOff(l, h) ? 1 : 0);
   const letterOf = new Map<string, string>();
   const free = new Set(box);
   const surest = new Map(legend.map((l) => [l, Math.max(0, ...box.map((h) => fits(l, h)))]));
@@ -58,6 +60,7 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     if (h) {
       free.delete(h);
       letterOf.set(h.id, l.letter);
+      if (lenOff(l, h)) fail("fitting", `${l.letter} ${l.name} x${l.count} ${l.lenMm} mm paired with ${h.name} ${h.len} mm: the lengths differ`);
     } else fail("fitting", `${l.letter} ${l.name} x${l.count}${l.lenMm ? ` ${l.lenMm} mm` : ""}: the guide has no fitting with that count`);
   }
   // ponytail: the guide's fittings no letter took aren't failed here (one wrong count would fail twice); they show in the
