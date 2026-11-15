@@ -12,9 +12,12 @@ const LONG = 1568;
 /** fetches url into file, once: an existing file is kept */
 export async function download(url: string, file: string) {
   if (existsSync(file)) return;
-  const r = await fetch(url);
+  const r = await fetch(url, { signal: AbortSignal.timeout(60_000) });
   if (!r.ok) throw new Error(`manual: ${r.status} from ${url}`);
-  writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+  const body = Buffer.from(await r.arrayBuffer());
+  // a 200 carrying an error or consent page would be kept forever as the manual: only a pdf is written
+  if (body.subarray(0, 5).toString("latin1") !== "%PDF-") throw new Error(`manual: not a pdf (${r.headers.get("content-type") ?? "no content type"}) from ${url}`);
+  writeFileSync(file, body);
 }
 
 /** the manual and its pages; null when the product has no manual link (or isn't in the catalog) */
@@ -26,7 +29,8 @@ export async function fetchManual(slug: string): Promise<{ dir: string; pdf: str
   mkdirSync(dir, { recursive: true });
   await download(spec.manual, pdf);
   // drawn again only when the pdf or the size changes (the stamp is written last, so a broken run draws again)
-  const stamp = `${LONG} ${statSync(pdf).size} ${statSync(pdf).mtimeMs}`;
+  const st = statSync(pdf);
+  const stamp = `${LONG} ${st.size} ${st.mtimeMs}`;
   if (!existsSync(`${dir}/raster`) || readFileSync(`${dir}/raster`, "utf8") !== stamp) {
     for (const f of readdirSync(dir)) if (f.startsWith("p-")) rmSync(`${dir}/${f}`);
     execFileSync("pdftoppm", ["-scale-to", `${LONG}`, "-gray", "-png", pdf, `${dir}/p`]);
@@ -45,6 +49,7 @@ export async function fetchManual(slug: string): Promise<{ dir: string; pdf: str
   try {
     words = execFileSync("pdftotext", [pdf, "-"], { encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "ignore"] });
   } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") throw e; // no poppler: not a manual without text
     words = String((e as { stdout?: string }).stdout ?? ""); // a page poppler can't read: the text it got before it
   }
   // ponytail: whitespace and page breaks aside, so a scan's empty pages don't count as text
