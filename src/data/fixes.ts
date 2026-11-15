@@ -9,16 +9,23 @@ import type { Kind, X } from "@/lib/products";
  * in src/lib/catalog.ts) are corrected where they are written.
  *
  * size is [w, h, d] in cm, as the kind draws it; x is merged into the row's parameters (undefined takes one out);
- * variant is JYSK's name when the listing names another product than its article is.
+ * variant is JYSK's name when the listing names another product than its article is; manual is the assembly manual's
+ * link when the product's own page has none and another JYSK site has it (checked by name, drawing and size).
  */
 export interface Fix {
   size?: [w: number, h: number, d: number];
   kind?: Kind;
   x?: Partial<Record<keyof X, X[keyof X] | undefined>>;
   variant?: string;
+  manual?: string;
 }
 
-export const FIXES: Record<string, Fix> = {};
+export const FIXES: Record<string, Fix> = {
+  // jysk.co.uk's page links no manual; jysk.ca has it (HUNDESTED armchair 718-257-1040)
+  "armchair-hundested-white-teddy-natural-oak-colour": { manual: "https://www.jysk.ca/media/upfiles/new_instructions/ai_7018_HUNDESTED%20Armchair%20718-257-1040_20260107.pdf" },
+  // the white one's page on jysk.co.uk links it; its cover lists this product's articles 3670444, 3618924, 3618927
+  "bedside-table-limfjorden-2-draw-wild-natural-oak-colour": { manual: "https://cdn4.jysk.com/ttr/ai/5425560" },
+};
 
 /**
  * Guides that are the same product as another guide: their link opens that one, and they are not listed. A hand made

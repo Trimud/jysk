@@ -74,7 +74,7 @@ function fixed(r: JyskRow, slug: string): JyskRow & { listed?: string } {
   const x = { ...r.x, ...f.x } as X;
   for (const k of Object.keys(x) as (keyof X)[]) if (x[k] === undefined) delete x[k];
   const [w, h, d] = f.size ?? [r.w, r.h, r.d];
-  return { ...r, kind: f.kind ?? r.kind, variant: f.variant ?? r.variant, w, h, d, x, ...(f.variant ? { listed: r.variant } : {}) };
+  return { ...r, kind: f.kind ?? r.kind, variant: f.variant ?? r.variant, manual: f.manual ?? r.manual, w, h, d, x, ...(f.variant ? { listed: r.variant } : {}) };
 }
 
 /** Rows generated from JYSK's product pages (scripts/jysk/build.ts). Hand made entries always win. */
