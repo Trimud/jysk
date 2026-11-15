@@ -546,4 +546,6 @@ export interface Plan {
    * differently, unless one `leaves` something out (the manual's "without the door"), then it has fewer.
    */
   layouts?: { step: number; pick: string; options: LayoutOption[] }[];
+  /** A catalog product no family draws from its manual yet: a typical build of its kind, labelled approximate. */
+  approximate?: boolean;
 }

@@ -20,12 +20,18 @@ export function buildPlan(spec: ProductSpec): Plan {
   const hit = cache.get(key);
   if (hit) return hit;
   const b = new PlanBuilder(spec);
+  // drawn from the manual: a family built it (or every unit of a row)
+  let manual = true;
+  const one = (bb: PlanBuilder, s: ProductSpec) => {
+    if (!buildOne(bb, s)) manual = false;
+  };
   // a family that draws its own sets of frames goes first
   if (spec.row && familyRow(b, spec)) {
-  } else if (spec.row?.units) buildUnits(b, spec, buildOne);
-  else if (spec.row) buildRow(b, spec, buildOne);
-  else buildOne(b, spec);
+  } else if (spec.row?.units) buildUnits(b, spec, one);
+  else if (spec.row) buildRow(b, spec, one);
+  else one(b, spec);
   let plan = b.build();
+  if (!manual && spec.source === "catalog") plan = { ...plan, approximate: true };
   // the manual's two-person mark on every step (TRAPPEDAL's p10) outweighs the listing's one
   if (plan.steps.length && plan.steps.every((st) => st.people === 2) && plan.spec.people !== 2) plan = { ...plan, spec: { ...plan.spec, people: 2 } };
   cache.set(key, plan);
@@ -60,8 +66,14 @@ function buildFamily(b: PlanBuilder, spec: ProductSpec) {
   return false;
 }
 
-function buildOne(b: PlanBuilder, spec: ProductSpec) {
-  if (buildFamily(b, spec)) return;
+/** Builds one piece; true when a family drew it from the manual, false for its kind's typical build. */
+function buildOne(b: PlanBuilder, spec: ProductSpec): boolean {
+  if (buildFamily(b, spec)) return true;
+  buildKind(b, spec);
+  return false;
+}
+
+function buildKind(b: PlanBuilder, spec: ProductSpec) {
   switch (spec.archetype) {
     case "shelf":
       return buildShelf(b, spec);

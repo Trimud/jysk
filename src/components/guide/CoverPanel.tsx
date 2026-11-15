@@ -204,9 +204,18 @@ export default function CoverPanel({
               )}
             </div>
           </div>
-        ) : (
-          via !== "catalog" && (
+        ) : via === "catalog" ? (
+          plan.approximate && (
             <div className="callout note">
+              <ISparkle size={18} />
+              <div>
+                <b>Approximate guide</b>
+                <span>We haven&apos;t drawn this one from JYSK&apos;s manual yet: it follows a typical build of its kind, so your parts and steps may differ. Follow the paper manual where they do.</span>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="callout note">
               <ISparkle size={18} />
               <div>
                 <b>{via === "ai" ? "Drafted with Together AI" : "A typical build"}</b>
@@ -222,7 +231,6 @@ export default function CoverPanel({
                 )}
               </div>
             </div>
-          )
         )}
         <div className="cover-links">
           {via !== "scan" && (
