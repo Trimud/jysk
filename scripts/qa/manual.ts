@@ -2,16 +2,18 @@
  * Checks a guide against the maker's assembly manual: npm run qa:manual -- --only <slug> [--pdf <file>]
  * The PDF defaults to the product's manual link (spec.manual), fetched once into .qa/manual/<slug>/.
  * Reads the manual's text layer (poppler's pdftotext) and exits 1 when:
+ * - the manual has no text layer (a scan), so nothing was checked
  * - fittings: the legend's letters and counts ("A x 66") don't pair off one to one with the guide's fittings in the box
  * - parts: a numbered part on the parts pages ("7 x4" over "573x498x16 mm") has no part of that label, size and count,
  *   or a size printed with no label near it matches no part's size
  * Fittings pair by count, so a letter's name beside it is a best guess (by spec, or CL = "Cabinet runner, left").
- * Then pairs each manual step (found by its big step number) with a guide step, in order and by their fittings, lists
- * the pairs whose fittings differ, and with the dev server (QA_BASE or --base) and Playwright (PLAYWRIGHT_FROM) draws each
- * pair into .qa/manual/<slug>/pairs/NN.png: the manual's step cut from its page beside the guide's step as the app shows
- * it, zoom circles and all, for the visual pass (the manual-check skill). .qa/manual/<slug>/index.html shows them all.
+ * Then pairs each manual step (found by its big step number) with a guide step, in order and by their fittings, fails
+ * each pair whose fittings differ (fittings not included, like wall plugs, aside), and with the dev server (QA_BASE or
+ * --base) and Playwright (PLAYWRIGHT_FROM) draws each pair into .qa/manual/<slug>/pairs/NN.png: the manual's step cut
+ * from its page beside the guide's step as the app shows it, zoom circles and all, for the visual pass (the manual-check
+ * skill). .qa/manual/<slug>/index.html shows them all.
  * The pages are JYSK's drawings: they stay in .qa (git ignores it), never in src or public. A manual with no text layer
- * (a scan) gets its pages only.
+ * (a scan) fails, but its pages are still drawn.
  * ponytail: the legend is the page naming the most fittings, plus the page after it when that one only adds new letters,
  * and a part's label is the nearest label above its size (within 150 pt). Tried on the LIMFJORDEN, ABBETVED, BILLUND,
  * JENSLEV and TRAPPEDAL manuals; a new layout that reads wrong needs these rules taught, not skipped.
@@ -349,18 +351,20 @@ if (hasText) {
   holeCounts();
   eitherOr();
   if (unread.length) console.log(`note pages ${unread.join(", ")}: pdftotext can't read them, so any parts on them weren't checked`);
-} else console.log("note no text layer: only the side by side below");
+} else {
+  bad++;
+  console.log("fail no text layer: nothing was checked (run manuals:facts first)");
+}
 
 // ---- the guide's steps, by the manual's letters
 const code = (ref: string) => letterOf.get(ref) ?? plan.hardware.find((h) => h.id === ref)?.name ?? ref;
 const outside = new Set(plan.hardware.filter((h) => h.notIncluded).map((h) => h.id));
-const tally = (s: (typeof plan.steps)[number], all: boolean) => {
+// what a manual's box can show: no wall plugs or screws not included
+const boxFits = plan.steps.map((s) => {
   const c = new Map<string, number>();
-  for (const i of plan.items) if (i.kind === "hw" && i.step === s.n && !i.preset && (all || !outside.has(i.ref))) c.set(code(i.ref), (c.get(code(i.ref)) ?? 0) + (s.repeat ?? 1));
+  for (const i of plan.items) if (i.kind === "hw" && i.step === s.n && !i.preset && !outside.has(i.ref)) c.set(code(i.ref), (c.get(code(i.ref)) ?? 0) + (s.repeat ?? 1));
   return [...c].map(([k, n]) => `${k} x${n}`);
-};
-const stepFits = plan.steps.map((s) => tally(s, true));
-const boxFits = plan.steps.map((s) => tally(s, false)); // what a manual's box can show: no wall plugs or screws not included
+});
 
 // ---- the manual's steps: its big step numbers (the longest run counting up by one), each one's box running down to
 // the next one on the page. A page of fittings with no number read (drawn as curves) counts as one step.
@@ -449,8 +453,9 @@ const label = (p: (typeof pairs)[number]) =>
   `${p.m ? `manual ${p.m.n ? `step ${p.m.n} ` : ""}(p${p.m.page})` : "no manual step"} | ${p.g !== undefined ? `guide ${p.g + 1}. ${plan.steps[p.g].title}` : p.m?.bare && p.m === msteps.at(-1) ? "the finished piece" : "no guide step"}`;
 console.log(`\nsteps, manual beside guide${msteps.length ? "" : " (no step numbers read: the manual's pages in order instead)"}:`);
 for (const p of pairs) {
-  const a = p.m?.fits ?? [], b = p.g !== undefined ? stepFits[p.g] : [];
+  const a = p.m?.fits ?? [], b = p.g !== undefined ? boxFits[p.g] : [];
   const differ = [...a.filter((x) => !b.includes(x)), ...b.filter((x) => !a.includes(x))];
+  if (differ.length) bad++;
   // ponytail: the one lettered tool JYSK boxes hold is the allen key
   const allen = p.g !== undefined && plan.steps[p.g].tools.includes("allen");
   const key = p.m?.n && p.g !== undefined && tools.size && p.m.key !== allen ? `   allen key: manual ${p.m.key ? "yes" : "no"}, guide ${allen ? "yes" : "no"}` : "";
