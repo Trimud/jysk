@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/site";
 import { catalogSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import PrintGuide from "@/components/guide/PrintGuide";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -25,5 +26,5 @@ export default function Page({ params }: Props) {
 
 async function Inner({ params }: Props) {
   const { slug } = await params;
-  return <PrintGuide slug={decodeURIComponent(slug)} />;
+  return <PrintGuide slug={decodeURIComponent(slug)} spec={withRecipe(catalogSpec(decodeURIComponent(slug)))} />;
 }

@@ -1,4 +1,5 @@
 import { PRODUCTS, toSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import { categoryOf, fold, guessSpec, matchCatalog, searchCatalog } from "@/lib/search";
 import { parseSpec, SPEC_PROMPT } from "@/lib/spec";
 import { jyskType } from "@/lib/jysk";
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
   if (!q) return Response.json({ error: "empty" }, { status: 400 });
 
   const hit = matchCatalog(q);
-  if (hit) return Response.json({ spec: hit, via: "catalog" });
+  if (hit) return Response.json({ spec: withRecipe(hit), via: "catalog" });
 
   const key = fold(q);
   const cached = cache.get(key);
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         const { spec, model } = d;
         // prefer our checked catalog when the model lands on a product we know
         const known = PRODUCTS.find((c) => fold(c.name) === fold(spec.name) && c.archetype === spec.archetype && Math.abs(c.size.w - spec.size.w) < 6 && Math.abs(c.size.h - spec.size.h) < 6);
-        if (known) return Response.json({ spec: { ...toSpec(known), slug: known.slug }, via: "catalog" });
+        if (known) return Response.json({ spec: withRecipe({ ...toSpec(known), slug: known.slug }), via: "catalog" });
         const out = { ...spec, slug: key.replace(/\s+/g, "-") };
         if (cache.size > 1000) cache.clear();
         cache.set(key, { spec: out, model });

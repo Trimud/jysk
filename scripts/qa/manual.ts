@@ -22,6 +22,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { promisify } from "node:util";
 import { catalogSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import { buildPlan } from "@/lib/plan";
 import type { HwType, PartItem } from "@/lib/types";
 import { arg, chromiumOrNull, guideList, openRenderer, png } from "../og/browser.mjs";
@@ -29,7 +30,7 @@ import { download } from "../manuals/pdf";
 
 const slug: string | undefined = arg("--only");
 if (!slug) throw new Error("usage: npm run qa:manual -- --only <slug> [--pdf <file>]");
-const spec = catalogSpec(slug);
+const spec = withRecipe(catalogSpec(slug));
 if (!spec) throw new Error(`${slug} is not in the catalog`);
 const plan = buildPlan(spec);
 const out = `.qa/manual/${slug}`;

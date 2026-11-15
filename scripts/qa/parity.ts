@@ -5,6 +5,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { catalogSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import { buildPlan } from "@/lib/plan";
 import { arg } from "../og/browser.mjs";
 import type { ManualFacts } from "../manuals/types";
@@ -17,7 +18,7 @@ let bad = 0;
 for (const slug of only.split(",").filter(Boolean)) {
   console.log(`\n${slug}`);
   const path = file?.includes("/") ? file : `.qa/manuals/${slug}/${file ?? "facts.json"}`;
-  const spec = catalogSpec(slug);
+  const spec = withRecipe(catalogSpec(slug));
   if (!spec) {
     bad++;
     console.log("fail not in the catalog");

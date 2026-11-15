@@ -22,6 +22,7 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import { OBB } from "three/examples/jsm/math/OBB.js";
 import { PRODUCTS, baseSlug, catalogSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import { buildPlan } from "@/lib/plan";
 import type { HwItem, Opening, PartItem, PartPiece, PartType, Plan, Vec3 } from "@/lib/types";
 import { BRACKET, RUNNER, bracketSlot, underBox } from "@/engine/sizes";
@@ -367,13 +368,13 @@ function sameAs(plan: Plan, first: Plan): string[] {
 // each guide, and each of its manual's other layouts as "slug@B"
 const firsts = new Map<string, Plan>();
 const all = slugs.flatMap((slug) => {
-  const spec = catalogSpec(slug);
+  const spec = withRecipe(catalogSpec(slug));
   const plan = spec && buildPlan(spec);
   if (plan && !slug.includes("@")) firsts.set(slug, plan);
   return [slug, ...(plan?.layouts && !slug.includes("@") ? plan.layouts.flatMap((c) => c.options.filter((o) => o.id !== c.pick)).map((o) => `${slug}@${o.id}`) : [])];
 });
 for (const slug of all) {
-  const spec = catalogSpec(slug);
+  const spec = withRecipe(catalogSpec(slug));
   if (!spec) continue;
   const plan = slug.includes("@") ? buildPlan(spec) : firsts.get(slug)!;
   const ix = indexOf(plan);
@@ -381,7 +382,7 @@ for (const slug of all) {
     const r = stepSight(plan, i);
     if (r.seen * 2 < r.total) turns.push(`${slug} step ${i + 1} "${st.title}": ${r.total - r.seen} of its ${r.total} fittings go into faces turned away from its view`);
   });
-  const list = [...clashes(ix), ...openClashes(ix), ...floating(ix), ...buried(ix), ...offSlot(ix), ...pinless(ix), ...screwForms(ix), ...apart(ix), ...(slug.includes("@") ? sameAs(plan, firsts.get(slug.split("@")[0]) ?? buildPlan(catalogSpec(slug.split("@")[0])!)) : [])];
+  const list = [...clashes(ix), ...openClashes(ix), ...floating(ix), ...buried(ix), ...offSlot(ix), ...pinless(ix), ...screwForms(ix), ...apart(ix), ...(slug.includes("@") ? sameAs(plan, firsts.get(slug.split("@")[0]) ?? buildPlan(withRecipe(catalogSpec(slug.split("@")[0]))!)) : [])];
   if (!list.length) continue;
   bad++;
   for (const c of list) console.log(`FAIL ${slug}: ${c}`);
