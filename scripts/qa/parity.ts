@@ -29,15 +29,24 @@ for (const slug of only.split(",").filter(Boolean)) {
     continue;
   }
   // written by a reader: its shape is checked before it's trusted
-  const facts = JSON.parse(readFileSync(path, "utf8")) as ManualFacts;
-  if (![facts.parts, facts.fittings, facts.steps, facts.choices].every(Array.isArray)) {
+  let facts: ManualFacts;
+  try {
+    facts = JSON.parse(readFileSync(path, "utf8")) as ManualFacts;
+  } catch (e) {
+    bad++;
+    console.log(`fail ${path} is not JSON: ${(e as Error).message}`);
+    continue;
+  }
+  if (![facts?.parts, facts?.fittings, facts?.steps, facts?.choices].every(Array.isArray)) {
     bad++;
     console.log(`fail ${path} is not a facts file (parts, fittings, steps and choices lists)`);
     continue;
   }
   const plan = buildPlan(spec);
   if (plan.approximate) console.log("note the guide is approximate (no family draws it from its manual yet)");
-  const { failures } = parity(plan, facts);
+  if (facts.slug !== slug.split("@")[0]) console.log(`note the facts are for ${facts.slug}, not ${slug}`);
+  const { failures, unread } = parity(plan, facts);
+  for (const u of unread) console.log(`note unread: ${u}`);
   for (const f of failures) console.log(`FAIL ${f.kind}: ${f.detail}`);
   console.log(failures.length ? `${failures.length} difference${failures.length > 1 ? "s" : ""} from ${path}` : `ok   matches ${path}`);
   if (failures.length) bad++;

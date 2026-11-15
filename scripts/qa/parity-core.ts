@@ -9,12 +9,18 @@ import type { ManualFacts } from "../manuals/types";
 export type ParityFailure = { kind: "part" | "fitting" | "step-count" | "step-fittings" | "size" | "choice"; detail: string };
 
 const NOT_INCLUDED = /\(not included\)\s*$/i;
-// the manual draws its hex key with the fittings, lettered; the guide keeps it as a tool (plan.tools "allen"), not hardware
-const KEY = /\bkey\b|allen/i;
+// the manual draws its hex key with the fittings, lettered; the guide keeps it as a tool (plan.tools "allen"), not
+// hardware. Only a key's own name ("3 mm hex key", "allen key", "key"): an allen bolt or a lock key is hardware.
+const isKey = (name: string) => /^(?:(?:hex|allen) )?key$/i.test(name.replace(/\d+(?:[.,]\d+)?\s*mm/gi, "").replace(/\s+/g, " ").trim());
+// a fitting's name as words to compare ("round wooden dowel" with "Wooden dowel"): plural s off, filler words out
+const STOP = new Set(["mm", "with", "and", "the", "for", "not", "included"]);
+const words = (name: string) => new Set((name.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/s$/, "")));
+const named = (a: string, b: string) => [...words(a)].filter((w) => words(b).has(w)).length;
 const sorted = (v: number[]) => [...v].sort((a, b) => a - b);
 const list = (c: Map<string, number>) => [...c].sort(([a], [b]) => a.localeCompare(b)).map(([k, n]) => `${k} x${n}`).join(", ") || "-";
 
-export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures: ParityFailure[] } {
+/** failures: every way the guide differs; unread: what the reader couldn't read (notes, never failures) */
+export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures: ParityFailure[]; unread: string[] } {
   const failures: ParityFailure[] = [];
   const fail = (kind: ParityFailure["kind"], detail: string) => failures.push({ kind, detail });
 
@@ -40,31 +46,53 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     if (NOT_INCLUDED.test(f.name)) {
       if (f.letter) skip.add(f.letter);
     } else if (!f.letter || f.count === undefined) fail("fitting", `${f.name}: the facts give it no ${f.letter ? "count" : "letter"}`);
-    else if (KEY.test(f.name)) {
+    else if (isKey(f.name)) {
       skip.add(f.letter);
       if (!plan.tools.some((t) => t.id === "allen")) fail("fitting", `${f.letter} ${f.name}: the guide has no allen key among its tools`);
     } else legend.push({ ...f, letter: f.letter, count: f.count });
   }
-  // paired as qa:manual pairs a legend: by count, a matching length breaking a tie, the letters surest of theirs first,
-  // and on a tie leaving the fitting a letter still to come matches by length. A pair whose lengths (both known: the
-  // guide's 0 is none) differ by more than 2 mm agrees on count only, and fails; it keeps its letter for the steps.
-  const lenOff = (l: (typeof legend)[number], h: HwType) => l.lenMm !== undefined && h.len > 0 && Math.abs(l.lenMm - h.len) > 2;
-  const fits = (l: (typeof legend)[number], h: HwType) => (l.lenMm !== undefined && h.len > 0 && !lenOff(l, h) ? 1 : 0);
+  // paired as qa:manual pairs a legend: by count, then a length within 2 mm, then the name's words, the letters surest
+  // of theirs first, and on a tie leaving the fitting a letter still to come matches. A pair whose lengths (both known:
+  // the guide's 0 is none) differ by more than 2 mm agrees on count only, and fails; it keeps its letter for the steps.
+  type Letter = (typeof legend)[number];
+  const lenOff = (l: Letter, h: HwType) => l.lenMm !== undefined && h.len > 0 && Math.abs(l.lenMm - h.len) > 2;
+  const fits = (l: Letter, h: HwType) => (l.lenMm !== undefined && h.len > 0 && !lenOff(l, h) ? 1 : 0);
+  const score = (l: Letter, h: HwType) => [fits(l, h), named(l.name, h.name)];
+  // where a fitting goes, step by step: two the pairing can't tell apart that go in the same steps can't hide a swap
+  const placed = (h: HwType) => JSON.stringify(plan.items.flatMap((i) => (i.kind === "hw" && i.ref === h.id && !i.preset ? [i.step] : [])).sort((a, b) => a - b));
+  const said = (l: Letter) => `${l.letter} ${l.name} x${l.count}${l.lenMm ? ` ${l.lenMm} mm` : ""}`;
+  const guide = (h: HwType) => `${h.name}${h.len ? ` ${h.len} mm` : ""} x${h.qty}`;
   const letterOf = new Map<string, string>();
   const free = new Set(box);
-  const surest = new Map(legend.map((l) => [l, Math.max(0, ...box.map((h) => fits(l, h)))]));
+  const surest = new Map(legend.map((l) => [l, Math.max(0, ...box.map((h) => fits(l, h) * 10 + named(l.name, h.name)))]));
   const order = [...legend].sort((a, b) => surest.get(b)! - surest.get(a)!);
+  const missed: Letter[] = [];
+  const take = (l: Letter, h: HwType) => (free.delete(h), letterOf.set(h.id, l.letter));
   for (const [k, l] of order.entries()) {
-    const claim = (h: HwType) => Math.max(0, ...order.slice(k + 1).filter((o) => o.count === h.qty).map((o) => fits(o, h)));
-    const h = [...free].filter((h) => h.qty === l.count).sort((a, b) => fits(l, b) - fits(l, a) || claim(a) - claim(b))[0];
-    if (h) {
-      free.delete(h);
-      letterOf.set(h.id, l.letter);
-      if (lenOff(l, h)) fail("fitting", `${l.letter} ${l.name} x${l.count} ${l.lenMm} mm paired with ${h.name} ${h.len} mm: the lengths differ`);
-    } else fail("fitting", `${l.letter} ${l.name} x${l.count}${l.lenMm ? ` ${l.lenMm} mm` : ""}: the guide has no fitting with that count`);
+    const claim = (h: HwType) => Math.max(0, ...order.slice(k + 1).filter((o) => o.count === h.qty).map((o) => fits(o, h) * 10 + named(o.name, h.name)));
+    const key = (h: HwType) => [...score(l, h), -claim(h)];
+    const by = (a: HwType, b: HwType) => key(b).reduce((d, v, i) => d || v - key(a)[i], 0);
+    const [h, next] = [...free].filter((h) => h.qty === l.count).sort(by);
+    if (!h) {
+      missed.push(l);
+      continue;
+    }
+    take(l, h);
+    if (lenOff(l, h)) fail("fitting", `${said(l)} paired with ${h.name} ${h.len} mm: the lengths differ`);
+    // nothing tells them apart, and they go in different steps: the pairing is a guess, and one that could hide a swap
+    else if (next && !by(h, next) && placed(h) !== placed(next)) fail("fitting", `${said(l)}: ${guide(h)} or ${guide(next)}, which go in different steps (no length or name tells them apart)`);
   }
-  // ponytail: the guide's fittings no letter took aren't failed here (one wrong count would fail twice); they show in the
-  // steps, by name
+  // a letter of another count: the guide's fitting of the same name (the length nearest first) has the count wrong (one
+  // failure, and the steps still read it by its letter). A length alone is no match (60 mm dowels and a 60 mm bracket).
+  for (const l of missed) {
+    const h = [...free].filter((h) => named(l.name, h.name) > 0).sort((a, b) => fits(l, b) - fits(l, a) || named(l.name, b.name) - named(l.name, a.name))[0];
+    if (h) {
+      take(l, h);
+      fail("fitting", `${said(l)}: the guide's nearest, ${guide(h)}, has ${h.qty}${lenOff(l, h) ? ` and is ${h.len} mm` : ""}`);
+    } else fail("fitting", `${said(l)}: the guide has no fitting with that count`);
+  }
+  // and the other way: a fitting in the guide's box no letter took, placed in a step or not
+  for (const h of free) if (h.qty > 0) fail("fitting", `guide fitting ${guide(h)}: no letter in the manual's fittings`);
 
   // ---- steps: as many as the manual's (a repeated step is one), each with the same fittings. A guide's choosing step
   // (Plan.layouts) is the manual's either/or page, which has no step of its own (as in qa:manual).
@@ -87,5 +115,5 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
   // ---- the manual's either/or choices, one layout choice each
   const n = plan.layouts?.length ?? 0;
   if (n !== facts.choices.length) fail("choice", `the manual offers ${facts.choices.length} either/or choices, the guide ${n}`);
-  return { ok: !failures.length, failures };
+  return { ok: !failures.length, failures, unread: facts.unread ?? [] };
 }
