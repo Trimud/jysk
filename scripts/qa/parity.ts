@@ -1,7 +1,8 @@
 /**
  * Checks guides against the facts a reader took from their manuals: npm run qa:parity -- --only <slug>[,<slug>...] [--facts <file>]
  * Reads .qa/manuals/<slug>/facts.json (--facts names another file in that folder, or a path), builds the guide and lists
- * every way it differs (parity-core.ts): parts, fittings, steps, either/or choices. Exits 1 on any, or on a missing facts file.
+ * every way it differs (parity-core.ts): parts, fittings, steps (the copies each brings in, where its fittings go, how
+ * the piece lies), either/or choices. Exits 1 on any, or on a missing facts file.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { catalogSpec } from "@/lib/catalog";
@@ -9,7 +10,7 @@ import { withRecipe } from "@/lib/recipes";
 import { buildPlan } from "@/lib/plan";
 import { arg } from "../og/browser.mjs";
 import type { ManualFacts } from "../manuals/types";
-import { parity } from "./parity-core";
+import { parity, stepsProblem } from "./parity-core";
 
 const only: string | undefined = arg("--only");
 if (!only) throw new Error("usage: npm run qa:parity -- --only <slug>[,<slug>...] [--facts <file>]");
@@ -41,6 +42,12 @@ for (const slug of only.split(",").filter(Boolean)) {
   if (![facts?.parts, facts?.fittings, facts?.steps, facts?.choices].every(Array.isArray)) {
     bad++;
     console.log(`fail ${path} is not a facts file (parts, fittings, steps and choices lists)`);
+    continue;
+  }
+  const problem = stepsProblem(facts);
+  if (problem) {
+    bad++;
+    console.log(`fail ${path}: ${problem}`);
     continue;
   }
   const plan = buildPlan(spec);

@@ -1,12 +1,43 @@
 /**
- * A built guide against what a reader found in its manual (ManualFacts): the same parts, fittings, counts and steps.
+ * A built guide against what a reader found in its manual (ManualFacts): the same parts, fittings, counts and steps,
+ * each step bringing in the same copies of each part, its fittings in the same parts and the piece lying the same way.
  * Fittings not included (wall plugs and screws: the plan's `notIncluded`, a facts name ending "(not included)") are left
  * out on both sides, as qa:manual leaves them out. Self-check: scripts/qa/parity.check.ts.
  */
-import type { HwType, Plan } from "@/lib/types";
-import type { ManualFacts } from "../manuals/types";
+import type { HwItem, HwType, Plan, Pose } from "@/lib/types";
+import type { FactsPose, ManualFacts } from "../manuals/types";
 
-export type ParityFailure = { kind: "part" | "fitting" | "step-count" | "step-fittings" | "size" | "choice"; detail: string };
+export type ParityFailure = {
+  kind: "part" | "fitting" | "step-count" | "step-fittings" | "step-parts" | "step-placement" | "step-pose" | "size" | "choice";
+  detail: string;
+};
+
+/**
+ * A facts pose as the plan's Step.pose: the piece's face that points up, POSE_EULER (src/lib/plan/math.ts) turning it to
+ * +y. The front is +z (elverum.ts "+z" lying on its back, gludsted.ts "-z" front down), the left side -x (the left sides
+ * of limfjorden-tvbench.ts and jenslev.ts sit at -x); a piece on its left side has its right side, +x, up.
+ */
+export const FACTS_POSE: Record<FactsPose, Pose> = {
+  upright: "+y",
+  upside_down: "-y",
+  on_back: "+z",
+  face_down: "-z",
+  on_left_side: "+x",
+  on_right_side: "-x",
+};
+
+/** what is wrong with the steps of a facts file a reader wrote (an older shape, a pose not named), or nothing */
+export function stepsProblem(facts: ManualFacts): string | undefined {
+  const label = (x: unknown) => typeof x === "string";
+  for (const m of facts.steps) {
+    const at = `step ${m?.n}`;
+    if (!Array.isArray(m?.parts) || !m.parts.every((p) => label(p?.label) && typeof p?.count === "number"))
+      return `${at}: parts must be { label, count } copies (an older facts shape: read the manual again)`;
+    if (!Array.isArray(m.fittings) || !m.fittings.every((f) => label(f?.letter) && typeof f?.count === "number" && (f.into === undefined || (Array.isArray(f.into) && f.into.every(label)))))
+      return `${at}: fittings must be { letter, count, into?: labels }`;
+    if (m.pose !== undefined && !(m.pose in FACTS_POSE)) return `${at}: pose ${JSON.stringify(m.pose)} is none of ${Object.keys(FACTS_POSE).join(", ")}`;
+  }
+}
 
 const NOT_INCLUDED = /\(not included\)\s*$/i;
 // the manual draws its hex key with the fittings, lettered; the guide keeps it as a tool (plan.tools "allen"), not
@@ -103,14 +134,52 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
   // a repeated step's fittings are all its goes together: the guide places one go's and counts it `repeat` times (as
   // qa:manual does), the manual prints one go's count beside its repeat ("2x")
   const add = (c: Map<string, number>, k: string, n: number) => c.set(k, (c.get(k) ?? 0) + n);
-  steps.slice(0, facts.steps.length).forEach((s, i) => {
+  const paired = steps.slice(0, facts.steps.length);
+  // the label of the part a fitting sits in (HwItem.parent, a part item's key): a dowel's part, a screw's the one it goes through
+  const labelOf = new Map(plan.items.flatMap((i) => (i.kind === "part" ? [[i.key, plan.parts.find((t) => t.id === i.ref)?.label ?? i.ref] as const] : [])));
+  paired.forEach((s, i) => {
     const ours = new Map<string, number>();
-    for (const it of plan.items) if (it.kind === "hw" && it.step === s.n && !it.preset && !outside.has(it.ref)) add(ours, code(it.ref), s.repeat ?? 1);
+    const mine = plan.items.filter((it): it is HwItem => it.kind === "hw" && it.step === s.n && !it.preset && !outside.has(it.ref));
+    for (const it of mine) add(ours, code(it.ref), s.repeat ?? 1);
     const m = facts.steps[i];
     const theirs = new Map<string, number>();
     for (const f of m.fittings) if (!skip.has(f.letter)) add(theirs, f.letter, f.count * (m.repeat ?? 1));
-    if (list(ours) !== list(theirs)) fail("step-fittings", `step ${m.n} (guide: ${s.title}): manual ${list(theirs)}, guide ${list(ours)}`);
+    const at = `step ${m.n} (guide: ${s.title})`;
+    if (list(ours) !== list(theirs)) fail("step-fittings", `${at}: manual ${list(theirs)}, guide ${list(ours)}`);
+    // where a letter's fittings go, when the facts say: as many in each set of parts. A letter whose count in the step
+    // is already wrong has failed once (step-fittings) and isn't compared again.
+    for (const letter of new Set(m.fittings.filter((f) => f.into && !skip.has(f.letter)).map((f) => f.letter))) {
+      if (ours.get(letter) !== theirs.get(letter)) continue;
+      const sets = new Map<string, number>();
+      for (const f of m.fittings) if (f.letter === letter && f.into) add(sets, [...f.into].sort().join("+"), f.count * (m.repeat ?? 1));
+      const into = new Map<string, number>();
+      for (const it of mine) if (code(it.ref) === letter) add(into, (it.parent && labelOf.get(it.parent)) || "-", s.repeat ?? 1);
+      const inSet = (set: string) => set.split("+").reduce((n, l) => n + (into.get(l) ?? 0), 0);
+      const said = (c: Map<string, number>) => [...c].sort(([a], [b]) => a.localeCompare(b)).map(([k, n]) => `x${n} into ${k}`).join(", ");
+      if ([...sets].some(([set, n]) => inSet(set) !== n)) fail("step-placement", `${at}: manual ${letter} ${said(sets)}, guide ${letter} ${said(into)}`);
+    }
+    if (m.pose && s.pose !== FACTS_POSE[m.pose]) fail("step-pose", `${at}: manual ${m.pose} (${FACTS_POSE[m.pose]}), guide ${s.pose}`);
   });
+  // each part's copies, step by step: the step a copy first shows in (a layout's ghost is not it coming in; a quiet step,
+  // the drawers slid back in, lists none, as the step panel shows them), one go of a repeated step counted for each go
+  const [theirsOf, copies] = [new Map<string, number[]>(), new Map<string, number[]>()];
+  const bump = (c: Map<string, number[]>, label: string, k: number, n: number) => {
+    const v = c.get(label) ?? paired.map(() => 0);
+    c.set(label, v);
+    v[k] += n;
+  };
+  facts.steps.slice(0, paired.length).forEach((m, k) => m.parts.forEach((p) => bump(theirsOf, p.label, k, p.count * (m.repeat ?? 1))));
+  for (const it of plan.items) {
+    const t = it.kind === "part" ? plan.parts.find((x) => x.id === it.ref) : undefined;
+    if (it.kind !== "part" || !t || t.extra) continue;
+    const k = paired.findIndex((s) => s.n === it.states.find((x) => !x.ghost)?.step);
+    if (k >= 0 && !paired[k].quiet) bump(copies, t.label, k, paired[k].repeat ?? 1);
+  }
+  for (const label of [...new Set([...copies.keys(), ...theirsOf.keys()])].sort()) {
+    const [a, b] = [theirsOf.get(label) ?? paired.map(() => 0), copies.get(label) ?? paired.map(() => 0)];
+    const off = paired.flatMap((_, k) => (a[k] !== b[k] ? [`step ${facts.steps[k].n} manual x${a[k]}, guide x${b[k]}`] : []));
+    if (off.length) fail("step-parts", `part ${label}: ${off.join("; ")}`);
+  }
 
   // ---- the manual's either/or choices, one layout choice each
   const n = plan.layouts?.length ?? 0;

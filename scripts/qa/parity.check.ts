@@ -1,13 +1,15 @@
 // parity self-check: node --no-warnings --import ./scripts/voice/register.mjs scripts/qa/parity.check.ts
 import assert from "node:assert";
-import type { HwItem, HwType, Plan, Step } from "@/lib/types";
+import type { HwItem, HwType, PartItem, Plan, Step } from "@/lib/types";
 import type { ManualFacts } from "../manuals/types";
-import { parity } from "./parity-core";
+import { parity, stepsProblem } from "./parity-core";
 
 const step = (n: number): Step => ({ n, title: `step ${n}`, tools: [], people: 1, scene: "main", pose: "+y", warnings: [], kind: "general", minutes: 1 });
-const hw = (ref: string, s: number, k: number): HwItem => ({ key: `${ref}-${s}-${k}`, kind: "hw", ref, step: s, pos: [0, 0, 0], dir: [0, -1, 0], travel: 10, delay: 0 });
+const hw = (ref: string, s: number, k: number, parent?: string): HwItem => ({ key: `${ref}-${s}-${k}`, kind: "hw", ref, parent, step: s, pos: [0, 0, 0], dir: [0, -1, 0], travel: 10, delay: 0 });
+const piece = (key: string, ref: string, s: number): PartItem => ({ key, kind: "part", ref, final: { pos: [0, 0, 0], rot: [0, 0, 0] }, states: [{ step: s, scene: "main", pos: [0, 0, 0], rot: [0, 0, 0], delay: 0 }], holes: [] });
 const type = (id: string, name: string, len: number, qty: number): HwType => ({ id, kind: "screw", name, spec: "", len, dia: 4, qty });
-// two steps (the plan counts from 0): four 30 mm screws, then two dowels and a wall plug that isn't in the box
+// two steps (the plan counts from 0): a side and four 30 mm screws into it, then the other side, the top, two dowels into
+// the top and a wall plug that isn't in the box
 const plan = (): Plan => ({
   spec: {} as Plan["spec"],
   parts: [
@@ -15,7 +17,7 @@ const plan = (): Plan => ({
     { id: "top", label: "2", name: "Top", size: [600, 18, 400], shape: "box", material: "board", qty: 1 },
   ],
   hardware: [type("screw", "Screw", 30, 4), { ...type("dowel", "Wooden dowel", 30, 2), kind: "dowel" }, { ...type("plug", "Wall plug", 35, 1), kind: "plug", notIncluded: true }],
-  items: [...[0, 1, 2, 3].map((k) => hw("screw", 0, k)), hw("dowel", 1, 0), hw("dowel", 1, 1), hw("plug", 1, 0)],
+  items: [...[0, 1, 2, 3].map((k) => hw("screw", 0, k, "side-a")), hw("dowel", 1, 0, "top"), hw("dowel", 1, 1, "top"), hw("plug", 1, 0), piece("side-a", "side", 0), piece("side-b", "side", 1), piece("top", "top", 1)],
   steps: [step(0), step(1)],
   tools: [{ id: "allen", included: true }, { id: "screwdriver" }],
 });
@@ -33,8 +35,8 @@ const facts = (): ManualFacts => ({
     { name: "wall plug (not included)" },
   ],
   steps: [
-    { n: 1, parts: ["1"], fittings: [{ letter: "A", count: 4 }, { letter: "C", count: 1 }], people: 1 },
-    { n: 2, parts: ["2"], fittings: [{ letter: "B", count: 2 }], people: 1 },
+    { n: 1, parts: [{ label: "1", count: 1 }], fittings: [{ letter: "A", count: 4 }, { letter: "C", count: 1 }], people: 1 },
+    { n: 2, parts: [{ label: "2", count: 1 }, { label: "1", count: 1 }], fittings: [{ letter: "B", count: 2 }], people: 1 },
   ],
   choices: [],
   unread: ["the wall plug's size"],
@@ -119,6 +121,63 @@ const repeat: Change = (p, f) => {
   f.steps[0] = { ...f.steps[0], fittings: [{ letter: "A", count: 2 }], repeat: 2 };
 };
 assert.deepStrictEqual(kinds(repeat), []);
+
+// part copies: the second side brought in a step early fails once, naming both steps
+const early = parity(...((): [Plan, ManualFacts] => {
+  const p = plan();
+  p.items.forEach((i) => i.kind === "part" && i.key === "side-b" && (i.states[0].step = 0));
+  return [p, facts()];
+})());
+assert.deepStrictEqual(early.failures, [{ kind: "step-parts", detail: "part 1: step 1 manual x1, guide x2; step 2 manual x1, guide x0" }]);
+// a part kept out of the box (a mattress) brought in by a step is no copy of the manual's
+assert.deepStrictEqual(kinds((p) => (p.parts.push({ ...extra, extra: true }), p.items.push(piece("mat", "mattress", 1)))), []);
+// a layout's ghost of a part, shown in the choosing step, isn't it coming in: the step after brings it
+const ghost: Change = (p, f) => {
+  p.steps = [step(0), { ...step(1), title: "choose" }, step(2)];
+  p.layouts = [{ step: 1, pick: "L", options: [{ id: "L", label: "Left" }, { id: "R", label: "Right" }] }];
+  f.choices = [{ atStep: 2, options: ["L", "R"] }];
+  for (const i of p.items) if (i.kind === "hw" && i.step === 1) i.step = 2;
+  for (const i of p.items) if (i.kind === "part" && i.states[0].step === 1) i.states = [{ ...i.states[0], step: 1, ghost: true }, { ...i.states[0], step: 2 }];
+};
+assert.deepStrictEqual(kinds(ghost), []);
+
+// placement: 9 hook dowels, 5 into the top (2) and 4 into a rail (3), as the facts say
+const hooks9 = (into: (k: number) => string): Change => (p, f) => {
+  p.parts.push({ id: "rail", label: "3", name: "Rail", size: [600, 70, 20], shape: "box", material: "board", qty: 1 });
+  p.hardware.push({ ...type("hook", "Wooden dowel", 60, 9), kind: "dowel" });
+  p.items.push(piece("rail", "rail", 1), ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => hw("hook", 1, k, into(k))));
+  f.parts.push({ label: "3", name: "rail", count: 1 });
+  f.fittings.push({ letter: "D", name: "round wooden dowel", count: 9, lenMm: 60 });
+  f.steps[1].parts.push({ label: "3", count: 1 });
+  f.steps[1].fittings.push({ letter: "D", count: 5, into: ["2"] }, { letter: "D", count: 4, into: ["3"] });
+};
+const split = (k: number) => (k < 5 ? "top" : "rail");
+assert.deepStrictEqual(kinds(hooks9(split)), []);
+const allInRail = parity(...((): [Plan, ManualFacts] => {
+  const [p, f] = [plan(), facts()];
+  hooks9(() => "rail")(p, f);
+  return [p, f];
+})());
+assert.deepStrictEqual(allInRail.failures, [{ kind: "step-placement", detail: "step 2 (guide: step 1): manual D x5 into 2, x4 into 3, guide D x9 into 3" }]);
+// one entry naming both parts takes them all, in either
+assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9, into: ["3", "2"] }]))), []);
+// a count already wrong in the step fails once, as step-fittings, not placement too
+assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings[2].count = 3))), ["step-fittings"]);
+// an entry without into isn't placement-checked
+assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9 }]))), []);
+
+// pose: compared only when the facts give one; on_back is the front (+z) up, on_left_side the right side (+x) up
+assert.deepStrictEqual(kinds((_, f) => (f.steps[0].pose = "on_back")), ["step-pose"]);
+assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_back"), (p.steps[0].pose = "+z"))), []);
+assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_left_side"), (p.steps[0].pose = "+x"))), []);
+assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_right_side"), (p.steps[0].pose = "+x"))), ["step-pose"]);
+assert.deepStrictEqual(kinds((p) => (p.steps[0].pose = "-x")), []);
+
+// a facts file of the older step shape (parts as bare labels) is named, not read
+assert.strictEqual(stepsProblem(facts()), undefined);
+const old = { ...facts(), steps: [{ n: 1, parts: ["1"], fittings: [], people: 1 }] } as unknown as ManualFacts;
+assert.match(stepsProblem(old) ?? "", /step 1: parts must be \{ label, count \}/);
+assert.match(stepsProblem({ ...facts(), steps: [{ ...facts().steps[0], pose: "on_side" as never }] }) ?? "", /pose "on_side"/);
 
 // choices: a facts choice the guide doesn't offer, and a guide layout choice (its own step, which the manual hasn't) the facts don't have
 assert.deepStrictEqual(kinds((_, f) => (f.choices = [{ atStep: 2, options: ["A", "B"] }])), ["choice"]);
