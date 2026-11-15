@@ -35,7 +35,7 @@ export function buildPlan(spec: ProductSpec): Plan {
   else if (spec.row) buildRow(b, spec, one);
   else one(b, spec);
   let plan = b.build();
-  if (!manual && spec.source === "catalog") plan = { ...plan, approximate: true };
+  if (!manual && spec.source === "catalog") plan = { ...plan, approximate: spec.recipe ? "unchecked" : "typical" };
   // the manual's two-person mark on every step (TRAPPEDAL's p10) outweighs the listing's one
   if (plan.steps.length && plan.steps.every((st) => st.people === 2) && plan.spec.people !== 2) plan = { ...plan, spec: { ...plan.spec, people: 2 } };
   cache.set(key, plan);

@@ -119,7 +119,8 @@ function Doc({ plan, slug, swing, onLayout }: Readonly<{ plan: Plan; slug: strin
         </header>
         <h1>{s.name}</h1>
         <p className="pp-variant">{s.variant}</p>
-        {plan.approximate && <p className="pp-approx">Approximate guide: not yet drawn from JYSK&apos;s manual, so your parts and steps may differ. Follow the paper manual where they do.</p>}
+        {plan.approximate === "unchecked" && <p className="pp-approx">Approximate guide: drawn from JYSK&apos;s manual but not yet checked against it, so a part or step may still differ. Follow the paper manual where they do.</p>}
+        {plan.approximate === "typical" && <p className="pp-approx">Approximate guide: not yet drawn from JYSK&apos;s manual, so your parts and steps may differ. Follow the paper manual where they do.</p>}
         <p className="pp-facts">
           {fmtMin(s.minutes)} &middot; {s.people === 2 ? "two people" : "one person"} &middot; {total} steps &middot; {t.panels} panels &middot; {t.fittings} fittings
         </p>

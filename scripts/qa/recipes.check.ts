@@ -17,7 +17,8 @@ assert.equal(spec.minutes, 7, "the recipe's spec overrides the listing's");
 assert.equal(spec.archetype, "shelf", "the catalog's archetype stays");
 const plan = buildPlan(spec);
 assert.equal(plan.steps.length, 1, `1 step, got ${plan.steps.map((s) => s.title).join(" / ")}`);
-assert.equal(plan.approximate, true, "an unverified recipe is approximate");
+assert.equal(plan.approximate, "unchecked", "an unverified recipe is approximate, unchecked");
+assert.equal(buildPlan(withRecipe(none)).approximate, "typical", "a guide with no recipe or family is approximate, typical");
 
 const verified = { ...spec, recipe: { verified: { at: "2026-11-15", model: "claude-opus-5-5" as const, parity: true as const, visual: 0.9 } } };
 assert.equal(buildPlan(verified).approximate, undefined, "a verified recipe is not approximate");

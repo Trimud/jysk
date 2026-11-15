@@ -553,6 +553,9 @@ export interface Plan {
    * differently, unless one `leaves` something out (the manual's "without the door"), then it has fewer.
    */
   layouts?: { step: number; pick: string; options: LayoutOption[] }[];
-  /** A catalog product no family draws from its manual yet: a typical build of its kind, labelled approximate. */
-  approximate?: boolean;
+  /**
+   * A catalog guide not yet checked against JYSK's manual, labelled approximate: "typical" when no family or recipe
+   * draws it from the manual (a typical build of its kind), "unchecked" when it comes from a recipe not yet verified.
+   */
+  approximate?: "typical" | "unchecked";
 }

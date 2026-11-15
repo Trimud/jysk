@@ -44,7 +44,8 @@ for (const slug of only.split(",").filter(Boolean)) {
     continue;
   }
   const plan = buildPlan(spec);
-  if (plan.approximate) console.log("note the guide is approximate (no family draws it from its manual yet)");
+  if (plan.approximate === "typical") console.log("note the guide is approximate (no family or recipe draws it from its manual yet)");
+  if (plan.approximate === "unchecked") console.log("note the guide is approximate (drawn from its recipe, not yet verified)");
   if (facts.slug !== slug.split("@")[0]) console.log(`note the facts are for ${facts.slug}, not ${slug}`);
   const { failures, unread } = parity(plan, facts);
   for (const u of unread) console.log(`note unread: ${u}`);

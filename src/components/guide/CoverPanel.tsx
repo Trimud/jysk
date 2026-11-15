@@ -210,7 +210,11 @@ export default function CoverPanel({
               <ISparkle size={18} />
               <div>
                 <b>Approximate guide</b>
-                <span>We haven&apos;t drawn this one from JYSK&apos;s manual yet: it follows a typical build of its kind, so your parts and steps may differ. Follow the paper manual where they do.</span>
+                <span>
+                  {plan.approximate === "unchecked"
+                    ? "Drawn from JYSK's manual but not yet checked against it, so a part or step may still differ. Follow the paper manual where they do."
+                    : "We haven't drawn this one from JYSK's manual yet: it follows a typical build of its kind, so your parts and steps may differ. Follow the paper manual where they do."}
+                </span>
               </div>
             </div>
           )
