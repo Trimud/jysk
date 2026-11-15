@@ -4,32 +4,46 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Plan } from "@/lib/types";
 import { catalogSpec } from "@/lib/catalog";
-import { buildPlan } from "@/lib/plan";
+import { buildPlan, repick } from "@/lib/plan";
 import { stepContents, totals } from "@/lib/plan/contents";
-import { cachedSpec, loadProgress } from "@/lib/store";
+import { cachedSpec, getPref, loadProgress, setPref } from "@/lib/store";
 import { useMounted } from "@/lib/useMounted";
 import Thumb from "../Thumb";
+import StageView, { type StageHandle } from "../StageView";
+import type { StageMode } from "@/engine/stage";
 import { LogoMark } from "../Logo";
 import { HwArt } from "../art/Hardware";
 import { TOOL_INFO, ToolArt } from "../art/Tools";
 import { IArrowLeft, IPeople, IPrint } from "../art/Icons";
 import { fmtMin } from "./CoverPanel";
+import { LayoutPick } from "./StepPanel";
 import { SITE_URL } from "@/lib/site";
 
 const PER_PAGE = 6;
+/** How long the cover stays opened after a layout is picked, before it closes again. */
+const SWING_MS = 3000;
+const HERO: StageMode = { kind: "assembled" };
 
 /** The whole guide on A4: what's in the box first, then six steps to a page, like the paper manual. */
-export default function PrintGuide({ slug }: { slug: string }) {
+export default function PrintGuide({ slug }: Readonly<{ slug: string }>) {
   const mounted = useMounted();
+  // the manual's layouts picked for this product, shared with the guide (GuideApp keeps them under the same key)
+  const [picked, setPicked] = useState<string | null>(null);
+  const layout = picked ?? (mounted ? getPref<string | null>(`layout:${slug}`, null) : null);
   const plan = useMemo(() => {
     const spec = catalogSpec(slug) ?? (mounted ? (cachedSpec(slug) ?? loadProgress(slug)?.spec ?? null) : null);
     if (!spec) return null;
     try {
-      return buildPlan({ ...spec, slug });
+      return buildPlan(layout ? { ...spec, slug, layout } : { ...spec, slug });
     } catch {
       return null;
     }
-  }, [slug, mounted]);
+  }, [slug, mounted, layout]);
+  const pick = (id: string) => {
+    const next = repick(plan!, id);
+    setPref(`layout:${slug}`, next);
+    setPicked(next);
+  };
 
   if (!plan)
     return (
@@ -41,11 +55,14 @@ export default function PrintGuide({ slug }: { slug: string }) {
         </div>
       </div>
     );
-  return <Doc plan={plan} slug={slug} />;
+  // keyed by the picks: a new pick redraws every step, counts them again and swings the cover once more
+  return <Doc key={plan.spec.layout ?? ""} plan={plan} slug={slug} swing={picked !== null} onLayout={pick} />;
 }
 
-function Doc({ plan, slug }: { plan: Plan; slug: string }) {
+function Doc({ plan, slug, swing, onLayout }: Readonly<{ plan: Plan; slug: string; swing: boolean; onLayout: (id: string) => void }>) {
   const s = plan.spec;
+  const [live, setLive] = useState<StageHandle | null>(null);
+  const [swung, setSwung] = useState(false);
   const t = totals(plan);
   const root = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(0);
@@ -62,9 +79,21 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
   for (let i = 0; i < plan.steps.length; i += PER_PAGE) pages.push(plan.steps.slice(i, i + PER_PAGE).map((_, j) => i + j));
   const total = plan.steps.length;
   const done = ready >= total;
+  // the live cover comes in once the step drawings are done (they share its thread and would starve it), swings open,
+  // closes after SWING_MS and goes, leaving the still drawing under it
+  useEffect(() => {
+    if (!live) return;
+    live.openAll(true);
+    const close = setTimeout(() => live.openAll(false), SWING_MS);
+    const gone = setTimeout(() => setSwung(true), SWING_MS + 600);
+    return () => {
+      clearTimeout(close);
+      clearTimeout(gone);
+    };
+  }, [live]);
   const tools = plan.tools.filter((x) => !x.included);
   const url = `${SITE_URL.replace(/^https?:\/\//, "")}/build/${slug}`;
-  const id = "print:" + s.name + s.variant;
+  const id = "print:" + s.name + s.variant + (s.layout ?? "");
 
   return (
     <div className="print-doc" ref={root}>
@@ -77,6 +106,12 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
           <IPrint size={18} /> Print
         </button>
       </div>
+      {plan.layouts?.map((c) => (
+        <div key={c.step} className="print-layouts">
+          <span className="print-status">The manual offers a choice at step {c.step + 1}. Print it for:</span>
+          <LayoutPick choice={c} onPick={onLayout} label={`Layout at step ${c.step + 1}`} />
+        </div>
+      ))}
 
       <section className="print-page cover-page">
         <header className="pp-head">
@@ -89,7 +124,17 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
           {fmtMin(s.minutes)} &middot; {s.people === 2 ? "two people" : "one person"} &middot; {total} steps &middot; {t.panels} panels &middot; {t.fittings} fittings
         </p>
         <div className="pp-hero">
-          <Thumb id={id} plan={plan} mode={{ kind: "assembled" }} w={640} h={420} />
+          <Thumb id={id} plan={plan} mode={HERO} w={640} h={420} />
+          {/* a layout just picked here: the piece swings open to show what changed inside, then closes (on screen only) */}
+          {swing && done && !swung && (
+            <StageView
+              plan={plan}
+              mode={HERO}
+              options={{ interactive: false, labels: false }}
+              className="pp-live"
+              onReady={setLive}
+            />
+          )}
         </div>
         {tools.length > 0 && (
           <>
@@ -152,6 +197,8 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
             {idx.map((i) => {
               const st = plan.steps[i];
               const c = stepContents(plan, i);
+              const choice = plan.layouts?.find((l) => l.step === i);
+              const chosen = choice?.options.find((o) => o.id === choice.pick);
               return (
                 <article key={i} className="print-step">
                   <div className="ps-top">
@@ -177,6 +224,16 @@ function Doc({ plan, slug }: { plan: Plan; slug: string }) {
                     {st.title}
                     {st.repeat && st.repeat > 1 ? ` (do this ${st.repeat} times)` : ""}
                   </p>
+                  {chosen && (
+                    <p className="ps-layout">
+                      Printed for {chosen.id}: {chosen.label}. Also possible:{" "}
+                      {choice!.options
+                        .filter((o) => o !== chosen)
+                        .map((o) => `${o.id}: ${o.label}`)
+                        .join("; ")}
+                      .
+                    </p>
+                  )}
                 </article>
               );
             })}

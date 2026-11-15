@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import type { Plan, ProductSpec, ToolId } from "@/lib/types";
 import { catalogSpec } from "@/lib/catalog";
-import { buildPlan } from "@/lib/plan";
+import { buildPlan, repick } from "@/lib/plan";
 import { stepContents } from "@/lib/plan/contents";
 import { matchCatalog, specForKind } from "@/lib/search";
 import { KIND_LABELS, type Kind } from "@/lib/products";
@@ -211,7 +211,7 @@ export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{
       : undefined;
   return (
     <>
-      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} crumbs={crumbs} onLayout={(id) => pickLayout(plan.layouts!.map((c) => (c.options.some((o) => o.id === id) ? id : c.pick)).join(","))} />
+      <Guide key={slug + (picked ?? "")} plan={plan} slug={slug} via={via} ai={ai} startStep={step} onOwnSteps={ownSteps} crumbs={crumbs} onLayout={(id) => pickLayout(repick(plan, id))} />
       {draftKey}
     </>
   );

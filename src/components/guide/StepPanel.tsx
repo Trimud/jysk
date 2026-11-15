@@ -13,6 +13,23 @@ import Thumb from "../Thumb";
 import { dims } from "./PartsPanel";
 import { getPref, setPref } from "@/lib/store";
 
+/** One of the manual's either/or choices (Plan.layouts) as buttons, the picked one on. */
+export function LayoutPick({ choice, onPick, label = "Layout" }: Readonly<{ choice: NonNullable<Plan["layouts"]>[number]; onPick: (id: string) => void; label?: string }>) {
+  return (
+    <div className="layout-pick" role="radiogroup" aria-label={label}>
+      {choice.options.map((o) => {
+        const on = choice.pick === o.id;
+        return (
+          <button key={o.id} role="radio" aria-checked={on} className={"layout-opt" + (on ? " on" : "")} onClick={() => onPick(o.id)}>
+            <b>{o.id}</b>
+            <span>{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function minutesLeft(plan: Plan, index: number) {
   return plan.steps.slice(index).reduce((s, x) => s + x.minutes, 0);
 }
@@ -119,19 +136,7 @@ export default function StepPanel({
             </div>
             <h2 className="step-title">{s.title}</h2>
             {s.detail && <p className="sub">{s.detail}</p>}
-            {choice && onLayout && (
-              <div className="layout-pick" role="radiogroup" aria-label="Layout">
-                {choice.options.map((o) => {
-                  const on = choice.pick === o.id;
-                  return (
-                    <button key={o.id} role="radio" aria-checked={on} className={"layout-opt" + (on ? " on" : "")} onClick={() => onLayout(o.id)}>
-                      <b>{o.id}</b>
-                      <span>{o.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {choice && onLayout && <LayoutPick choice={choice} onPick={onLayout} />}
           </header>
 
           {s.repeat && s.repeat > 1 && (

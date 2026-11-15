@@ -3426,7 +3426,14 @@ button.pic:disabled {
   font-weight: 600;
 }
 .pp-hero {
+  position: relative;
   margin: 6mm 0 2mm;
+}
+/* the live cover, over the still drawing, after a layout is picked */
+.pp-hero .pp-live {
+  position: absolute;
+  inset: 0;
+  background: #fff;
 }
 .pp-hero .thumb,
 .print-step .thumb {
@@ -3571,6 +3578,19 @@ button.pic:disabled {
   font-weight: 600;
   line-height: 1.3;
 }
+.ps-layout {
+  margin: 1mm 0 0;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #555;
+}
+/* the manual's either/or, picked before printing: under the sticky bar, hidden on paper with it */
+.print-layouts {
+  width: min(210mm, 100%);
+}
+.print-layouts .layout-pick {
+  margin: 8px 0 0;
+}
 
 @media print {
   @page {
@@ -3581,6 +3601,8 @@ button.pic:disabled {
     background: #fff;
   }
   .print-bar,
+  .print-layouts,
+  .pp-live,
   nextjs-portal {
     display: none !important;
   }

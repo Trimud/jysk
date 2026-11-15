@@ -32,6 +32,11 @@ export function buildPlan(spec: ProductSpec): Plan {
   return plan;
 }
 
+/** `spec.layout` with option `id` picked: option ids are unique across a plan's choices, so it replaces its own choice's pick. */
+export function repick(plan: Plan, id: string) {
+  return (plan.layouts ?? []).map((c) => (c.options.some((o) => o.id === id) ? id : c.pick)).join(",");
+}
+
 const byName = new Map<string, Family[]>();
 // a family file still being written may not export its family yet; skip it rather than break every guide
 for (const f of FAMILIES) if (f?.names) for (const n of f.names) byName.set(n, [...(byName.get(n) ?? []), f]);
