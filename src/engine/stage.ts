@@ -437,14 +437,18 @@ export class Stage {
     const v = (a: Vec3) => new THREE.Vector3(...a);
     this.opens = (plan.opens ?? []).map((o) => ({ slide: o.slide && v(o.slide), hinge: o.hinge && { at: v(o.hinge.at), axis: v(o.hinge.axis).normalize(), angle: o.hinge.angle }, k: 0, to: 0 }));
     this.openOf = new Map((plan.opens ?? []).flatMap((o, i) => o.parts.map((k) => [k, i] as const)));
-    // ponytail: "sticks out" means 3 mm off its surface lies outside the box round all the panels; a fitting on an inner
-    // face of an open frame (a bolt on a bench's middle rail) counts as inside. Upgrade: test against the panels themselves
+    // ponytail: "sticks out" means 3 mm off its entry point lies outside the box round all the parts (not fittings), or
+    // its far end (as far as it is drawn standing out) lies more than 3 mm outside it: a peg set into a rail at a slant
+    // shows. A fitting on an inner face of an open frame (a bolt on a bench's middle rail) counts as inside. Limits: only
+    // its axis is tested, not how wide it is drawn, and the box is the parts' box, not the panels themselves
     const box = new THREE.Box3().setFromPoints(this.extents.get("final") ?? []);
+    const wide = box.clone().expandByScalar(3);
     this.outside = new Set(this.hws.filter((h) => {
       if (!h.parent) return false;
-      const f = h.parent.item.final;
-      const out = new THREE.Vector3(...h.item.pos).addScaledVector(new THREE.Vector3(...h.item.dir).normalize(), -3).applyQuaternion(quatFromEuler(f.rot)).add(new THREE.Vector3(...f.pos));
-      return !box.containsPoint(out);
+      const f = h.parent.item.final, q = quatFromEuler(f.rot), o = new THREE.Vector3(...f.pos);
+      const dir = new THREE.Vector3(...h.item.dir).normalize();
+      const at = (k: number, b: THREE.Box3) => !b.containsPoint(new THREE.Vector3(...h.item.pos).addScaledVector(dir, -k).applyQuaternion(q).add(o));
+      return at(3, box) || at(h.out, wide);
     }));
     this.finalXf.clear();
     for (const p of this.parts) this.finalXf.set(p, { p: new THREE.Vector3(...p.item.final.pos), q: quatFromEuler(p.item.final.rot) });
