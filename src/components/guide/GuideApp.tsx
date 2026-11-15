@@ -387,8 +387,12 @@ function Guide({ plan, slug, via, ai, startStep, onOwnSteps, crumbs, onLayout }:
   const [slow, setSlow] = useState(false);
   const [xray, setXray] = useState(false);
   const [anyOpen, setAnyOpen] = useState(false);
-  // the colour shown on the panels: the product's first (its page's own) until another is picked
-  const [colour, setColour] = useState(plan.spec.colours?.[0]?.name ?? null);
+  // the colour shown on the panels until another is picked: white when the product comes in it (plain white, else white
+  // with a second tone, "White+Natural"), otherwise the product's first (its page's own)
+  const [colour, setColour] = useState(() => {
+    const c = plan.spec.colours;
+    return (c?.find((x) => /^white$/i.test(x.name)) ?? c?.find((x) => /^white\+/i.test(x.name)) ?? c?.[0])?.name ?? null;
+  });
   const [moved, setMoved] = useState(false);
   const [stamp, setStamp] = useState(0);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
