@@ -4,7 +4,7 @@
  * Fittings not included (wall plugs and screws: the plan's `notIncluded`, a facts name ending "(not included)") are left
  * out on both sides, as qa:manual leaves them out. Self-check: scripts/qa/parity.check.ts.
  */
-import type { HwItem, HwType, Plan, Pose } from "@/lib/types";
+import type { HwItem, HwType, Plan, Pose, Step } from "@/lib/types";
 import type { FactsPose, ManualFacts } from "../manuals/types";
 
 export type ParityFailure = {
@@ -35,7 +35,13 @@ export function stepsProblem(facts: ManualFacts): string | undefined {
       return `${at}: parts must be { label, count } copies (an older facts shape: read the manual again)`;
     if (!Array.isArray(m.fittings) || !m.fittings.every((f) => label(f?.letter) && typeof f?.count === "number" && (f.into === undefined || (Array.isArray(f.into) && f.into.every(label)))))
       return `${at}: fittings must be { letter, count, into?: labels }`;
-    if (m.pose !== undefined && !(m.pose in FACTS_POSE)) return `${at}: pose ${JSON.stringify(m.pose)} is none of ${Object.keys(FACTS_POSE).join(", ")}`;
+    // one letter's entries name different parts: a part in two of them would count its fittings twice
+    for (const letter of new Set(m.fittings.map((f) => f.letter))) {
+      const labels = m.fittings.filter((f) => f.letter === letter).flatMap((f) => f.into ?? []);
+      const twice = labels.find((l, i) => labels.indexOf(l) !== i);
+      if (twice !== undefined) return `${at}: fitting ${letter} names part ${twice} in more than one into`;
+    }
+    if (m.pose !== undefined && !Object.hasOwn(FACTS_POSE, m.pose)) return `${at}: pose ${JSON.stringify(m.pose)} is none of ${Object.keys(FACTS_POSE).join(", ")}`;
   }
 }
 
@@ -160,8 +166,10 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     }
     if (m.pose && s.pose !== FACTS_POSE[m.pose]) fail("step-pose", `${at}: manual ${m.pose} (${FACTS_POSE[m.pose]}), guide ${s.pose}`);
   });
-  // each part's copies, step by step: the step a copy first shows in (a layout's ghost is not it coming in; a quiet step,
-  // the drawers slid back in, lists none, as the step panel shows them), one go of a repeated step counted for each go
+  // each part's copies, step by step: the step a copy first shows in (a layout's ghost is not it coming in), one go of
+  // a repeated step counted for each go. A quiet step (the drawers slid back in) brings in the other goes' copies, as
+  // many of a label as the repeats counted; past those it brings copies in like any step. A copy in a choosing step or
+  // past the manual's steps is one the manual doesn't bring in. A part shown in no step isn't brought in at all.
   const [theirsOf, copies] = [new Map<string, number[]>(), new Map<string, number[]>()];
   const bump = (c: Map<string, number[]>, label: string, k: number, n: number) => {
     const v = c.get(label) ?? paired.map(() => 0);
@@ -169,15 +177,29 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     v[k] += n;
   };
   facts.steps.slice(0, paired.length).forEach((m, k) => m.parts.forEach((p) => bump(theirsOf, p.label, k, p.count * (m.repeat ?? 1))));
-  for (const it of plan.items) {
+  const arrivals = plan.items.flatMap((it) => {
     const t = it.kind === "part" ? plan.parts.find((x) => x.id === it.ref) : undefined;
-    if (it.kind !== "part" || !t || t.extra) continue;
-    const k = paired.findIndex((s) => s.n === it.states.find((x) => !x.ghost)?.step);
-    if (k >= 0 && !paired[k].quiet) bump(copies, t.label, k, paired[k].repeat ?? 1);
+    const at = it.kind === "part" ? it.states.find((x) => !x.ghost)?.step : undefined;
+    const s = plan.steps.find((x) => x.n === at);
+    return t && !t.extra && s ? [{ label: t.label, s }] : [];
+  });
+  const goes = new Map<string, number>();
+  for (const { label, s } of arrivals) if (!s.quiet && s.repeat) add(goes, label, s.repeat - 1);
+  const strays = new Map<string, Map<string, number>>();
+  const why = (s: Step) => (chooser.has(s.n) ? `in the choosing step "${s.title}"` : `in "${s.title}", past the manual's steps`);
+  for (const { label, s } of arrivals) {
+    if (s.quiet && (goes.get(label) ?? 0) > 0) {
+      add(goes, label, -1);
+      continue;
+    }
+    const k = paired.indexOf(s);
+    if (k >= 0) bump(copies, label, k, s.repeat ?? 1);
+    else add(strays.get(label) ?? strays.set(label, new Map()).get(label)!, why(s), 1);
   }
-  for (const label of [...new Set([...copies.keys(), ...theirsOf.keys()])].sort()) {
+  for (const label of [...new Set([...copies.keys(), ...theirsOf.keys(), ...strays.keys()])].sort()) {
     const [a, b] = [theirsOf.get(label) ?? paired.map(() => 0), copies.get(label) ?? paired.map(() => 0)];
     const off = paired.flatMap((_, k) => (a[k] !== b[k] ? [`step ${facts.steps[k].n} manual x${a[k]}, guide x${b[k]}`] : []));
+    for (const [w, c] of strays.get(label) ?? []) off.push(`guide x${c} ${w}`);
     if (off.length) fail("step-parts", `part ${label}: ${off.join("; ")}`);
   }
 

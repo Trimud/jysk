@@ -48,6 +48,12 @@ const kinds = (change: Change) => {
   change(p, f);
   return parity(p, f).failures.map((x) => x.kind);
 };
+/** the failures themselves */
+const failures = (change: Change) => {
+  const [p, f] = [plan(), facts()];
+  change(p, f);
+  return parity(p, f).failures;
+};
 
 const agree = parity(plan(), facts());
 assert.deepStrictEqual(agree, { ok: true, failures: [], unread: ["the wall plug's size"] });
@@ -123,17 +129,42 @@ const repeat: Change = (p, f) => {
 assert.deepStrictEqual(kinds(repeat), []);
 
 // part copies: the second side brought in a step early fails once, naming both steps
-const early = parity(...((): [Plan, ManualFacts] => {
-  const p = plan();
-  p.items.forEach((i) => i.kind === "part" && i.key === "side-b" && (i.states[0].step = 0));
-  return [p, facts()];
-})());
-assert.deepStrictEqual(early.failures, [{ kind: "step-parts", detail: "part 1: step 1 manual x1, guide x2; step 2 manual x1, guide x0" }]);
+const early = failures((p) => p.items.forEach((i) => i.kind === "part" && i.key === "side-b" && (i.states[0].step = 0)));
+assert.deepStrictEqual(early, [{ kind: "step-parts", detail: "part 1: step 1 manual x1, guide x2; step 2 manual x1, guide x0" }]);
 // a part kept out of the box (a mattress) brought in by a step is no copy of the manual's
 assert.deepStrictEqual(kinds((p) => (p.parts.push({ ...extra, extra: true }), p.items.push(piece("mat", "mattress", 1)))), []);
-// a quiet step (the drawers slid back in) brings in no copies, as its step panel lists none
-assert.deepStrictEqual(kinds((p) => (p.steps[1].quiet = true)), ["step-parts", "step-parts"]);
-assert.deepStrictEqual(kinds((p, f) => ((p.steps[1].quiet = true), (f.steps[1].parts = []))), []);
+const layouts: Change = (p) => {
+  p.steps.push(step(2));
+  p.layouts = [{ step: 2, pick: "L", options: [{ id: "L", label: "Left" }, { id: "R", label: "Right" }] }];
+};
+// a repeated step counts its copies for each go, on either side: a guide side once in a step done twice brings in two
+const twice: Change = (p, f) => ((p.steps[0].repeat = 2), (f.steps[0].fittings[0].count = 8));
+assert.deepStrictEqual(failures(twice), [{ kind: "step-parts", detail: "part 1: step 1 manual x1, guide x2" }]);
+const twiceRead: Change = (_, f) => (f.steps[0] = { ...f.steps[0], fittings: [{ letter: "A", count: 2 }], repeat: 2 });
+assert.deepStrictEqual(failures(twiceRead), [{ kind: "step-parts", detail: "part 1: step 1 manual x2, guide x1" }]);
+// a quiet step (the drawers slid back in) brings in the other goes of a repeated step: the second side, done in step 1
+// twice, slid in in step 2, isn't step 2's copy
+const slidIn: Change = (p, f) => {
+  repeat(p, f);
+  f.steps[1].parts = [{ label: "2", count: 1 }];
+  p.steps[1].quiet = true;
+};
+assert.deepStrictEqual(kinds(slidIn), []);
+// ... but past the repeats' copies it brings them in like any step
+assert.deepStrictEqual(failures((p) => (p.steps[1].quiet = true)), []);
+assert.deepStrictEqual(failures((p, f) => (slidIn(p, f), p.items.push(piece("side-c", "side", 1)))), [{ kind: "step-parts", detail: "part 1: step 2 manual x0, guide x1" }]);
+// a copy in a choosing step, or past the manual's steps, is one the manual doesn't bring in
+const inChooser: Change = (p, f) => {
+  layouts(p, f);
+  f.choices = [{ atStep: 3, options: ["L", "R"] }];
+  p.items.push(piece("top-2", "top", 2));
+};
+assert.deepStrictEqual(failures(inChooser), [{ kind: "step-parts", detail: 'part 2: guide x1 in the choosing step "step 2"' }]);
+const pastSteps: Change = (p) => (p.steps.push(step(2)), p.items.push(piece("top-2", "top", 2)));
+assert.deepStrictEqual(failures(pastSteps), [
+  { kind: "step-count", detail: "the manual has 2 steps, the guide 3" },
+  { kind: "step-parts", detail: 'part 2: guide x1 in "step 2", past the manual\'s steps' },
+]);
 // a layout's ghost of a part, shown in the choosing step, isn't it coming in: the step after brings it
 const ghost: Change = (p, f) => {
   p.steps = [step(0), { ...step(1), title: "choose" }, step(2)];
@@ -156,12 +187,12 @@ const hooks9 = (into: (k: number) => string): Change => (p, f) => {
 };
 const split = (k: number) => (k < 5 ? "top" : "rail");
 assert.deepStrictEqual(kinds(hooks9(split)), []);
-const allInRail = parity(...((): [Plan, ManualFacts] => {
-  const [p, f] = [plan(), facts()];
-  hooks9(() => "rail")(p, f);
-  return [p, f];
-})());
-assert.deepStrictEqual(allInRail.failures, [{ kind: "step-placement", detail: "step 2 (guide: step 1): manual D x5 into 2, x4 into 3, guide D x9 into 3" }]);
+// a repeated step: each go's fittings, in each go's parts
+const both = (into: (k: number) => string): Change => (p, f) => (hooks9(into)(p, f), (p.steps[1].repeat = 2), (f.steps[1].repeat = 2));
+assert.deepStrictEqual(kinds(both(split)), []);
+assert.deepStrictEqual(failures(both(() => "rail")), [{ kind: "step-placement", detail: "step 2 (guide: step 1): manual D x10 into 2, x8 into 3, guide D x18 into 3" }]);
+const allInRail = failures(hooks9(() => "rail"));
+assert.deepStrictEqual(allInRail, [{ kind: "step-placement", detail: "step 2 (guide: step 1): manual D x5 into 2, x4 into 3, guide D x9 into 3" }]);
 // one entry naming both parts takes them all, in either
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9, into: ["3", "2"] }]))), []);
 // a count already wrong in the step fails once, as step-fittings, not placement too
@@ -176,18 +207,22 @@ assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_back"), (p.steps[
 assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_left_side"), (p.steps[0].pose = "+x"))), []);
 assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_right_side"), (p.steps[0].pose = "+x"))), ["step-pose"]);
 assert.deepStrictEqual(kinds((p) => (p.steps[0].pose = "-x")), []);
+for (const [name, pose] of [["upright", "+y"], ["upside_down", "-y"], ["face_down", "-z"]] as const) {
+  assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = pose))), [], name);
+  assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = "+z"))), ["step-pose"], name);
+}
 
 // a facts file of the older step shape (parts as bare labels) is named, not read
 assert.strictEqual(stepsProblem(facts()), undefined);
 const old = { ...facts(), steps: [{ n: 1, parts: ["1"], fittings: [], people: 1 }] } as unknown as ManualFacts;
 assert.match(stepsProblem(old) ?? "", /step 1: parts must be \{ label, count \}/);
 assert.match(stepsProblem({ ...facts(), steps: [{ ...facts().steps[0], pose: "on_side" as never }] }) ?? "", /pose "on_side"/);
+assert.match(stepsProblem({ ...facts(), steps: [{ ...facts().steps[0], pose: "toString" as never }] }) ?? "", /pose "toString"/);
+// one letter's into entries naming the same part would count its fittings twice
+const overlap = { ...facts().steps[1], fittings: [{ letter: "D", count: 5, into: ["2"] }, { letter: "D", count: 4, into: ["2", "3"] }] };
+assert.match(stepsProblem({ ...facts(), steps: [overlap] }) ?? "", /step 2: fitting D names part 2 in more than one into/);
 
 // choices: a facts choice the guide doesn't offer, and a guide layout choice (its own step, which the manual hasn't) the facts don't have
 assert.deepStrictEqual(kinds((_, f) => (f.choices = [{ atStep: 2, options: ["A", "B"] }])), ["choice"]);
-const layouts: Change = (p) => {
-  p.steps.push(step(2));
-  p.layouts = [{ step: 2, pick: "L", options: [{ id: "L", label: "Left" }, { id: "R", label: "Right" }] }];
-};
 assert.deepStrictEqual(kinds(layouts), ["choice"]);
 console.log("parity ok");
