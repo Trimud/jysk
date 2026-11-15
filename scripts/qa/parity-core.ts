@@ -146,12 +146,12 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
     for (const f of m.fittings) if (!skip.has(f.letter)) add(theirs, f.letter, f.count * (m.repeat ?? 1));
     const at = `step ${m.n} (guide: ${s.title})`;
     if (list(ours) !== list(theirs)) fail("step-fittings", `${at}: manual ${list(theirs)}, guide ${list(ours)}`);
-    // where a letter's fittings go, when the facts say: as many in each set of parts. A letter whose count in the step
+    // where a letter's fittings go, when the facts say (an empty into says nothing): as many in each set of parts. A letter whose count in the step
     // is already wrong has failed once (step-fittings) and isn't compared again.
-    for (const letter of new Set(m.fittings.filter((f) => f.into && !skip.has(f.letter)).map((f) => f.letter))) {
+    for (const letter of new Set(m.fittings.filter((f) => f.into?.length && !skip.has(f.letter)).map((f) => f.letter))) {
       if (ours.get(letter) !== theirs.get(letter)) continue;
       const sets = new Map<string, number>();
-      for (const f of m.fittings) if (f.letter === letter && f.into) add(sets, [...f.into].sort().join("+"), f.count * (m.repeat ?? 1));
+      for (const f of m.fittings) if (f.letter === letter && f.into?.length) add(sets, [...f.into].sort().join("+"), f.count * (m.repeat ?? 1));
       const into = new Map<string, number>();
       for (const it of mine) if (code(it.ref) === letter) add(into, (it.parent && labelOf.get(it.parent)) || "-", s.repeat ?? 1);
       const inSet = (set: string) => set.split("+").reduce((n, l) => n + (into.get(l) ?? 0), 0);

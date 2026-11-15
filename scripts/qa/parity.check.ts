@@ -131,6 +131,9 @@ const early = parity(...((): [Plan, ManualFacts] => {
 assert.deepStrictEqual(early.failures, [{ kind: "step-parts", detail: "part 1: step 1 manual x1, guide x2; step 2 manual x1, guide x0" }]);
 // a part kept out of the box (a mattress) brought in by a step is no copy of the manual's
 assert.deepStrictEqual(kinds((p) => (p.parts.push({ ...extra, extra: true }), p.items.push(piece("mat", "mattress", 1)))), []);
+// a quiet step (the drawers slid back in) brings in no copies, as its step panel lists none
+assert.deepStrictEqual(kinds((p) => (p.steps[1].quiet = true)), ["step-parts", "step-parts"]);
+assert.deepStrictEqual(kinds((p, f) => ((p.steps[1].quiet = true), (f.steps[1].parts = []))), []);
 // a layout's ghost of a part, shown in the choosing step, isn't it coming in: the step after brings it
 const ghost: Change = (p, f) => {
   p.steps = [step(0), { ...step(1), title: "choose" }, step(2)];
@@ -163,7 +166,8 @@ assert.deepStrictEqual(allInRail.failures, [{ kind: "step-placement", detail: "s
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9, into: ["3", "2"] }]))), []);
 // a count already wrong in the step fails once, as step-fittings, not placement too
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings[2].count = 3))), ["step-fittings"]);
-// an entry without into isn't placement-checked
+// an entry without into, or with an empty one, isn't placement-checked
+assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9, into: [] }]))), []);
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9 }]))), []);
 
 // pose: compared only when the facts give one; on_back is the front (+z) up, on_left_side the right side (+x) up
