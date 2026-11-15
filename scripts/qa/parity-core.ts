@@ -1,14 +1,17 @@
 /**
  * A built guide against what a reader found in its manual (ManualFacts): the same parts, fittings, counts and steps,
- * each step bringing in the same copies of each part, its fittings in the same parts and the piece lying the same way.
+ * each step bringing in the same copies of each part, its fittings in the same parts and the piece lying the same way,
+ * and the finished piece as big as the manual prints it. Only printed sizes count: a part size without the page it is
+ * printed on (an estimate from a drawing) is left out, with a note.
  * Fittings not included (wall plugs and screws: the plan's `notIncluded`, a facts name ending "(not included)") are left
  * out on both sides, as qa:manual leaves them out. Self-check: scripts/qa/parity.check.ts.
  */
-import type { HwItem, HwType, Plan, Pose, Step } from "@/lib/types";
+import { toWorld } from "@/lib/plan/math";
+import type { HwItem, HwType, Plan, Pose, Step, Vec3 } from "@/lib/types";
 import type { FactsPose, ManualFacts } from "../manuals/types";
 
 export type ParityFailure = {
-  kind: "part" | "fitting" | "step-count" | "step-fittings" | "step-parts" | "step-placement" | "step-pose" | "size" | "choice";
+  kind: "part" | "fitting" | "step-count" | "step-fittings" | "step-parts" | "step-placement" | "step-pose" | "size" | "size-overall" | "choice";
   detail: string;
 };
 
@@ -26,9 +29,17 @@ export const FACTS_POSE: Record<FactsPose, Pose> = {
   on_right_side: "-x",
 };
 
-/** what is wrong with the steps of a facts file a reader wrote (an older shape, a pose not named), or nothing */
-export function stepsProblem(facts: ManualFacts): string | undefined {
+/** what is wrong with a facts file a reader wrote (an older step shape, a pose not named, a size not as numbers), or nothing */
+export function factsProblem(facts: ManualFacts): string | undefined {
   const label = (x: unknown) => typeof x === "string";
+  // a size that isn't numbers would compare as NaN, which is never off: it would pass unchecked
+  const num = (x: unknown) => typeof x === "number" && Number.isFinite(x);
+  const o = facts.overallMm;
+  if (o !== undefined && !(o && [o.w, o.h, o.d, o.page].every(num))) return "overallMm must be { w, h, d, page }, numbers (mm, and the page it is printed on)";
+  for (const p of facts.parts) {
+    if (p?.sizeMm !== undefined && !(Array.isArray(p.sizeMm) && p.sizeMm.length === 3 && p.sizeMm.every(num))) return `part ${p.label}: sizeMm must be three numbers`;
+    if (p?.sizePage !== undefined && !num(p.sizePage)) return `part ${p.label}: sizePage must be the number of the page the size is printed on`;
+  }
   for (const m of facts.steps) {
     const at = `step ${m?.n}`;
     if (!Array.isArray(m?.parts) || !m.parts.every((p) => label(p?.label) && typeof p?.count === "number"))
@@ -54,21 +65,60 @@ const STOP = new Set(["mm", "with", "and", "the", "for", "not", "included"]);
 const words = (name: string) => new Set((name.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/s$/, "")));
 const named = (a: string, b: string) => [...words(a)].filter((w) => words(b).has(w)).length;
 const sorted = (v: number[]) => [...v].sort((a, b) => a - b);
+/**
+ * The finished piece's outer size, mm (w along x, h along y, d along z): each part's box at its final place, not a part
+ * kept out of the box (`extra`: a mattress, the wall) and no fittings (hooks and knobs stand out of the body the manual
+ * measures). The cover's dimension lines measure the same (Stage.updateDims, src/engine/stage.ts, which then shows the
+ * catalog's size when within 2 cm of it). Undefined for a plan with no parts.
+ */
+export function finishedSize(plan: Plan): { w: number; h: number; d: number } | undefined {
+  const [lo, hi] = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+  for (const it of plan.items) {
+    const t = it.kind === "part" ? plan.parts.find((x) => x.id === it.ref) : undefined;
+    if (it.kind !== "part" || !t || t.extra) continue;
+    for (let c = 0; c < 8; c++) {
+      const corner = t.size.map((v, i) => ((c >> i) & 1 ? v : -v) / 2) as Vec3;
+      toWorld(corner, it.final.pos, it.final.rot).forEach((v, i) => ((lo[i] = Math.min(lo[i], v)), (hi[i] = Math.max(hi[i], v))));
+    }
+  }
+  if (lo[0] === Infinity) return undefined;
+  const [w, h, d] = hi.map((v, i) => v - lo[i]);
+  return { w, h, d };
+}
+
 const list = (c: Map<string, number>) => [...c].sort(([a], [b]) => a.localeCompare(b)).map(([k, n]) => `${k} x${n}`).join(", ") || "-";
 
-/** failures: every way the guide differs; unread: what the reader couldn't read (notes, never failures) */
-export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures: ParityFailure[]; unread: string[] } {
+/**
+ * failures: every way the guide differs; unread: what the reader couldn't read; notes: what of the facts was left out
+ * (both notes, never failures)
+ */
+export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures: ParityFailure[]; unread: string[]; notes: string[] } {
   const failures: ParityFailure[] = [];
   const fail = (kind: ParityFailure["kind"], detail: string) => failures.push({ kind, detail });
+  const notes: string[] = [];
 
-  // ---- parts: each label the manual prints, with its count and (when printed) its size within 2 mm, in any order
+  // ---- the finished piece's outer size, as printed: w, h and d each within 3 mm or 2 percent of it, whichever is more
+  const o = facts.overallMm;
+  if (o) {
+    const g = finishedSize(plan);
+    const mm = (s: { w: number; h: number; d: number }) => `${Math.round(s.w)} x ${Math.round(s.h)} x ${Math.round(s.d)} mm`;
+    const axes = { w: "width", h: "height", d: "depth" } as const;
+    const off = (Object.keys(axes) as (keyof typeof axes)[]).filter((k) => !g || Math.abs(g[k] - o[k]) > Math.max(3, 0.02 * o[k]));
+    if (off.length) fail("size-overall", `manual ${mm(o)} (w x h x d, page ${o.page}), guide ${g ? mm(g) : "no parts"}: the ${off.map((k) => axes[k]).join(" and ")} differ${off.length > 1 ? "" : "s"}`);
+  }
+
+  // ---- parts: each label the manual prints, with its count and (when printed) its size within 2 mm, in any order. A
+  // size without the page it is printed on is a reader's estimate from a drawing: left out, with a note.
+  const guessed = facts.parts.filter((p) => p.sizeMm && p.sizePage === undefined).map((p) => p.label);
+  if (guessed.length) notes.push(`part sizes with no sizePage (not printed, or an older facts file) were ignored: ${guessed.join(", ")}`);
   for (const p of facts.parts) {
     const t = plan.parts.find((x) => x.label === p.label);
-    const said = `${p.label} ${p.name} x${p.count}${p.sizeMm ? ` ${p.sizeMm.join("x")}` : ""}`;
+    const size = p.sizePage === undefined ? undefined : p.sizeMm;
+    const said = `${p.label} ${p.name} x${p.count}${size ? ` ${size.join("x")} (page ${p.sizePage})` : ""}`;
     if (!t) fail("part", `${said}: the guide has no part labelled ${p.label}`);
     else {
       if (t.qty !== p.count) fail("part", `${said}: the guide has ${t.qty} (${t.name})`);
-      if (p.sizeMm && sorted(t.size).some((v, i) => Math.abs(v - sorted(p.sizeMm!)[i]) > 2)) fail("size", `${said}: the guide's ${t.name} is ${t.size.join("x")}`);
+      if (size && sorted(t.size).some((v, i) => Math.abs(v - sorted(size)[i]) > 2)) fail("size", `${said}: the guide's ${t.name} is ${t.size.join("x")}`);
     }
   }
   // and the other way: a part in the guide's box the manual doesn't show
@@ -206,5 +256,5 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
   // ---- the manual's either/or choices, one layout choice each
   const n = plan.layouts?.length ?? 0;
   if (n !== facts.choices.length) fail("choice", `the manual offers ${facts.choices.length} either/or choices, the guide ${n}`);
-  return { ok: !failures.length, failures, unread: facts.unread ?? [] };
+  return { ok: !failures.length, failures, unread: facts.unread ?? [], notes };
 }
