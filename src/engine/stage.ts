@@ -1508,9 +1508,11 @@ export class Stage {
     const box = new THREE.Box3().setFromPoints(fin);
     const cm = (a: number, b: number) => Math.round((b - a) / 10);
     // the maker's own size when the drawing agrees (within rounding and the glides); the drawing's when it doesn't
-    // (a table drawn extended)
+    // (a table drawn extended). A recipe's size is the manual's printed one, always shown: it can take in what the
+    // body drawn here leaves out (a coat rack's hooks)
     const own = this.plan!.spec.size;
-    const pick = (drawn: number, given: number) => (Math.abs(drawn - given) <= 2 ? given : drawn);
+    const printed = !!this.plan!.spec.recipe?.sized;
+    const pick = (drawn: number, given: number) => (printed || Math.abs(drawn - given) <= 2 ? given : drawn);
     const size = { w: pick(cm(box.min.x, box.max.x), own.w), h: pick(cm(box.min.y, box.max.y), own.h), d: pick(cm(box.min.z, box.max.z), own.d) };
     const k = easeInOut(clamp01((this.t - 0.2) / 0.9));
     const sz = Math.max(box.max.x - box.min.x, box.max.y - box.min.y);

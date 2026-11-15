@@ -15,6 +15,7 @@ assert.ok(spec.custom, "withRecipe sets custom");
 assert.equal(spec.custom.parts.length, 2);
 assert.equal(spec.minutes, 7, "the recipe's spec overrides the listing's");
 assert.equal(spec.archetype, "shelf", "the catalog's archetype stays");
+assert.deepEqual(spec.recipe, {}, "a recipe giving no size leaves the cover on its drawn or catalog size (recipe.sized unset)");
 const plan = buildPlan(spec);
 assert.equal(plan.steps.length, 1, `1 step, got ${plan.steps.map((s) => s.title).join(" / ")}`);
 assert.equal(plan.approximate, "unchecked", "an unverified recipe is approximate, unchecked");

@@ -77,16 +77,21 @@ const unprinted = (() => {
 assert.deepStrictEqual(unprinted, { ok: true, failures: [], unread: ["the wall plug's size"], notes: ["no overallMm: overall size not checked", "part sizes with no sizePage (not printed, or an older facts file) were ignored: 1"] });
 
 // the overall size: two 20 mm sides `h` high, 240 mm either side of the middle, and the top between them 540 up, all `d`
-// deep: 500 x h x d as built, against the manual's 500 x 1100 x 50 (the side's printed size follows it, so parts agree)
+// deep: 500 x h x d as built, against the manual's 500 x 1100 x 50 (the side's printed size follows it, so parts agree).
+// The screws and the top's dowels (sunk down into it) stay inside the body.
 const body = (d: number, h = 1100): Change => (p, f) => {
   p.parts[0].size = [20, h, d];
   p.parts[1].size = [460, 20, d];
   f.parts[0].sizeMm = [20, h, d];
   const at: Record<string, Vec3> = { "side-a": [-240, 0, 0], "side-b": [240, 0, 0], top: [0, 540, 0] };
   for (const i of p.items) if (i.kind === "part") i.final.pos = at[i.key];
+  for (const i of p.items) if (i.kind === "hw" && i.ref === "dowel") i.pos = [0, -12, 0];
   f.overallMm = { w: 500, h: 1100, d: 50, page: 1 };
 };
-const overall = (guide: string, off: string) => [{ kind: "size-overall", detail: `manual 500 x 1100 x 50 mm (w x h x d, page 1), guide ${guide}: the ${off}` }];
+/** the one failure: the body's size and what's off in it, then with its fittings (the same, unless given) */
+const overall = (guide: string, off: string, fitted = guide, fittedOff = off) => [
+  { kind: "size-overall", detail: `manual 500 x 1100 x 50 mm (w x h x d, page 1), guide body ${guide} (the ${off}), with its fittings ${fitted} (the ${fittedOff})` },
+];
 assert.deepStrictEqual(failures(body(30)), overall("500 x 1100 x 30 mm", "depth differs"));
 assert.deepStrictEqual(failures(body(50)), []);
 assert.deepStrictEqual(parity(...(() => { const [p, f] = [plan(), facts()]; body(50)(p, f); return [p, f] as const; })()).notes, []);
@@ -105,7 +110,7 @@ assert.deepStrictEqual(failures(body(54)), overall("500 x 1100 x 54 mm", "depth 
 // each part as it is turned on the finished piece: the top turned a quarter about y reaches 460 deep
 const turned: Change = (p, f) => (body(50)(p, f), p.items.forEach((i) => i.kind === "part" && i.key === "top" && (i.final.rot = [0, Math.PI / 2, 0])));
 assert.deepStrictEqual(failures(turned), overall("500 x 1100 x 460 mm", "depth differs"));
-// a part kept out of the box (a mattress) and a fitting standing out (a hook) are no part of the body the manual measures
+// a part kept out of the box (a mattress) is no part of the piece; a fitting standing far out doesn't spoil a body that matches
 const around: Change = (p, f) => {
   body(50)(p, f);
   p.parts.push({ ...extra, extra: true });
@@ -114,6 +119,24 @@ const around: Change = (p, f) => {
   f.steps[1].fittings.push({ letter: "A", count: 1 });
 };
 assert.deepStrictEqual(failures(around), []);
+// hooks standing out of the body count: a body 29 deep whose two dowels (33 long, 21 of it out of the top's front) reach
+// 50 deep matches the printed 50; sunk in the top, they don't
+const hooked = (out: boolean): Change => (p, f) => {
+  body(29)(p, f);
+  p.hardware[1].len = f.fittings[1].lenMm = 33;
+  if (out) for (const i of p.items) if (i.kind === "hw" && i.ref === "dowel") Object.assign(i, { pos: [0, 0, 14.5], dir: [0, 0, -1] });
+};
+assert.deepStrictEqual(failures(hooked(true)), []);
+assert.deepStrictEqual(failures(hooked(false)), overall("500 x 1100 x 29 mm", "depth differs"));
+// ... but not one fixing it to the wall, or one not in the box (a wall screw)
+const walled = (mark: (p: Plan) => void): Change => (p, f) => (hooked(true)(p, f), mark(p));
+assert.deepStrictEqual(failures(walled((p) => p.items.forEach((i) => i.kind === "hw" && i.ref === "dowel" && (i.wall = true)))), overall("500 x 1100 x 29 mm", "depth differs"));
+// (a dowel left out of the box no longer pairs with the manual's B: those two failures are the fitting rules')
+assert.deepStrictEqual(failures(walled((p) => (p.hardware[1].notIncluded = true))), [
+  ...overall("500 x 1100 x 29 mm", "depth differs"),
+  { kind: "fitting", detail: "B dowel x2 33 mm: the guide has no fitting with that count" },
+  { kind: "step-fittings", detail: "step 2 (guide: step 1): manual B x2, guide -" },
+]);
 
 // fittings: one count changed fails once (the nearest fitting takes its letter, so the steps still agree)
 assert.deepStrictEqual(kinds((_, f) => (f.fittings[0].count = 5)), ["fitting"]);
@@ -249,15 +272,23 @@ assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9, into: [] }]))), []);
 assert.deepStrictEqual(kinds((p, f) => (hooks9(() => "rail")(p, f), (f.steps[1].fittings = [{ letter: "B", count: 2 }, { letter: "D", count: 9 }]))), []);
 
-// pose: compared only when the facts give one; on_back is the front (+z) up, on_left_side the right side (+x) up
-assert.deepStrictEqual(kinds((_, f) => (f.steps[0].pose = "on_back")), ["step-pose"]);
-assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_back"), (p.steps[0].pose = "+z"))), []);
-assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_left_side"), (p.steps[0].pose = "+x"))), []);
-assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = "on_right_side"), (p.steps[0].pose = "+x"))), ["step-pose"]);
-assert.deepStrictEqual(kinds((p) => (p.steps[0].pose = "-x")), []);
+// pose: compared only when the facts give one, and only noted (readers don't read it reliably); on_back is the front
+// (+z) up, on_left_side the right side (+x) up
+/** a change's failures and its pose notes */
+const posed = (change: Change) => {
+  const [p, f] = [plan(), facts()];
+  change(p, f);
+  const r = parity(p, f);
+  return [r.failures, r.notes.filter((n) => n.startsWith("step-pose"))];
+};
+assert.deepStrictEqual(posed((_, f) => (f.steps[0].pose = "on_back")), [[], ["step-pose: step 1 manual on_back (+z), guide +y"]]);
+assert.deepStrictEqual(posed((p, f) => ((f.steps[0].pose = "on_back"), (p.steps[0].pose = "+z"))), [[], []]);
+assert.deepStrictEqual(posed((p, f) => ((f.steps[0].pose = "on_left_side"), (p.steps[0].pose = "+x"))), [[], []]);
+assert.deepStrictEqual(posed((p, f) => ((f.steps[0].pose = "on_right_side"), (p.steps[0].pose = "+x"))), [[], ["step-pose: step 1 manual on_right_side (-x), guide +x"]]);
+assert.deepStrictEqual(posed((p) => (p.steps[0].pose = "-x")), [[], []]);
 for (const [name, pose] of [["upright", "+y"], ["upside_down", "-y"], ["face_down", "-z"]] as const) {
-  assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = pose))), [], name);
-  assert.deepStrictEqual(kinds((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = "+z"))), ["step-pose"], name);
+  assert.deepStrictEqual(posed((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = pose))), [[], []], name);
+  assert.deepStrictEqual(posed((p, f) => ((f.steps[0].pose = name), (p.steps[0].pose = "+z"))), [[], [`step-pose: step 1 manual ${name} (${pose}), guide +z`]], name);
 }
 
 // a facts file of the older step shape (parts as bare labels) is named, not read

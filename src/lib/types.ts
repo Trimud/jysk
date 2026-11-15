@@ -260,7 +260,7 @@ export interface ProductSpec {
   siblings?: { label: string; slug: string }[];
   row?: { n: number; join?: boolean; of?: string; slide?: number; units?: RowUnit[] }; // several identical units side by side, built one after another, with sliding doors across them all
   layout?: string; // the manual's either/or layouts to build (Plan.layouts), their ids joined by commas ("C,R"); each choice's first when unset
-  recipe?: { verified?: RecipeVerified }; // drawn from its recipe (src/data/recipes, `custom`): approximate until verified
+  recipe?: { verified?: RecipeVerified; sized?: true }; // drawn from its recipe (src/data/recipes, `custom`): approximate until verified; sized: its `size` is the manual's printed one
 }
 
 /** The models that write and check recipes (the same ids as scripts/manuals/types.ts ModelId). */

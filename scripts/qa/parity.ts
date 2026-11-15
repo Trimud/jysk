@@ -2,7 +2,8 @@
  * Checks guides against the facts a reader took from their manuals: npm run qa:parity -- --only <slug>[,<slug>...] [--facts <file>]
  * Reads .qa/manuals/<slug>/facts.json (--facts names another file in that folder, or a path), builds the guide and lists
  * every way it differs (parity-core.ts): the overall size, parts (sizes only as printed), fittings, steps (the copies each
- * brings in, where its fittings go, how the piece lies), either/or choices. Exits 1 on any, or on a missing facts file.
+ * brings in, where its fittings go), either/or choices; how the piece lies is only noted. Exits 1 on any difference, or
+ * on a missing facts file.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { catalogSpec } from "@/lib/catalog";

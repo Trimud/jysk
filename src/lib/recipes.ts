@@ -27,5 +27,6 @@ export function withRecipe(spec: ProductSpec | null): ProductSpec | null {
   // a broken recipe throws: jysk:check (prebuild) stops it deploying
   const r = JSON.parse(text) as RecipeFile;
   if (!Array.isArray(r.params?.parts) || !Array.isArray(r.params.steps)) throw new Error(`recipe ${spec.slug}: no parts or steps`);
-  return { ...spec, ...r.spec, custom: r.params, recipe: r.verified ? { verified: r.verified } : {} };
+  // a recipe's size is the manual's printed overall size: the cover shows it as given (Stage.updateDims)
+  return { ...spec, ...r.spec, custom: r.params, recipe: { ...(r.verified ? { verified: r.verified } : {}), ...(r.spec?.size ? { sized: true as const } : {}) } };
 }

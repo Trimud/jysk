@@ -1,17 +1,19 @@
 /**
  * A built guide against what a reader found in its manual (ManualFacts): the same parts, fittings, counts and steps,
- * each step bringing in the same copies of each part, its fittings in the same parts and the piece lying the same way,
- * and the finished piece as big as the manual prints it. Only printed sizes count: a part size without the page it is
+ * each step bringing in the same copies of each part and its fittings in the same parts, and the finished piece as big
+ * as the manual prints it. How the piece lies in a step is only noted (readers don't read it reliably). Only printed sizes count: a part size without the page it is
  * printed on (an estimate from a drawing) is left out, with a note.
  * Fittings not included (wall plugs and screws: the plan's `notIncluded`, a facts name ending "(not included)") are left
  * out on both sides, as qa:manual leaves them out. Self-check: scripts/qa/parity.check.ts.
  */
-import { toWorld } from "@/lib/plan/math";
+import { Box3, Quaternion, Vector3 } from "three";
+import { hwDrawable } from "@/engine/drawable";
+import { mul, toWorld } from "@/lib/plan/math";
 import type { HwItem, HwType, Plan, Pose, Step, Vec3 } from "@/lib/types";
 import type { FactsPose, ManualFacts } from "../manuals/types";
 
 export type ParityFailure = {
-  kind: "part" | "fitting" | "step-count" | "step-fittings" | "step-parts" | "step-placement" | "step-pose" | "size" | "size-overall" | "choice";
+  kind: "part" | "fitting" | "step-count" | "step-fittings" | "step-parts" | "step-placement" | "size" | "size-overall" | "choice";
   detail: string;
 };
 
@@ -65,20 +67,38 @@ const STOP = new Set(["mm", "with", "and", "the", "for", "not", "included"]);
 const words = (name: string) => new Set((name.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/s$/, "")));
 const named = (a: string, b: string) => [...words(a)].filter((w) => words(b).has(w)).length;
 const sorted = (v: number[]) => [...v].sort((a, b) => a - b);
+const cornersOf = (lo: Vec3, hi: Vec3) => Array.from({ length: 8 }, (_, c) => lo.map((v, i) => ((c >> i) & 1 ? hi[i] : v)) as Vec3);
 /**
  * The finished piece's outer size, mm (w along x, h along y, d along z): each part's box at its final place, not a part
- * kept out of the box (`extra`: a mattress, the wall) and no fittings (hooks and knobs stand out of the body the manual
- * measures). The cover's dimension lines measure the same (Stage.updateDims, src/engine/stage.ts, which then shows the
- * catalog's size when within 2 cm of it). Undefined for a plan with no parts.
+ * kept out of the box (`extra`: a mattress, the wall). The cover's dimension lines measure the same (Stage.updateDims,
+ * src/engine/stage.ts, which then shows the catalog's size when within 2 cm of it, or a recipe's printed size). With
+ * `fittings`, the fittings' drawn shapes too (hwDrawable's box, held as the Stage holds it: local -y along `dir`, turned
+ * by `twist`, in its part's final frame), so the hooks and knobs standing out of the body count; a fitting fixing it to
+ * the wall, or not in the box, doesn't. Undefined for a plan with no parts.
  */
-export function finishedSize(plan: Plan): { w: number; h: number; d: number } | undefined {
+export function finishedSize(plan: Plan, fittings = false): { w: number; h: number; d: number } | undefined {
   const [lo, hi] = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
-  for (const it of plan.items) {
-    const t = it.kind === "part" ? plan.parts.find((x) => x.id === it.ref) : undefined;
-    if (it.kind !== "part" || !t || t.extra) continue;
-    for (let c = 0; c < 8; c++) {
-      const corner = t.size.map((v, i) => ((c >> i) & 1 ? v : -v) / 2) as Vec3;
-      toWorld(corner, it.final.pos, it.final.rot).forEach((v, i) => ((lo[i] = Math.min(lo[i], v)), (hi[i] = Math.max(hi[i], v))));
+  const take = (p: Vec3) => p.forEach((v, i) => ((lo[i] = Math.min(lo[i], v)), (hi[i] = Math.max(hi[i], v))));
+  const types = new Map(plan.parts.map((t) => [t.id, t]));
+  const body = new Map(plan.items.flatMap((it) => (it.kind === "part" && types.get(it.ref) && !types.get(it.ref)!.extra ? [[it.key, it] as const] : [])));
+  for (const it of body.values()) {
+    const s = types.get(it.ref)!.size;
+    for (const c of cornersOf(mul(s, -0.5), mul(s, 0.5))) take(toWorld(c, it.final.pos, it.final.rot));
+  }
+  if (fittings) {
+    const hw = new Map(plan.hardware.map((h) => [h.id, h]));
+    const drawn = new Map<string, Box3>();
+    // ponytail: only fittings on a part (as the Stage's sticks-out rule); one in scene coords is left out
+    for (const it of plan.items) {
+      const h = it.kind === "hw" ? hw.get(it.ref) : undefined;
+      const part = it.kind === "hw" && it.parent ? body.get(it.parent) : undefined;
+      if (it.kind !== "hw" || !h || h.notIncluded || it.wall || !part) continue;
+      if (!drawn.has(h.id)) drawn.set(h.id, new Box3().setFromObject(hwDrawable(h).root));
+      const box = drawn.get(h.id)!;
+      const dir = new Vector3(...it.dir).normalize();
+      const q = new Quaternion().setFromUnitVectors(new Vector3(0, -1, 0), dir);
+      if (it.twist) q.premultiply(new Quaternion().setFromAxisAngle(dir, it.twist));
+      for (const c of cornersOf(box.min.toArray(), box.max.toArray())) take(toWorld(new Vector3(...c).applyQuaternion(q).add(new Vector3(...it.pos)).toArray(), part.final.pos, part.final.rot));
     }
   }
   if (lo[0] === Infinity) return undefined;
@@ -102,11 +122,14 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
   const o = facts.overallMm;
   if (!o) notes.push("no overallMm: overall size not checked");
   else {
-    const g = finishedSize(plan);
-    const mm = (s: { w: number; h: number; d: number }) => `${Math.round(s.w)} x ${Math.round(s.h)} x ${Math.round(s.d)} mm`;
+    // the body, or the body with the fittings standing out of it (a coat rack's printed depth takes in its hooks)
+    const [body, all] = [finishedSize(plan), finishedSize(plan, true)];
     const axes = { w: "width", h: "height", d: "depth" } as const;
-    const off = (Object.keys(axes) as (keyof typeof axes)[]).filter((k) => !g || Math.abs(g[k] - o[k]) > Math.max(3, 0.02 * o[k]));
-    if (off.length) fail("size-overall", `manual ${mm(o)} (w x h x d, page ${o.page}), guide ${g ? mm(g) : "no parts"}: the ${off.map((k) => axes[k]).join(" and ")} differ${off.length > 1 ? "" : "s"}`);
+    const offOf = (g?: { w: number; h: number; d: number }) => (Object.keys(axes) as (keyof typeof axes)[]).filter((k) => !g || Math.abs(g[k] - o[k]) > Math.max(3, 0.02 * o[k]));
+    const mm = (s: { w: number; h: number; d: number }) => `${Math.round(s.w)} x ${Math.round(s.h)} x ${Math.round(s.d)} mm`;
+    const said = (g: { w: number; h: number; d: number } | undefined, off: (keyof typeof axes)[]) => (g ? `${mm(g)} (the ${off.map((k) => axes[k]).join(" and ")} differ${off.length > 1 ? "" : "s"})` : "no parts");
+    const [offBody, offAll] = [offOf(body), offOf(all)];
+    if (offBody.length && offAll.length) fail("size-overall", `manual ${mm(o)} (w x h x d, page ${o.page}), guide body ${said(body, offBody)}, with its fittings ${said(all, offAll)}`);
   }
 
   // ---- parts: each label the manual prints, with its count and (when printed) its size within 2 mm, in any order. A
@@ -216,7 +239,9 @@ export function parity(plan: Plan, facts: ManualFacts): { ok: boolean; failures:
       const said = (c: Map<string, number>) => [...c].sort(([a], [b]) => a.localeCompare(b)).map(([k, n]) => `x${n} into ${k}`).join(", ");
       if ([...sets].some(([set, n]) => inSet(set) !== n)) fail("step-placement", `${at}: manual ${letter} ${said(sets)}, guide ${letter} ${said(into)}`);
     }
-    if (m.pose && s.pose !== FACTS_POSE[m.pose]) fail("step-pose", `${at}: manual ${m.pose} (${FACTS_POSE[m.pose]}), guide ${s.pose}`);
+    // how the piece lies: a note, not a failure. Neither Haiku (three reads of one manual disagreed) nor Sonnet (a
+    // piece on its side read as upright) reads it reliably, so the picture judge decides it
+    if (m.pose && s.pose !== FACTS_POSE[m.pose]) notes.push(`step-pose: step ${m.n} manual ${m.pose} (${FACTS_POSE[m.pose]}), guide ${s.pose}`);
   });
   // each part's copies, step by step: the step a copy first shows in (a layout's ghost is not it coming in), one go of
   // a repeated step counted for each go. A quiet step (the drawers slid back in) brings in the other goes' copies, as
