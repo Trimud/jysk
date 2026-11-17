@@ -95,6 +95,9 @@ interface Focus {
   /** when it comes in (s), and how far the fitting stands out of its surface (mm) */
   delay: number;
   out: number;
+  /** the other fittings of its type that its leader also points to (root frame): every wall fixing, as a manual's
+   * anti-topple step draws a line to each bracket */
+  also?: THREE.Vector3[];
   /** what its circle sees, kept while the camera and the step's parts stay put (Stage.blockers) */
   seen?: { key: string; v: ReturnType<Stage["blockersNow"]> };
 }
@@ -106,7 +109,8 @@ interface Callout {
   ctx: CanvasRenderingContext2D;
   svg: SVGSVGElement;
   leader: SVGPathElement;
-  dot: SVGCircleElement;
+  /** the dot on each fitting the leader points to */
+  dot: SVGPathElement;
   visible: number;
   /** angle and distance (px) of the circle's centre from its fitting's spot on screen, kept while it still works */
   at?: { a: number; d: number };
@@ -344,9 +348,8 @@ export class Stage {
     this.el.appendChild(wrap);
     const leader = document.createElementNS(ns, "path") as SVGPathElement;
     leader.setAttribute("class", "leader");
-    const dot = document.createElementNS(ns, "circle") as SVGCircleElement;
+    const dot = document.createElementNS(ns, "path") as SVGPathElement;
     dot.setAttribute("class", "leader-dot");
-    dot.setAttribute("r", "4");
     this.overlay!.appendChild(leader);
     this.overlay!.appendChild(dot);
     return { wrap, canvas, ctx: canvas.getContext("2d")!, svg, leader, dot, visible: 0 };
@@ -754,7 +757,9 @@ export class Stage {
         const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
-        this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: first.item.delay, out: this.isLoose(first) ? first.loose!.out : first.out });
+        // ponytail: only wall fixings fan out; elsewhere one circle points at the first of its type
+        const also = first.item.wall ? fresh.filter((h) => h !== first && h.item.ref === first.item.ref).map((h) => at.get(h)!.loc) : undefined;
+        this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: first.item.delay, out: this.isLoose(first) ? first.loose!.out : first.out, also });
       }
       for (const l of this.callout ? (step.looks ?? []) : []) {
         const p = this.byKey.get(l.on);
@@ -766,6 +771,15 @@ export class Stage {
         this.focuses.push({ local, dir, size: l.size, parent: p, delay: l.delay, out: 0 });
       }
       this.focuses.sort((a, b) => a.delay - b.delay);
+      // a wall plug and its screw go in at one spot: one circle shows both (the manual's one detail), the screw's
+      // arrows on it, in from when the plug starts
+      const one: Focus[] = [];
+      for (const f of this.focuses) {
+        const g = f.hw?.item.wall && one.find((m) => m.hw?.item.wall && m.local.distanceTo(f.local) < 30);
+        if (g) Object.assign(g, { ...f, delay: g.delay, size: Math.max(g.size, f.size) });
+        else one.push(f);
+      }
+      this.focuses = one;
       for (const c of this.callout?.items ?? []) c.at = undefined;
       // wall
       if (step.wall) this.ensureWall();
@@ -1758,10 +1772,13 @@ export class Stage {
       c.ctx.drawImage(co.renderer.domElement, 0, 0);
 
       // leader line from the spot in the main view to the circle's edge
-      const ang = Math.atan2(sp.y - cy, sp.x - cx);
-      c.leader.setAttribute("d", `M${sp.x} ${sp.y} L${cx + Math.cos(ang) * (s / 2)} ${cy + Math.sin(ang) * (s / 2)}`);
-      c.dot.setAttribute("cx", String(sp.x));
-      c.dot.setAttribute("cy", String(sp.y));
+      // (and from each other fitting it also points to)
+      const ends = [sp, ...(f.also ?? []).map((v) => this.project(this.root.localToWorld(v.clone())))];
+      c.leader.setAttribute("d", ends.map((p) => {
+        const ang = Math.atan2(p.y - cy, p.x - cx);
+        return `M${p.x} ${p.y} L${cx + Math.cos(ang) * (s / 2)} ${cy + Math.sin(ang) * (s / 2)}`;
+      }).join(" "));
+      c.dot.setAttribute("d", ends.map((p) => `M${p.x - 4} ${p.y} a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0`).join(" "));
 
       // callout arrows: insertion + rotation (none on a part's detail)
       const it = f.hw?.item;

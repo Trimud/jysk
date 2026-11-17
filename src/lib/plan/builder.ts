@@ -457,8 +457,12 @@ export class PlanBuilder {
     if (!type) return 0;
     const l = toLocal(at, it.final.pos, it.final.rot);
     const n = unrotate(dir, it.final.rot);
+    const inside = (t: number) => insidePart(type, [l[0] + n[0] * (t + 0.5), l[1] + n[1] * (t + 0.5), l[2] + n[2] * (t + 0.5)], -0.5);
+    // across a gap of up to 2 mm first (a wardrobe side set 1 mm off the board's end): counted in, as the dowel spans it
     let t = 0;
-    while (t < 2000 && insidePart(type, [l[0] + n[0] * (t + 0.5), l[1] + n[1] * (t + 0.5), l[2] + n[2] * (t + 0.5)], -0.5)) t++;
+    while (t < 2 && !inside(t)) t++;
+    if (!inside(t)) return 0;
+    while (t < 2000 && inside(t)) t++;
     return t;
   }
 
