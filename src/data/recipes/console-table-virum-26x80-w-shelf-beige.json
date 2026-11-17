@@ -582,5 +582,6 @@
       "d": 26
     }
   },
-  "model": "claude-haiku-5-5"
+  "model": "claude-haiku-5-5",
+  "verified": {"at":"2026-11-17","model":"claude-haiku-5-5","parity":true,"visual":1,"reviewer":"yuriy"}
 }
