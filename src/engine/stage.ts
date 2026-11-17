@@ -50,6 +50,7 @@ const FADE = 0.35;
 /** A wall step's piece standing aside while the plugs go into the bare wall (wallAway): how far off the wall (mm: clear
  *  of a plug's 40 mm way in, and of the 120 mm a zoom circle sees in front of its fitting) and how long each way takes (s). */
 const AWAY = { gap: 160, dur: 0.7 };
+const tmpM = new THREE.Matrix4(), tmpM2 = new THREE.Matrix4();
 
 interface PNode {
   item: PartItem;
@@ -81,6 +82,8 @@ const tmpV = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const Y = new THREE.Vector3(0, 1, 0);
 const IDENTITY = new THREE.Quaternion();
+const ONE = new THREE.Vector3(1, 1, 1);
+const tmpScale = new THREE.Vector3();
 
 function quatFromEuler(e: Vec3) {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2], "XYZ"));
@@ -208,8 +211,21 @@ export class Stage {
   private partsEnd = 0; // when the step's parts have all landed
   /** This wall step's piece standing aside for the plugs (wallAway): its parts move by `off` (root frame) from `from` (s)
    *  and come back once the plugs are in, at `to` (plan time). `plugs`: this step's, which come in once it has moved;
-   *  `stay`: plugs on those parts, which stay in the wall; `ride`: loose fittings that go with it. */
-  private away?: { parts: Set<PNode>; off: THREE.Vector3; from: number; to: number; plugs: Set<HNode>; stay: Set<HNode>; ride: Set<HNode> };
+   *  `stay`: plugs on those parts, which stay in the wall; `ride`: loose fittings that go with it. `pivot`: a piece already
+   *  hanging on earlier wall screws swings out about the line through them by `angle` (radians) instead of sliding off. */
+  private away?: {
+    parts: Set<PNode>;
+    off: THREE.Vector3;
+    pivot?: { at: THREE.Vector3; axis: THREE.Vector3; angle: number };
+    from: number;
+    to: number;
+    plugs: Set<HNode>;
+    stay: Set<HNode>;
+    ride: Set<HNode>;
+  };
+  /** the move the piece has made off the wall now (root frame), and its turn, worked out once a frame by updateItems */
+  private awayM = new THREE.Matrix4();
+  private awayQ = new THREE.Quaternion();
   private snapCallouts = false; // a still: the next drawing shows the circles fully in, not fading
   loopCount = 0;
   highlight: Set<string> | null = null;
@@ -726,6 +742,8 @@ export class Stage {
         this.away = {
           parts,
           off: new THREE.Vector3(...aw.dir).multiplyScalar(AWAY.gap),
+          // far enough that the nearest plug's spot stands the gap off the wall
+          pivot: aw.pivot && { at: new THREE.Vector3(...aw.pivot.at), axis: new THREE.Vector3(...aw.pivot.axis), angle: Math.asin(Math.min(1, AWAY.gap / aw.pivot.r)) },
           from: aw.from,
           to: aw.last + HW_DUR,
           plugs: new Set(this.hws.filter((h) => h.item.step === s && h.item.wall && plug(h))),
@@ -855,6 +873,14 @@ export class Stage {
   private awayK(t: number) {
     const a = this.away;
     return a ? easeInOut(clamp01((t - a.from) / AWAY.dur)) - easeInOut(clamp01((t - a.to - AWAY.dur) / AWAY.dur)) : 0;
+  }
+  /** Sets awayM and awayQ to the piece's move off the wall `k` of the way: slid along `off`, or swung about its pivot. */
+  private awayMove(k: number) {
+    const a = this.away!, p = a.pivot;
+    this.awayQ.identity();
+    if (!p) return this.awayM.makeTranslation(a.off.x * k, a.off.y * k, a.off.z * k);
+    this.awayQ.setFromAxisAngle(p.axis, p.angle * k);
+    return this.awayM.makeTranslation(p.at.x, p.at.y, p.at.z).multiply(tmpM.makeRotationFromQuaternion(this.awayQ)).multiply(tmpM2.makeTranslation(-p.at.x, -p.at.y, -p.at.z));
   }
 
   private ensureWall() {
@@ -1026,6 +1052,7 @@ export class Stage {
     const fadeOut = loops && m.kind === "step" && t > this.stepEnd + this.hold ? 1 - clamp01((t - this.stepEnd - this.hold) / FADE) : 1;
     const hl = this.highlight;
     const away = m.kind === "step" ? this.awayK(t) : 0;
+    if (away) this.awayMove(away);
 
     const visibleParts = new Set<PNode>();
     for (const p of this.parts) {
@@ -1079,7 +1106,10 @@ export class Stage {
           this.styleDrawable(p.d, { opacity: 1, ink: hover || lit, tint: hover || lit ? 0.7 : 0, width: hover || lit ? 1.9 : 1.5 });
         }
         // a wall step: the piece off the wall while the plugs go in
-        if (away && this.away!.parts.has(p)) node.position.addScaledVector(this.away!.off, away);
+        if (away && this.away!.parts.has(p)) {
+          node.position.applyMatrix4(this.awayM);
+          node.quaternion.premultiply(this.awayQ);
+        }
       } else if (m.kind === "intro") {
         node.visible = true;
         visibleParts.add(p);
@@ -1183,10 +1213,16 @@ export class Stage {
         this.styleDrawable(d, { opacity: op, ink: isNew || lit || m.kind !== "step", tint: lit ? 0.8 : 0, width: lit ? 1.7 : 1.25 });
       }
       // a wall step's piece off the wall: plugs on it stay in the wall, loose fittings go with it (in the holder's frame)
-      const sign = !away ? 0 : this.away!.stay.has(h) ? -away : this.away!.ride.has(h) ? away : 0;
-      if (sign) {
-        tmpQ.copy(h.parent ? h.parent.node.quaternion : IDENTITY).multiply(h.holder.quaternion).invert();
-        h.inner.position.add(tmpV.copy(this.away!.off).multiplyScalar(sign).applyQuaternion(tmpQ));
+      // (P: the holder's place in the root frame with its part unmoved; the inner group gets P^-1 X P, X the move or its undo)
+      const stay = !!away && this.away!.stay.has(h);
+      if (stay || (away && this.away!.ride.has(h))) {
+        const fin = h.parent && this.stepXf.get(h.parent)?.fin;
+        h.holder.updateMatrix();
+        const P = tmpM.compose(fin ? fin.p : tmpV.set(0, 0, 0), fin ? fin.q : IDENTITY, ONE).multiply(h.holder.matrix);
+        const X = stay ? tmpM2.copy(this.awayM).invert() : tmpM2.copy(this.awayM);
+        h.inner.updateMatrix();
+        X.multiply(P).multiply(h.inner.matrix).premultiply(P.invert());
+        X.decompose(h.inner.position, h.inner.quaternion, tmpScale);
       }
     }
 
@@ -1718,7 +1754,8 @@ export class Stage {
   /** Where a circle's fitting is now (root frame): off the wall with its piece while that stands aside for the plugs. */
   private focusAt(f: Focus) {
     const v = f.local.clone();
-    return f.rides && this.away ? v.addScaledVector(this.away.off, this.awayK(this.t)) : v;
+    const k = f.rides && this.away ? this.awayK(this.t) : 0;
+    return k ? v.applyMatrix4(this.awayMove(k)) : v;
   }
   /** The main camera's looking direction. */
   private look() {

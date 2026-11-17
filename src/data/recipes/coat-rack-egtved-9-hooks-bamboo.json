@@ -97,7 +97,7 @@
       },
       {
         "title": "Fix the bottom two points to the wall",
-        "detail": "Mark the two low points through the bottom rail. Move the rack away, drill and tap the plugs into the wall, then put it back and drive the screws through the rail into the plugs. Wall plugs and screws are not included.",
+        "detail": "Mark the two low points through the bottom rail. Swing the bottom of the rack out from the wall on its top screws, drill and tap the plugs into the wall, then swing it back and drive the screws through the rail into the plugs. Wall plugs and screws are not included.",
         "fix": [
           { "kind": "plug", "count": 2, "name": "wall plug", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, -14], [190, 35, -14]] },
           { "kind": "screw", "count": 2, "name": "wall screw", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, 10], [190, 35, 10]] }

@@ -8,10 +8,14 @@ import { insidePart, rotate, stateAt, toLocal } from "./math";
  * gives the parts that stand aside (all of the step's scene already in place: the assembled piece, its fittings riding
  * with it), the way away from the wall, and the first and last plugs' delays (plan time). Null when the step has no
  * wall plug, or nothing stands in front of one (plug first, the piece or bracket comes after it).
+ * When the piece already hangs on an earlier step's wall screws (screws into the wall through or on one of those
+ * parts), it can't come off the wall: `pivot` then gives the line it swings out about instead (through those screws,
+ * on the wall), turned so a positive swing takes the plugs' side off the wall, and `r`, the nearest plug's distance
+ * from that line (mm), to work out how far it swings.
  * ponytail: a fitting stands in the way when its origin is within its own length (or width) of a plug's path, not
  * by its drawn shape; and a step whose plugs go in different ways (two walls) doesn't move.
  */
-export function wallAway(plan: Plan, s: number): { parts: string[]; dir: Vec3; from: number; last: number } | null {
+export function wallAway(plan: Plan, s: number): { parts: string[]; dir: Vec3; from: number; last: number; pivot?: { at: Vec3; axis: Vec3; r: number } } | null {
   const step = plan.steps[s];
   if (!step?.wall) return null;
   const types = new Map(plan.hardware.map((h) => [h.id, h]));
@@ -61,5 +65,32 @@ export function wallAway(plan: Plan, s: number): { parts: string[]; dir: Vec3; f
       });
     });
   if (!partInWay && !fitInWay()) return null;
-  return { parts: home.map((p) => p.key), dir: away, from, last: Math.max(...plugs.map((h) => h.delay)) };
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  // onto the wall, at the plugs' depth
+  const flat = (q: Vec3): Vec3 => { const k = dot(sub(q, paths[0].at), away); return [q[0] - away[0] * k, q[1] - away[1] * k, q[2] - away[2] * k]; };
+  // earlier wall screws the piece hangs on: into the wall, on one of its parts or with their head in one
+  const held = hws
+    .filter((h) => h.step < s && h.wall && types.get(h.ref)?.kind === "screw")
+    .map((h) => ({ h, r: inRoot(h) }))
+    .filter(({ h, r }) => r && dot(r.dir, away) < -0.9 * (Math.hypot(...r.dir) || 1) && (!!h.parent || home.some((p) => { const st = placed(p.key)!; return insidePart(plan.parts.find((x) => x.id === p.ref)!, toLocal(r.at, st.pos, st.rot), 2); })))
+    .map(({ r }) => flat(r!.at));
+  const res = { parts: home.map((p) => p.key), dir: away, from, last: Math.max(...plugs.map((h) => h.delay)) };
+  if (!held.length) return res;
+  // the line through the two screws furthest apart; one screw: ponytail, the line through it square to the way to the
+  // plugs (it swings out about that one screw as if it were a hinge)
+  let [a, b] = [held[0], held[0]];
+  for (const p of held) for (const q of held) if (Math.hypot(...sub(p, q)) > Math.hypot(...sub(a, b))) [a, b] = [p, q];
+  const mid = flat(paths.map((p) => p.at).reduce((m, q) => [m[0] + q[0] / paths.length, m[1] + q[1] / paths.length, m[2] + q[2] / paths.length], [0, 0, 0] as Vec3));
+  const cross = (u: Vec3, v: Vec3): Vec3 => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  let axis = Math.hypot(...sub(b, a)) > 1 ? sub(b, a) : cross(away, sub(mid, a));
+  const len = Math.hypot(...axis);
+  if (len < 1) return res;
+  axis = [axis[0] / len, axis[1] / len, axis[2] / len];
+  // each plug's way out from the line, in the wall: all on one side, or it can't swing (it slides off instead)
+  const radial = paths.map((p) => { const v = sub(flat(p.at), a), k = dot(v, axis); return sub(v, [axis[0] * k, axis[1] * k, axis[2] * k]); });
+  const side = radial.map((w) => dot(cross(axis, w), away));
+  if (!side.every((x) => x > 1) && !side.every((x) => x < -1)) return res;
+  if (side[0] < 0) axis = [-axis[0], -axis[1], -axis[2]];
+  return { ...res, pivot: { at: a, axis, r: Math.min(...radial.map((w) => Math.hypot(...w))) } };
 }

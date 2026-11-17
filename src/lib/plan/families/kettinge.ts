@@ -112,7 +112,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
       page: 11,
       title: "Screw the bottom to the wall",
       detail:
-        "Mark through the hole near the bottom of each outer batten, between the first two slats, then drill, plug the holes and screw the panel on. Wall screws and plugs aren't included: pick ones made for your wall.",
+        "Mark through the hole near the bottom of each outer batten, between the first two slats. Swing the bottom of the panel out from the wall on its top screws, drill and plug the holes, then swing it back and screw the panel on. Wall screws and plugs aren't included: pick ones made for your wall.",
       tools: ["pencil", "drill", "hammer", "screwdriver"],
       kind: "anchor",
       wall: true,
