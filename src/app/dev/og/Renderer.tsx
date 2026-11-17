@@ -17,7 +17,7 @@ declare global {
     __info?: (slug: string) => { family: string; steps: number; opens: number } | null;
     __callouts?: (slug: string, w: number, h: number, notes?: boolean, stepped?: boolean) => Promise<ReturnType<Stage["calloutLayout"]>[] | null>;
     __compare?: (ref: string, url: string, min: number) => Promise<{ changed: number; diff: string | null }>;
-    __live?: (slug: string, w: number, h: number, index: number) => Promise<boolean>;
+    __live?: (slug: string, w: number, h: number, index: number, at?: number) => Promise<boolean>;
   }
 }
 
@@ -95,14 +95,18 @@ export default function Renderer() {
       });
     };
     // a step as the guide shows it at the end of its animation, zoom circles and all, for scripts/qa/manual.ts to
-    // screenshot: an instant step draws its circles fully in, so two frames are enough (the first lays them out)
-    window.__live = async (slug, w, h, index) => {
+    // screenshot: an instant step draws its circles fully in, so two frames are enough (the first lays them out).
+    // `at`: held at that moment (s) instead, after the frames a wall step's wall takes to fade in
+    window.__live = async (slug, w, h, index, at) => {
       const plan = planOf(slug);
       if (!plan) return false;
-      (await liveStage(plan, w, h)).setMode({ kind: "step", index }, { instant: true });
+      const stage = await liveStage(plan, w, h);
+      stage.setMode({ kind: "step", index }, { instant: true });
+      stage.setPaused(at !== undefined);
+      if (at !== undefined) stage.seek(at);
       await new Promise<void>((done) => {
         let n = 0;
-        const frame = () => (++n >= 2 ? done() : requestAnimationFrame(frame));
+        const frame = () => (++n >= (at === undefined ? 2 : 40) ? done() : requestAnimationFrame(frame));
         requestAnimationFrame(frame);
       });
       return true;

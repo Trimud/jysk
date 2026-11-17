@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { HwItem, PartItem, PartState, PartType, Plan, Step, Vec3 } from "@/lib/types";
 import { POSE_EULER, clamp, insidePart, stateAt } from "@/lib/plan/math";
 import { STEP_CAM } from "@/lib/plan/sight";
+import { wallAway } from "@/lib/plan/wallaway";
 import { Drawable, hwDrawable, partDrawable, pencilLine, wallDrawable } from "./drawable";
 import type { Look } from "./thumbs";
 import { INK, INK_OLD } from "./materials";
@@ -46,6 +47,9 @@ const CAM_TURN = 0.62;
 const HOLD = 2.4;
 const ZOOM_HOLD = 3; // seconds the close-ups stay on once a step has played, before it starts over
 const FADE = 0.35;
+/** A wall step's piece standing aside while the plugs go into the bare wall (wallAway): how far off the wall (mm: clear
+ *  of a plug's 40 mm way in, and of the 120 mm a zoom circle sees in front of its fitting) and how long each way takes (s). */
+const AWAY = { gap: 160, dur: 0.7 };
 
 interface PNode {
   item: PartItem;
@@ -76,6 +80,7 @@ interface Xf {
 const tmpV = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const Y = new THREE.Vector3(0, 1, 0);
+const IDENTITY = new THREE.Quaternion();
 
 function quatFromEuler(e: Vec3) {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2], "XYZ"));
@@ -98,6 +103,8 @@ interface Focus {
   /** the other fittings of its type that its leader also points to (root frame): every wall fixing, as a manual's
    * anti-topple step draws a line to each bracket */
   also?: THREE.Vector3[];
+  /** it moves with a wall step's piece while that stands aside for the plugs (Stage.away) */
+  rides?: boolean;
   /** what its circle sees, kept while the camera and the step's parts stay put (Stage.blockers) */
   seen?: { key: string; v: ReturnType<Stage["blockersNow"]> };
 }
@@ -199,6 +206,10 @@ export class Stage {
   paused = false;
   stepEnd = 0;
   private partsEnd = 0; // when the step's parts have all landed
+  /** This wall step's piece standing aside for the plugs (wallAway): its parts move by `off` (root frame) from `from` (s)
+   *  and come back once the plugs are in, at `to` (plan time). `plugs`: this step's, which come in once it has moved;
+   *  `stay`: plugs on those parts, which stay in the wall; `ride`: loose fittings that go with it. */
+  private away?: { parts: Set<PNode>; off: THREE.Vector3; from: number; to: number; plugs: Set<HNode>; stay: Set<HNode>; ride: Set<HNode> };
   private snapCallouts = false; // a still: the next drawing shows the circles fully in, not fading
   loopCount = 0;
   highlight: Set<string> | null = null;
@@ -702,11 +713,26 @@ export class Stage {
     this.frameLocal = [];
     this.cornerItems = 0;
     this.stepXf.clear();
+    this.away = undefined;
     const m = this.mode;
     for (const p of this.parts) for (const l of p.pencil) l.mesh.visible = m.kind === "step" && m.index >= l.step;
     if (m.kind === "step") {
       const s = m.index;
       const step = plan.steps[s];
+      const aw = wallAway(plan, s);
+      if (aw) {
+        const parts = new Set(aw.parts.map((k) => this.byKey.get(k)!));
+        const plug = (h: HNode) => plan.hardware.find((x) => x.id === h.item.ref)?.kind === "plug";
+        this.away = {
+          parts,
+          off: new THREE.Vector3(...aw.dir).multiplyScalar(AWAY.gap),
+          from: aw.from,
+          to: aw.last + HW_DUR,
+          plugs: new Set(this.hws.filter((h) => h.item.step === s && h.item.wall && plug(h))),
+          stay: new Set(this.hws.filter((h) => !!h.parent && parts.has(h.parent) && plug(h))),
+          ride: new Set(this.hws.filter((h) => !h.parent && !h.item.wall && h.item.scene === step.scene && (h.item.step < s || (h.item.step === s && h.item.delay < aw.from)))),
+        };
+      }
       let end = 0;
       for (const p of this.parts) {
         const { st, prev } = this.stateAt(p, s);
@@ -721,9 +747,10 @@ export class Stage {
           off: st.from ? new THREE.Vector3(...st.from) : new THREE.Vector3(),
         });
         this.frameLocal.push(...this.corners(p, st.pos, st.rot));
-        if (st.step === s) end = Math.max(end, st.delay + PART_DUR + (st.spin ? 0.4 : 0));
+        if (st.step === s) end = Math.max(end, this.late(st.delay) + PART_DUR + (st.spin ? 0.4 : 0));
       }
-      this.partsEnd = end;
+      // the piece moving off the wall and back counts as parts moving (the circles' view of it is worked out again)
+      this.partsEnd = this.away ? Math.max(end, this.away.to + 2 * AWAY.dur) : end;
       // where a fitting ends up in this step, in the root's frame
       const settled = (h: HNode) => {
         const loc = new THREE.Vector3(...h.item.pos);
@@ -745,24 +772,26 @@ export class Stage {
       const firsts = new Map<string, HNode>(); // the first of each fitting type to go in, the first in sight when any is
       for (const h of at.keys()) {
         const dur = HW_DUR + (h.item.turn ? CAM_TURN : 0);
-        end = Math.max(end, h.item.delay + dur);
+        end = Math.max(end, this.delayOf(h) + dur);
         const f = firsts.get(h.item.ref);
-        if (h.item.travel > 0 && (!f || (seen(h) === seen(f) ? h.item.delay < f.item.delay : seen(h)))) firsts.set(h.item.ref, h);
+        if (h.item.travel > 0 && (!f || (seen(h) === seen(f) ? this.delayOf(h) < this.delayOf(f) : seen(h)))) firsts.set(h.item.ref, h);
       }
-      this.stepEnd = Math.max(end, 0.6);
+      this.stepEnd = Math.max(end, 0.6, this.partsEnd);
       this.cornerItems = Math.min(4, new Set(fresh.map((h) => h.item.ref)).size);
       this.stepFits = this.callout ? fresh.map((h) => at.get(h)!.loc) : [];
       // a wall plug or its screw: the one pair that shares a circle, fanning out to each of its spots
       const kindOf = (h?: HNode) => h && plan.hardware.find((x) => x.id === h.item.ref)?.kind;
       const wallFix = (h?: HNode) => !!h?.item.wall && (kindOf(h) === "plug" || kindOf(h) === "screw");
-      for (const first of this.callout ? [...firsts.values()].sort((a, b) => a.item.delay - b.item.delay) : []) {
+      for (const first of this.callout ? [...firsts.values()].sort((a, b) => this.delayOf(a) - this.delayOf(b)) : []) {
         const { loc, dir } = at.get(first)!;
         const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
         // ponytail: only wall plugs and screws fan out; elsewhere (a bracket too) one circle points at the first of its type
         const also = wallFix(first) ? fresh.filter((h) => h !== first && h.item.ref === first.item.ref).map((h) => at.get(h)!.loc) : undefined;
-        this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: first.item.delay, out: this.isLoose(first) ? first.loose!.out : first.out, also });
+        // on a wall step's piece standing aside, and not going into the wall: its circle goes with the piece
+        const aw = this.away, rides = !!aw && (first.parent ? aw.parts.has(first.parent) : aw.ride.has(first)) && ht.kind !== "plug" && dir.dot(aw.off) > -0.7 * AWAY.gap;
+        this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: this.delayOf(first), out: this.isLoose(first) ? first.loose!.out : first.out, also, rides });
       }
       for (const l of this.callout ? (step.looks ?? []) : []) {
         const p = this.byKey.get(l.on);
@@ -771,7 +800,7 @@ export class Stage {
         const q = quatFromEuler(st.rot);
         const local = new THREE.Vector3(...l.at).applyQuaternion(q).add(new THREE.Vector3(...st.pos));
         const dir = l.dir ? new THREE.Vector3(...l.dir).normalize().applyQuaternion(q) : toCam.clone().negate();
-        this.focuses.push({ local, dir, size: l.size, parent: p, delay: l.delay, out: 0 });
+        this.focuses.push({ local, dir, size: l.size, parent: p, delay: this.late(l.delay), out: 0, rides: !!this.away?.parts.has(p) });
       }
       this.focuses.sort((a, b) => a.delay - b.delay);
       // a wall plug and its screw go in at one spot: one circle shows both (the manual's one detail), the screw's
@@ -811,6 +840,21 @@ export class Stage {
 
   private introGap() {
     return Math.min(0.14, 2.0 / Math.max(1, this.parts.length));
+  }
+
+  /** When what the plan brings in at `d` (s) comes in: in a wall step whose piece stands aside, the plugs once it has
+   *  moved off the wall, everything after them once it is back. */
+  private late(d: number, plug = false) {
+    const a = this.away;
+    return !a || d < a.from ? d : d + AWAY.dur * (plug ? 1 : 2);
+  }
+  private delayOf(h: HNode) {
+    return this.late(h.item.delay, this.away?.plugs.has(h));
+  }
+  /** How far (0 to 1) a wall step's piece stands off the wall at `t`: none before the plugs, nor once they're in and it's back. */
+  private awayK(t: number) {
+    const a = this.away;
+    return a ? easeInOut(clamp01((t - a.from) / AWAY.dur)) - easeInOut(clamp01((t - a.to - AWAY.dur) / AWAY.dur)) : 0;
   }
 
   private ensureWall() {
@@ -981,6 +1025,7 @@ export class Stage {
     const loops = this.opts.loop !== false;
     const fadeOut = loops && m.kind === "step" && t > this.stepEnd + this.hold ? 1 - clamp01((t - this.stepEnd - this.hold) / FADE) : 1;
     const hl = this.highlight;
+    const away = m.kind === "step" ? this.awayK(t) : 0;
 
     const visibleParts = new Set<PNode>();
     for (const p of this.parts) {
@@ -1010,9 +1055,10 @@ export class Stage {
           node.quaternion.copy(fin.q);
           this.styleDrawable(p.d, { opacity: 0.32 * easeOut(clamp01((t - st.delay) / 0.4)) * fadeOut, ink: true, tint: 0.5, width: 1.8, depth: false });
         } else if (isNew) {
-          const k = clamp01((t - st.delay) / (PART_DUR + (st.spin ? 0.4 : 0)));
+          const d0 = this.late(st.delay);
+          const k = clamp01((t - d0) / (PART_DUR + (st.spin ? 0.4 : 0)));
           const e = easeLand(k);
-          let op = easeOut(clamp01((t - st.delay) / 0.3)) * fadeOut;
+          let op = easeOut(clamp01((t - d0) / 0.3)) * fadeOut;
           if (x.from) {
             node.position.lerpVectors(x.from.p, fin.p, easeInOut(k));
             node.quaternion.slerpQuaternions(x.from.q, fin.q, easeInOut(k));
@@ -1025,13 +1071,15 @@ export class Stage {
               node.quaternion.multiply(tmpQ);
             }
           }
-          const landed = k >= 1 ? clamp01((t - st.delay - PART_DUR) / 0.5) : 0;
+          const landed = k >= 1 ? clamp01((t - d0 - PART_DUR) / 0.5) : 0;
           this.styleDrawable(p.d, { opacity: op, ink: true, tint: (hover || lit ? 0.75 : 0.34 - landed * 0.1), width: 2.2 });
         } else {
           node.position.copy(fin.p);
           node.quaternion.copy(fin.q);
           this.styleDrawable(p.d, { opacity: 1, ink: hover || lit, tint: hover || lit ? 0.7 : 0, width: hover || lit ? 1.9 : 1.5 });
         }
+        // a wall step: the piece off the wall while the plugs go in
+        if (away && this.away!.parts.has(p)) node.position.addScaledVector(this.away!.off, away);
       } else if (m.kind === "intro") {
         node.visible = true;
         visibleParts.add(p);
@@ -1115,14 +1163,15 @@ export class Stage {
       const isNew = m.kind === "step" && it.step === sIdx;
       // a new fitting appears at its turn, sliding in when it travels and fading in where it sits when it doesn't
       if (isNew) {
-        const k = clamp01((t - it.delay) / HW_DUR);
+        const d0 = this.delayOf(h);
+        const k = clamp01((t - d0) / HW_DUR);
         const e = easeInOut(k);
         h.inner.position.set(0, it.travel * (1 - e), 0);
         let ang = (it.spin ?? 0) * Math.PI * 2 * e;
-        if (it.turn) ang += it.turn * easeInOut(clamp01((t - it.delay - HW_DUR) / CAM_TURN));
+        if (it.turn) ang += it.turn * easeInOut(clamp01((t - d0 - HW_DUR) / CAM_TURN));
         // clockwise as you look at it: local +Y points out of the surface toward you, so a negative angle
         h.inner.quaternion.setFromAxisAngle(Y, -ang);
-        const op = clamp01((t - it.delay) / 0.15) * fadeOut;
+        const op = clamp01((t - d0) / 0.15) * fadeOut;
         this.styleDrawable(d, { opacity: op, ink: true, tint: 0, width: 1.6 });
       } else {
         h.inner.position.set(0, 0, 0);
@@ -1132,6 +1181,12 @@ export class Stage {
         // own pieces, or coming over from the prep table) brings its fittings with it
         const op = m.kind === "intro" ? clamp01((t - this.stepEnd + 0.7) / 0.5) : m.kind === "step" && h.parent && !lit ? h.parent.d.opacity : 1;
         this.styleDrawable(d, { opacity: op, ink: isNew || lit || m.kind !== "step", tint: lit ? 0.8 : 0, width: lit ? 1.7 : 1.25 });
+      }
+      // a wall step's piece off the wall: plugs on it stay in the wall, loose fittings go with it (in the holder's frame)
+      const sign = !away ? 0 : this.away!.stay.has(h) ? -away : this.away!.ride.has(h) ? away : 0;
+      if (sign) {
+        tmpQ.copy(h.parent ? h.parent.node.quaternion : IDENTITY).multiply(h.holder.quaternion).invert();
+        h.inner.position.add(tmpV.copy(this.away!.off).multiplyScalar(sign).applyQuaternion(tmpQ));
       }
     }
 
@@ -1404,7 +1459,7 @@ export class Stage {
           const from = new THREE.Vector3(...st.from);
           const len = from.length();
           if (len > 60) {
-            const k = (t - st.delay) / PART_DUR;
+            const k = (t - this.late(st.delay)) / PART_DUR;
             const o = (k < 0 ? clamp01(1 + k * 4) : k < 0.75 ? 1 : clamp01(1 - (k - 0.75) * 4)) * fade;
             if (o > 0.01) {
               const a = this.root.localToWorld(fin.clone().addScaledVector(from, 1.12));
@@ -1416,7 +1471,7 @@ export class Stage {
           }
         }
         if (this.labelLayer && !p.type.extra && this.typeFirst.get(p.type.id) === m.index) {
-          const k = clamp01((t - st.delay - PART_DUR * 0.55) / 0.3) * fade;
+          const k = clamp01((t - this.late(st.delay) - PART_DUR * 0.55) / 0.3) * fade;
           if (!wantedLabels.has(p.type.id) && k > 0) {
             const c = new THREE.Vector3();
             p.node.getWorldPosition(c);
@@ -1617,7 +1672,7 @@ export class Stage {
       co.items.push(this.makeCalloutItem());
       co.drawn = 0; // sized on the next render
     }
-    const worlds = fs.map((f) => this.root.localToWorld(f.local.clone()));
+    const worlds = fs.map((f) => this.root.localToWorld(this.focusAt(f)));
     const spots = worlds.map((w) => this.project(w));
     const fits = this.stepFits.map((v) => this.project(this.root.localToWorld(v.clone())));
     return { worlds, spots, fits, r, ...this.placeCallouts(spots, fits, r) };
@@ -1637,7 +1692,7 @@ export class Stage {
   }
   private blockersNow(f: Focus, look: THREE.Vector3) {
     const dirW = f.dir.clone().applyQuaternion(this.root.quaternion).normalize();
-    const tip = this.root.localToWorld(f.local.clone().addScaledVector(f.dir, -f.out));
+    const tip = this.root.localToWorld(this.focusAt(f).addScaledVector(f.dir, -f.out));
     const depth = Math.max(120, f.size * 2.2);
     const solid = this.solidParts();
     // a part the tip is inside: the circle draws it from within (a bolt head where two parts meet)
@@ -1660,6 +1715,11 @@ export class Stage {
     return straight.own ? tilted : straight;
   }
   private circleRay = new THREE.Raycaster();
+  /** Where a circle's fitting is now (root frame): off the wall with its piece while that stands aside for the plugs. */
+  private focusAt(f: Focus) {
+    const v = f.local.clone();
+    return f.rides && this.away ? v.addScaledVector(this.away.off, this.awayK(this.t)) : v;
+  }
   /** The main camera's looking direction. */
   private look() {
     return new THREE.Vector3().subVectors(this.camera.position, this.camTarget).normalize().negate();
@@ -1789,7 +1849,8 @@ export class Stage {
         if (c.svg.innerHTML) c.svg.innerHTML = "";
         return;
       }
-      const k = clamp01((t - it.delay) / HW_DUR);
+      const d0 = this.delayOf(f.hw!);
+      const k = clamp01((t - d0) / HW_DUR);
       const proj = (v: THREE.Vector3) => {
         const p = v.clone().project(cam);
         return { x: ((p.x + 1) / 2) * s, y: ((1 - p.y) / 2) * s };
@@ -1798,13 +1859,13 @@ export class Stage {
       const b = proj(world.clone().addScaledVector(dirW, -half * 0.45));
       let html = "";
       // the push-in arrow goes once it's in; at once for a cam lock, whose turn arrow takes over
-      const op1 = k < 1 ? 1 : it.turn ? 0 : clamp01(1 - (t - it.delay - HW_DUR) * 2);
+      const op1 = k < 1 ? 1 : it.turn ? 0 : clamp01(1 - (t - d0 - HW_DUR) * 2);
       if (Math.hypot(b.x - a.x, b.y - a.y) > 18) html += `<path class="arrow" style="opacity:${op1}" d="${arrowPath(a, b, 0.9)}"/>`;
       if ((it.turn ?? 0) > 0 || (it.spin ?? 0) > 0) {
         // centred on the hole and wide enough to clear what sticks out of it (a cam bolt stands ~23 mm proud)
         const p0 = proj(world), p1 = proj(world.clone().addScaledVector(dirW, -f.out));
         const rr = Math.min(s * 0.45, Math.max(Math.min(34, s * 0.2), Math.hypot(p1.x - p0.x, p1.y - p0.y) + 12));
-        const tk = it.turn ? clamp01((t - it.delay - HW_DUR) / CAM_TURN) : k;
+        const tk = it.turn ? clamp01((t - d0 - HW_DUR) / CAM_TURN) : k;
         const op2 = it.turn ? (tk > 0 ? 1 : 0) : 1;
         html += `<path class="arrow turn" style="opacity:${op2}" d="${arcArrow(p0.x, p0.y, rr, -2.4 + tk * 0.4, 0.9 + tk * 0.4)}"/>`;
       }
