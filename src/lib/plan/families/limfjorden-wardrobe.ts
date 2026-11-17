@@ -482,7 +482,7 @@ function build120(b: PlanBuilder) {
     fit(M, backs[0], [clip], [0, 0, 1], { hole: false, twist: Math.PI / 2 });
     nails([...plates, add(clip, [0, 0, -CLIP_BOSS])]);
   });
-  step({ title: "Fix it to the wall", detail: "Push it against the wall, mark through both brackets, drill, plug and screw them to the wall, then tighten the screws in the top fully. Use a step ladder to reach the brackets. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
+  step({ title: "Fix it to the wall", detail: "Push it against the wall and mark through both brackets. Move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten the screws in the top fully. Use a step ladder to reach the brackets. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
     fit(HW.plug, undefined, [-300, 300].map((x): Vec3 => [x, WALL_Y, -290]), [0, 0, -1]);
     fit(HW.wallScrew, undefined, [-300, 300].map((x): Vec3 => [x, WALL_Y, -288]), [0, 0, -1]);
   });
@@ -769,7 +769,7 @@ function build180(b: PlanBuilder) {
     fit(M, backs[0], [clip], [0, 0, 1], { hole: false, twist: Math.PI / 2 });
     nails([...plates, add(clip, [0, 0, -CLIP_BOSS])]);
   });
-  step({ title: "Fix it to the wall", detail: "Push it against the wall, mark through both brackets, drill, plug and screw them to the wall, then tighten the screws in the top fully. Use a step ladder to reach the brackets. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
+  step({ title: "Fix it to the wall", detail: "Push it against the wall and mark through both brackets. Move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten the screws in the top fully. Use a step ladder to reach the brackets. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
     fit(HW.plug, undefined, [-645, 645].map((x): Vec3 => [x, WALL_Y, -290]), [0, 0, -1]);
     fit(HW.wallScrew, undefined, [-645, 645].map((x): Vec3 => [x, WALL_Y, -288]), [0, 0, -1]);
   });

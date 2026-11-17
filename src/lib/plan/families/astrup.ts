@@ -139,7 +139,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   b.step(
     {
       title: "Fix it to the wall",
-      detail: "Push it back against the wall, mark through the hole in the bracket's tab under shelf 1, drill, plug and screw it to the wall through the tab, then tighten the bracket's two screws (D) fully. Wall plugs and screws aren't included: pick ones made for your wall.",
+      detail: "Push it back against the wall and mark through the hole in the bracket's tab under shelf 1. Move it away, drill and plug the hole, then push it back, screw it to the wall through the tab and tighten the bracket's two screws (D) fully. Wall plugs and screws aren't included: pick ones made for your wall.",
       kind: "anchor",
       tools: ["drill", "pencil", "screwdriver", "hammer"],
       wall: true,

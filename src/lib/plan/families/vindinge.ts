@@ -120,7 +120,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   b.step({ title: "Clip on the sleeves for the second shelf", detail: `${SLEEVE} 17 grooves down from the top of each lower pole, ${LIP}: 8 more.`, kind: "shelves" }, () => b.fits(A, sleeves(1), 0.03));
   b.step({ title: "Slide on the second shelf", detail: `Lower the next shelf (1) over the poles, ${UP}, onto the sleeves.`, kind: "shelves" }, () => slide(1));
   b.step({ title: "Clip on the sleeves for the third shelf", detail: `${SLEEVE} right at the top of each lower pole, just under its threaded end, ${LIP}: 8 more. Leave the shelf off for now.`, kind: "shelves" }, () => b.fits(A, sleeves(2), 0.03));
-  const WALL = "Mark, drill, plug and screw each to the wall. Wall plugs and screws aren't included: pick ones made for your wall.";
+  const WALL = "Push it against the wall and mark through each clip. Move it away, drill and plug the holes, then push it back and screw each clip to the wall. Wall plugs and screws aren't included: pick ones made for your wall.";
   const wallStep = (n: string, detail: string, at: [string, number][], y: number) =>
     b.step(
       { title: "Fix it to the wall", detail: `${n} wall clips round the back poles near the top${detail}: the short ones (F) if it stands right against the wall, the long ones (G) if it stands 10 to 20 mm off it. ${WALL}`, kind: "anchor", tools: ["drill", "pencil", "screwdriver", "hammer"], wall: true, warnings: ["wall", "tip"] },

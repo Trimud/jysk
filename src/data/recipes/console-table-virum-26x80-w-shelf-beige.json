@@ -487,7 +487,7 @@
       {
         "title": "Fix the brackets to the wall",
         "pose": "+y",
-        "detail": "Mark and drill the wall, then screw each bracket on. Wall plugs and screws are not in the box.",
+        "detail": "Push it against the wall and mark through each bracket. Move it away, drill and tap the plugs into the wall, then push it back and screw each bracket to the wall. Wall plugs and screws are not in the box.",
         "fix": [
           {
             "kind": "plug",
