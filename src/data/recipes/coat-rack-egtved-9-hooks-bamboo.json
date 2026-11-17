@@ -88,8 +88,8 @@
         "title": "Fix the top two points to the wall",
         "detail": "Mark the two top points with the level, drill, then fit the plugs and screws. Wall plugs and screws are not included.",
         "fix": [
-          { "kind": "plug", "count": 2, "name": "wall plug" },
-          { "kind": "screw", "count": 2, "name": "wall screw" }
+          { "kind": "plug", "count": 2, "name": "wall plug", "on": "R2", "dir": [0, 0, -1], "at": [[-190, 1085, -14], [190, 1085, -14]] },
+          { "kind": "screw", "count": 2, "name": "wall screw", "on": "R2", "dir": [0, 0, -1], "at": [[-190, 1085, 10], [190, 1085, 10]] }
         ],
         "tools": ["level", "pencil", "drill", "hammer"],
         "pose": "+y",
@@ -99,7 +99,7 @@
         "title": "Fix the bottom two points to the wall",
         "detail": "Mark and drill the two low points, then fit the plugs and screws. Wall plugs and screws are not included.",
         "fix": [
-          { "kind": "plug", "count": 2, "name": "wall plug" },
+          { "kind": "plug", "count": 2, "name": "wall plug", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, -14], [190, 35, -14]] },
           { "kind": "screw", "count": 2, "name": "wall screw", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, 10], [190, 35, 10]] }
         ],
         "tools": ["pencil", "drill", "hammer"],
@@ -114,6 +114,5 @@
       }
     ]
   },
-  "model": "claude-haiku-5-5",
-  "verified": {"at":"2026-11-17","model":"claude-haiku-5-5","parity":true,"visual":1,"reviewer":"yuriy"}
+  "model": "claude-haiku-5-5"
 }

@@ -207,7 +207,7 @@ function defFor(f: CustomFix, thick?: number): HwDef {
         return HW.screwM;
     }
   })();
-  const len = f.len && f.len > 2 && f.len < 400 ? Math.round(f.len) : base.kind === "screw" && thick ? Math.round(Math.min(70, Math.max(14, thick + 16)) / 2) * 2 : base.len;
+  const len = f.len && f.len > 2 && f.len < 400 ? Math.round(f.len) : base.kind === "screw" && !base.notIncluded && thick ? Math.round(Math.min(70, Math.max(14, thick + 16)) / 2) * 2 : base.len;
   const dia = f.dia && f.dia > 0.8 && f.dia < 60 ? Math.round(f.dia * 10) / 10 : base.dia;
   return { ...base, len, dia, ...(f.name ? { name: f.name } : {}), ...(f.included ? { notIncluded: false } : {}) };
 }
@@ -346,13 +346,14 @@ export function buildCustom(b: PlanBuilder, s: ProductSpec) {
             : "flip"
           : "general");
     const tools = new Set<ToolId>(st.tools ?? []);
+    const wall = st.wall ?? fixes.some((f) => f.kind === "bracket" || f.kind === "strap");
     for (const f of fixes) {
       const t = TOOLS_OF[f.kind];
-      // hex bolts tightened with the spanner: a step that names the spanner doesn't also need the Allen key
-      if (t && !(t === "allen" && tools.has("wrench"))) tools.add(t);
+      // hex bolts tightened with the spanner: a step that names the spanner doesn't also need the Allen key;
+      // a bracket fitted to the piece, not yet to the wall, needs no drill
+      if (t && !(t === "allen" && tools.has("wrench")) && !(t === "drill" && !wall)) tools.add(t);
     }
     const warnings = new Set<WarnId>(st.warnings ?? []);
-    const wall = st.wall ?? fixes.some((f) => f.kind === "bracket" || f.kind === "strap");
     if (wall) {
       warnings.add("wall");
       tools.add("pencil");

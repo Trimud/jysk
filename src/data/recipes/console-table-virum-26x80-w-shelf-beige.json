@@ -227,6 +227,7 @@
       },
       {
         "title": "Fit the left bracket and screws",
+        "wall": false,
         "pose": "+x",
         "detail": "Tighten the socket screws with the 4 mm key.",
         "fix": [
@@ -291,7 +292,7 @@
             "at": [
               [
                 -366.5,
-                782.5,
+                785,
                 -130
               ]
             ]
@@ -311,6 +312,7 @@
       },
       {
         "title": "Fit the right bracket and screws",
+        "wall": false,
         "pose": "+x",
         "detail": "Tighten the socket screws with the 4 mm key.",
         "fix": [
@@ -375,7 +377,7 @@
             "at": [
               [
                 366.5,
-                782.5,
+                785,
                 -130
               ]
             ]
@@ -499,7 +501,7 @@
             "at": [
               [
                 -331.5,
-                782.5,
+                785,
                 -128
               ]
             ]
@@ -516,7 +518,7 @@
             "at": [
               [
                 331.5,
-                782.5,
+                785,
                 -128
               ]
             ]
@@ -533,7 +535,7 @@
             "at": [
               [
                 -331.5,
-                782.5,
+                785,
                 -128
               ]
             ]
@@ -550,7 +552,7 @@
             "at": [
               [
                 331.5,
-                782.5,
+                785,
                 -128
               ]
             ]
@@ -582,6 +584,5 @@
       "d": 26
     }
   },
-  "model": "claude-haiku-5-5",
-  "verified": {"at":"2026-11-17","model":"claude-haiku-5-5","parity":true,"visual":1,"reviewer":"yuriy"}
+  "model": "claude-haiku-5-5"
 }
