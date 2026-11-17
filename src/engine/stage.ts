@@ -752,13 +752,16 @@ export class Stage {
       this.stepEnd = Math.max(end, 0.6);
       this.cornerItems = Math.min(4, new Set(fresh.map((h) => h.item.ref)).size);
       this.stepFits = this.callout ? fresh.map((h) => at.get(h)!.loc) : [];
+      // a wall plug or its screw: the one pair that shares a circle, fanning out to each of its spots
+      const kindOf = (h?: HNode) => h && plan.hardware.find((x) => x.id === h.item.ref)?.kind;
+      const wallFix = (h?: HNode) => !!h?.item.wall && (kindOf(h) === "plug" || kindOf(h) === "screw");
       for (const first of this.callout ? [...firsts.values()].sort((a, b) => a.item.delay - b.item.delay) : []) {
         const { loc, dir } = at.get(first)!;
         const ht = plan.hardware.find((x) => x.id === first.item.ref)!;
         const size =
           ht.kind === "runner" ? 55 : ht.kind === "hinge" ? 55 : ht.kind === "bracket" ? 50 : ht.kind === "plate" ? 55 : ht.kind === "knob" || ht.kind === "handle" ? 50 : Math.max(17, Math.min(55, Math.max(ht.len, ht.dia * 2) * 0.72));
-        // ponytail: only wall fixings fan out; elsewhere one circle points at the first of its type
-        const also = first.item.wall ? fresh.filter((h) => h !== first && h.item.ref === first.item.ref).map((h) => at.get(h)!.loc) : undefined;
+        // ponytail: only wall plugs and screws fan out; elsewhere (a bracket too) one circle points at the first of its type
+        const also = wallFix(first) ? fresh.filter((h) => h !== first && h.item.ref === first.item.ref).map((h) => at.get(h)!.loc) : undefined;
         this.focuses.push({ local: loc, dir, size, hw: first, parent: first.parent, delay: first.item.delay, out: this.isLoose(first) ? first.loose!.out : first.out, also });
       }
       for (const l of this.callout ? (step.looks ?? []) : []) {
@@ -775,7 +778,7 @@ export class Stage {
       // arrows on it, in from when the plug starts
       const one: Focus[] = [];
       for (const f of this.focuses) {
-        const g = f.hw?.item.wall && one.find((m) => m.hw?.item.wall && m.local.distanceTo(f.local) < 30);
+        const g = wallFix(f.hw) && one.find((m) => wallFix(m.hw) && kindOf(m.hw) !== kindOf(f.hw) && m.local.distanceTo(f.local) < 30);
         if (g) Object.assign(g, { ...f, delay: g.delay, size: Math.max(g.size, f.size) });
         else one.push(f);
       }
