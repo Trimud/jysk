@@ -280,5 +280,5 @@ export function buildDrawers(b: PlanBuilder, s: ProductSpec) {
   if (s.drawers?.free) return;
   f.anchor(f.top, H);
   const last = b.steps[b.steps.length - 1];
-  last.detail = "Chests of drawers can tip over if they're not fixed. Wall screws aren't included: pick ones made for your wall.";
+  last.detail = "Chests of drawers can tip over if they're not fixed. " + last.detail;
 }

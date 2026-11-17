@@ -86,7 +86,7 @@
       },
       {
         "title": "Fix the top two points to the wall",
-        "detail": "Mark the two top points with the level, drill, then fit the plugs and screws. Wall plugs and screws are not included.",
+        "detail": "Hold the rack against the wall, level it and mark the two top points through the top rail. Move it away, drill and tap the plugs into the wall, then put it back and drive the screws through the rail into the plugs. Wall plugs and screws are not included.",
         "fix": [
           { "kind": "plug", "count": 2, "name": "wall plug", "on": "R2", "dir": [0, 0, -1], "at": [[-190, 1085, -14], [190, 1085, -14]] },
           { "kind": "screw", "count": 2, "name": "wall screw", "on": "R2", "dir": [0, 0, -1], "at": [[-190, 1085, 10], [190, 1085, 10]] }
@@ -97,7 +97,7 @@
       },
       {
         "title": "Fix the bottom two points to the wall",
-        "detail": "Mark and drill the two low points, then fit the plugs and screws. Wall plugs and screws are not included.",
+        "detail": "Mark the two low points through the bottom rail. Move the rack away, drill and tap the plugs into the wall, then put it back and drive the screws through the rail into the plugs. Wall plugs and screws are not included.",
         "fix": [
           { "kind": "plug", "count": 2, "name": "wall plug", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, -14], [190, 35, -14]] },
           { "kind": "screw", "count": 2, "name": "wall screw", "on": "R4", "dir": [0, 0, -1], "at": [[-190, 35, 10], [190, 35, 10]] }
@@ -107,8 +107,8 @@
         "wall": true
       },
       {
-        "title": "Hang the rack on the wall",
-        "detail": "Lift it onto the fixed screws and check that it sits level.",
+        "title": "Check that it sits level and firm",
+        "detail": "Check with the level that the rack hangs straight, and that it sits firm against the wall.",
         "pose": "+y",
         "check": "square"
       }
