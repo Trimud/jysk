@@ -2,7 +2,8 @@
  * A reviewer signs off recipes: npm run manuals:approve -- --only <slug>[,<slug>...] --reviewer <name> [--visual <0..1>]
  * The only way `verified` is set by hand. Each recipe must still match its manual's facts (.qa/manuals/<slug>/facts.json,
  * qa:parity), or it is left as it is and the run exits 1. A recipe the run already verified gets the reviewer added; one
- * with no `verified` (written or fixed by hand) gets it, its `visual` the judge score given, else 1 (the reviewer's look).
+ * with no `verified` (written or fixed by hand) gets it, with `--visual` (the judge's score) required: no score is made up.
+ * facts.json must be this product's (its slug).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { catalogSpec } from "@/lib/catalog";
@@ -35,6 +36,14 @@ for (const slug of only.split(",").filter(Boolean)) {
     fail((e as Error).message);
     continue;
   }
+  if (facts?.slug && facts.slug !== slug) {
+    fail(`facts.json is for ${facts.slug}`);
+    continue;
+  }
+  if (!recipe.verified && visual === undefined) {
+    fail("not verified yet: give its judge score with --visual <0..1>");
+    continue;
+  }
   const problem = ![facts?.parts, facts?.fittings, facts?.steps, facts?.choices].every(Array.isArray) ? "facts.json is not a facts file" : factsProblem(facts);
   if (problem) {
     fail(problem);
@@ -51,7 +60,7 @@ for (const slug of only.split(",").filter(Boolean)) {
     continue;
   }
   const at = new Date().toISOString().slice(0, 10);
-  recipe.verified = { ...(recipe.verified ?? { at, model: recipe.model, parity: true, visual: visual ?? 1 }), ...(visual !== undefined ? { visual } : {}), reviewer };
+  recipe.verified = { ...(recipe.verified ?? { at, model: recipe.model, parity: true, visual: visual! }), ...(visual !== undefined ? { visual } : {}), reviewer };
   // only the verified line changes: a writer's compact layout is kept (it has no nested braces)
   const line = `"verified": ${JSON.stringify(recipe.verified)}`;
   const text = readFileSync(file, "utf8");
