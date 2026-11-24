@@ -377,14 +377,15 @@ export function anchorStep(
   o: { W: number; D: number; top: string; y: number; backZ: number; tools?: ToolId[]; severe?: boolean; hang?: boolean },
 ) {
   const xs = o.W > 1000 ? [-o.W / 3, o.W / 3] : [0];
+  const s = xs.length > 1 ? "s" : "";
+  // the order the manuals draw: mark through the brackets, move it away, drill and plug the bare wall, put it back, screw
+  const order = o.hang
+    ? `Screw the bracket${s} to it. Hold it level where it goes and mark through the bracket${s}, take it down, drill and plug the hole${s}, then hold it back up and screw the bracket${s} to the wall.`
+    : `Screw the bracket${s} to it. Push it against the wall and mark through the bracket${s}, move it away, drill and plug the hole${s}, then push it back and screw the bracket${s} to the wall.`;
   b.step(
     {
       title: o.hang ? "Hang it on the wall" : "Fix it to the wall",
-      detail: o.hang
-        ? "Mark the height with a level first. Wall screws aren't included: pick ones made for your wall."
-        : o.severe
-          ? "Furniture like this can tip over if it isn't fixed. Wall screws aren't included: pick ones made for your wall."
-          : "Wall screws aren't included. Pick ones made for your wall.",
+      detail: `${o.severe ? "Furniture like this can tip over if it isn't fixed. " : ""}${order} Wall screws aren't included: pick ones made for your wall.`,
       tools: o.tools ?? ["drill", "screwdriver", "pencil"],
       kind: "anchor",
       wall: true,

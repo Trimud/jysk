@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import type { Plan, ProductSpec, ToolId } from "@/lib/types";
-import { catalogSpec } from "@/lib/catalog";
 import { buildPlan, repick } from "@/lib/plan";
 import { stepContents } from "@/lib/plan/contents";
 import { matchCatalog, specForKind } from "@/lib/search";
@@ -42,13 +41,15 @@ import { AI_ENABLED, SCAN_ENABLED } from "@/lib/site";
 
 type Via = "catalog" | "ai" | "guess" | "scan";
 
-export default function GuideApp({ slug, query, step, kind, crumbs }: Readonly<{ slug: string; query?: string; step?: number; kind?: string; crumbs?: Crumb[] }>) {
+/** `spec`: the catalog guide as the server read it, its recipe included (src/lib/recipes.ts reads them on the server only). */
+export default function GuideApp({ slug, spec: served, query, step, kind, crumbs }: Readonly<{ slug: string; spec?: ProductSpec | null; query?: string; step?: number; kind?: string; crumbs?: Crumb[] }>) {
   const router = useRouter();
   const mounted = useMounted();
   const picked = KIND_LABELS.some((k) => k.kind === kind) ? (kind as Kind) : null;
   const isScan = slug.startsWith("scan-");
   const q = query || slug.replace(/-/g, " ");
-  const initial = useMemo(() => (isScan ? null : (catalogSpec(slug) ?? (picked ? { ...specForKind(picked, q.split(" ")[0] || q), slug } : null))), [isScan, slug, picked, q]);
+  // the server's spec comes as a new object on each server render (a ?step= visit) but is the same for a slug: kept per slug
+  const initial = useMemo(() => (isScan ? null : (served ?? (picked ? { ...specForKind(picked, q.split(" ")[0] || q), slug } : null))), [isScan, slug, picked, q]); // eslint-disable-line react-hooks/exhaustive-deps
   // asked again after a key was added: a typical build gives way to one worked out for this product
   const [attempt, setAttempt] = useState(0);
   // a build saved under this name (an AI draft, a picked shape) wins over a near-miss in the catalog

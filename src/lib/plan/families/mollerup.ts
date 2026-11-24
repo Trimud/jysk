@@ -62,7 +62,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     {
       page: 9,
       title: "Hang it on the wall",
-      detail: "Hold it level where you want it, mark through the two keyholes on the back, drill and plug the holes, and screw in the two screws until their heads stand out about 3 mm. Hang the board's keyholes over them. Wall screws and plugs aren't included: pick ones made for your wall.",
+      detail: "Hold it level where you want it, mark through the two keyholes on the back, take it down, drill and plug the holes, and screw in the two screws until their heads stand out about 3 mm. Hang the board's keyholes over them. Wall screws and plugs aren't included: pick ones made for your wall.",
       tools: ["tape", "pencil", "level", "drill", "hammer", "screwdriver"],
       kind: "anchor",
       wall: true,

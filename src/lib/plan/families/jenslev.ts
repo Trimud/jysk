@@ -196,7 +196,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     fit(N, side1, [-146, 144].map((z2): Vec3 => [-XS, 0, z2]), [0, 1, 0]);
     fit(N, plinth, [-200, 200].map((x): Vec3 => [x, 0, ZP]), [0, 1, 0]); // p21: about a third in from each end
   });
-  step({ title: "Stand it up and fix it to the wall", detail: "Stand it up and push it against the wall, mark through both brackets, drill, plug and screw them to the wall, then tighten the screws in the top fully. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], wall: true, warnings: ["wall", "tip"] }, () => {
+  step({ title: "Stand it up and fix it to the wall", detail: "Stand it up, push it against the wall and mark through both brackets. Move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten the screws in the top fully. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer"], wall: true, warnings: ["wall", "tip"] }, () => {
     fit(HW.plug, undefined, [-400, 400].map((x): Vec3 => [x, 840, -176]), [0, 0, -1]);
     fit(HW.wallScrew, undefined, [-400, 400].map((x): Vec3 => [x, 840, -174]), [0, 0, -1]);
   });

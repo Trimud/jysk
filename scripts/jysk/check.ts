@@ -3,6 +3,7 @@ import { JYSK_ROWS } from "@/data/jysk-rows";
 import { decodeRows } from "@/lib/jysk";
 import { baseSlug, catalogSpec } from "@/lib/catalog";
 import { buildPlan } from "@/lib/plan";
+import { withRecipe } from "@/lib/recipes";
 import { NODES } from "@/lib/categories";
 import { readFileSync } from "node:fs";
 
@@ -10,7 +11,7 @@ let bad = 0;
 for (const r of decodeRows(JYSK_ROWS)) {
   const slug = r.slug ?? baseSlug(r.name, r.variant);
   try {
-    const spec = catalogSpec(slug);
+    const spec = withRecipe(catalogSpec(slug));
     if (!spec) throw new Error("not in the catalog");
     const plan = buildPlan(spec);
     if (!plan.steps.length) throw new Error("no steps");

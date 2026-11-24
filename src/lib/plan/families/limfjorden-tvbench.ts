@@ -299,7 +299,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
   });
   wallStep(b, brX, YT, ZB, {
     title: "Fix it to the wall",
-    detail: "Stand it on its glides and push it against the wall. Mark through the two brackets, drill and plug the holes, screw the brackets to the wall, then tighten the bracket screws (S) fully. Wall screws and plugs aren't included: pick ones made for your wall.",
+    detail: "Stand it on its glides and push it against the wall. Mark through the two brackets, move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten the bracket screws (S) fully. Wall screws and plugs aren't included: pick ones made for your wall.",
     pose: undefined,
   }, ZB + BRACKET.t); // the wall screws' heads on the legs' inside faces (p. 28, IV)
   const pinZ = [BACK_IN + 40, BACK_IN + 360]; // 40 mm in from the shelf's ends

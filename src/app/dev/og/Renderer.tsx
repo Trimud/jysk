@@ -7,7 +7,7 @@ import { specForKind } from "@/lib/search";
 import type { Kind } from "@/lib/products";
 import type { Stage, StageMode } from "@/engine/stage";
 import { shot, type Look } from "@/engine/thumbs";
-import type { Plan } from "@/lib/types";
+import type { Plan, ProductSpec } from "@/lib/types";
 import { familyOf } from "@/lib/plan/families/family";
 
 declare global {
@@ -17,7 +17,7 @@ declare global {
     __info?: (slug: string) => { family: string; steps: number; opens: number } | null;
     __callouts?: (slug: string, w: number, h: number, notes?: boolean, stepped?: boolean) => Promise<ReturnType<Stage["calloutLayout"]>[] | null>;
     __compare?: (ref: string, url: string, min: number) => Promise<{ changed: number; diff: string | null }>;
-    __live?: (slug: string, w: number, h: number, index: number) => Promise<boolean>;
+    __live?: (slug: string, w: number, h: number, index: number, at?: number) => Promise<boolean>;
   }
 }
 
@@ -25,9 +25,16 @@ export default function Renderer() {
   useEffect(() => {
     // one guide's views come one after another: keep its plan, so the stage doesn't rebuild the scene for each
     let last: { slug: string; plan: Plan } | null = null;
+    // guides drawn from a recipe: only the server reads those, so their specs come from the list route
+    const recipes = new Map<string, ProductSpec>();
+    const specOf = (slug: string) => {
+      const [base, layout] = slug.split("@");
+      const r = recipes.get(base);
+      return r ? (layout ? { ...r, layout } : r) : catalogSpec(slug);
+    };
     const planOf = (slug: string) => {
       if (last?.slug !== slug) {
-        const spec = catalogSpec(slug);
+        const spec = specOf(slug);
         if (!spec) return null;
         last = { slug, plan: buildPlan(spec) };
       }
@@ -42,7 +49,7 @@ export default function Renderer() {
     };
     // the step titles, for drawing a guide step by step
     window.__steps = (slug) => {
-      const spec = catalogSpec(slug);
+      const spec = specOf(slug);
       return spec ? buildPlan(spec).steps.map((st) => st.title) : null;
     };
     // what scripts/qa/snapshots.mjs needs to know to draw a guide
@@ -88,14 +95,18 @@ export default function Renderer() {
       });
     };
     // a step as the guide shows it at the end of its animation, zoom circles and all, for scripts/qa/manual.ts to
-    // screenshot: an instant step draws its circles fully in, so two frames are enough (the first lays them out)
-    window.__live = async (slug, w, h, index) => {
+    // screenshot: an instant step draws its circles fully in, so two frames are enough (the first lays them out).
+    // `at`: held at that moment (s) instead, after the frames a wall step's wall takes to fade in
+    window.__live = async (slug, w, h, index, at) => {
       const plan = planOf(slug);
       if (!plan) return false;
-      (await liveStage(plan, w, h)).setMode({ kind: "step", index }, { instant: true });
+      const stage = await liveStage(plan, w, h);
+      stage.setMode({ kind: "step", index }, { instant: true });
+      stage.setPaused(at !== undefined);
+      if (at !== undefined) stage.seek(at);
       await new Promise<void>((done) => {
         let n = 0;
-        const frame = () => (++n >= 2 ? done() : requestAnimationFrame(frame));
+        const frame = () => (++n >= (at === undefined ? 2 : 40) ? done() : requestAnimationFrame(frame));
         requestAnimationFrame(frame);
       });
       return true;
@@ -132,7 +143,18 @@ export default function Renderer() {
       x.putImageData(out, 0, 0);
       return { changed: n, diff: c.toDataURL("image/png") };
     };
-    document.body.dataset.ready = "1";
+    // ready once the recipes are in, and only from the effect still running (dev runs it twice, the first one cleaned up)
+    let alive = true;
+    fetch("/dev/og/list")
+      .then((r) => r.json() as Promise<{ slug?: string; spec?: ProductSpec }[]>)
+      .then((list) => {
+        if (!alive) return;
+        for (const x of list) if (x.slug && x.spec) recipes.set(x.slug, x.spec);
+        document.body.dataset.ready = "1";
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
   return null;
 }

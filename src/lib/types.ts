@@ -260,7 +260,14 @@ export interface ProductSpec {
   siblings?: { label: string; slug: string }[];
   row?: { n: number; join?: boolean; of?: string; slide?: number; units?: RowUnit[] }; // several identical units side by side, built one after another, with sliding doors across them all
   layout?: string; // the manual's either/or layouts to build (Plan.layouts), their ids joined by commas ("C,R"); each choice's first when unset
+  recipe?: { verified?: RecipeVerified; sized?: true }; // drawn from its recipe (src/data/recipes, `custom`): approximate until verified; sized: its `size` is the manual's printed one
 }
+
+/** The models that write and check recipes (the same ids as scripts/manuals/types.ts ModelId). */
+export type ModelId = "claude-haiku-5-5" | "claude-sonnet-5-5" | "claude-opus-5-5";
+
+/** A recipe checked against its manual: parity passed and the drawing looked alike (visual, 0 to 1). */
+export type RecipeVerified = { at: string; model: ModelId; parity: true; visual: number; reviewer?: string };
 
 /** One frame of a row whose frames aren't all alike, or of a corner: its own size and parameters, and where it stands. */
 export interface RowUnit {
@@ -546,6 +553,9 @@ export interface Plan {
    * differently, unless one `leaves` something out (the manual's "without the door"), then it has fewer.
    */
   layouts?: { step: number; pick: string; options: LayoutOption[] }[];
-  /** A catalog product no family draws from its manual yet: a typical build of its kind, labelled approximate. */
-  approximate?: boolean;
+  /**
+   * A catalog guide not yet checked against JYSK's manual, labelled approximate: "typical" when no family or recipe
+   * draws it from the manual (a typical build of its kind), "unchecked" when it comes from a recipe not yet verified.
+   */
+  approximate?: "typical" | "unchecked";
 }

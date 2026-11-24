@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import GuideApp from "@/components/guide/GuideApp";
 import { catalogEntry, catalogSpec } from "@/lib/catalog";
+import { withRecipe } from "@/lib/recipes";
 import { crumbsOf, type Crumb } from "@/lib/categories";
 import { buildPlan } from "@/lib/plan";
 import { TOOL_INFO } from "@/components/art/Tools";
@@ -12,7 +13,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   if (slug.startsWith("scan-")) return { title: "Scanned guide", robots: { index: false } };
-  const s = catalogSpec(decodeURIComponent(slug));
+  const s = withRecipe(catalogSpec(decodeURIComponent(slug)));
   const name = s ? `${s.name} ${s.variant.toLowerCase()}` : decodeURIComponent(slug).replace(/-/g, " ").toUpperCase();
   // the article number is on the box and on JYSK's page: people search by it
   const skus = s?.colours?.map((c) => c.sku) ?? [];
@@ -47,14 +48,14 @@ async function Inner({ params, searchParams }: Props) {
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : undefined;
   const step = typeof sp.step === "string" ? Number(sp.step) : undefined;
   const kind = typeof sp.kind === "string" ? sp.kind : undefined;
-  const s = catalogSpec(decodeURIComponent(slug));
+  const s = withRecipe(catalogSpec(decodeURIComponent(slug)));
   const e = catalogEntry(decodeURIComponent(slug));
   const crumbs = e ? crumbsOf(e) : [];
   return (
     <>
       {s && <HowTo slug={s.slug ?? slug} spec={s} />}
       {s && crumbs.length > 0 && <Trail crumbs={crumbs} name={`${s.name} ${s.variant}`} url={`${SITE_URL}/build/${s.slug ?? slug}`} />}
-      <GuideApp slug={decodeURIComponent(slug)} query={q} kind={kind} step={step && step > 0 ? Math.floor(step) : undefined} crumbs={crumbs} />
+      <GuideApp slug={decodeURIComponent(slug)} spec={s} query={q} kind={kind} step={step && step > 0 ? Math.floor(step) : undefined} crumbs={crumbs} />
     </>
   );
 }

@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Plan } from "@/lib/types";
-import { catalogSpec } from "@/lib/catalog";
+import type { Plan, ProductSpec } from "@/lib/types";
 import { buildPlan, repick } from "@/lib/plan";
 import { stepContents, totals } from "@/lib/plan/contents";
 import { cachedSpec, getPref, loadProgress, setPref } from "@/lib/store";
@@ -24,21 +23,21 @@ const PER_PAGE = 6;
 const SWING_MS = 3000;
 const HERO: StageMode = { kind: "assembled" };
 
-/** The whole guide on A4: what's in the box first, then six steps to a page, like the paper manual. */
-export default function PrintGuide({ slug }: Readonly<{ slug: string }>) {
+/** The whole guide on A4: what's in the box first, then six steps to a page, like the paper manual. `spec`: the catalog guide as the server read it, its recipe included. */
+export default function PrintGuide({ slug, spec: served }: Readonly<{ slug: string; spec: ProductSpec | null }>) {
   const mounted = useMounted();
   // the manual's layouts picked for this product, shared with the guide (GuideApp keeps them under the same key)
   const [picked, setPicked] = useState<string | null>(null);
   const layout = picked ?? (mounted ? getPref<string | null>(`layout:${slug}`, null) : null);
   const plan = useMemo(() => {
-    const spec = catalogSpec(slug) ?? (mounted ? (cachedSpec(slug) ?? loadProgress(slug)?.spec ?? null) : null);
+    const spec = served ?? (mounted ? (cachedSpec(slug) ?? loadProgress(slug)?.spec ?? null) : null);
     if (!spec) return null;
     try {
       return buildPlan(layout ? { ...spec, slug, layout } : { ...spec, slug });
     } catch {
       return null;
     }
-  }, [slug, mounted, layout]);
+  }, [served, slug, mounted, layout]);
   const pick = (id: string) => {
     const next = repick(plan!, id);
     setPref(`layout:${slug}`, next);
@@ -120,7 +119,8 @@ function Doc({ plan, slug, swing, onLayout }: Readonly<{ plan: Plan; slug: strin
         </header>
         <h1>{s.name}</h1>
         <p className="pp-variant">{s.variant}</p>
-        {plan.approximate && <p className="pp-approx">Approximate guide: not yet drawn from JYSK&apos;s manual, so your parts and steps may differ. Follow the paper manual where they do.</p>}
+        {plan.approximate === "unchecked" && <p className="pp-approx">Approximate guide: drawn from JYSK&apos;s manual but not yet checked against it, so a part or step may still differ. Follow the paper manual where they do.</p>}
+        {plan.approximate === "typical" && <p className="pp-approx">Approximate guide: not yet drawn from JYSK&apos;s manual, so your parts and steps may differ. Follow the paper manual where they do.</p>}
         <p className="pp-facts">
           {fmtMin(s.minutes)} &middot; {s.people === 2 ? "two people" : "one person"} &middot; {total} steps &middot; {t.panels} panels &middot; {t.fittings} fittings
         </p>

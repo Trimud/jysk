@@ -17,7 +17,7 @@ export function wallStep(b: PlanBuilder, xs: number[], ty: number, wall: number,
   b.step(
     {
       title: "Stand it up and fix it to the wall",
-      detail: `Push it against the wall, mark through the bracket${s}, drill and plug the hole${s}, screw the bracket${s} to the wall and tighten the ${many ? "bracket screws" : "two bracket screws"} fully. Wall screws and plugs aren't included: pick ones made for your wall.`,
+      detail: `Push it against the wall and mark through the bracket${s}. Move it away, drill and plug the hole${s}, then push it back, screw the bracket${s} to the wall and tighten the ${many ? "bracket screws" : "two bracket screws"} fully. Wall screws and plugs aren't included: pick ones made for your wall.`,
       tools: ["pencil", "drill", "hammer", "screwdriver"],
       pose: "+y",
       kind: "anchor",

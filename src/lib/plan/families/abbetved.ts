@@ -402,7 +402,7 @@ function build(b: PlanBuilder, s: ProductSpec) {
   b.step(
     {
       title: "Fix it to the wall",
-      detail: "Push it against the wall, slide the brackets out to touch it, mark, drill and plug, then screw them to the wall and tighten their 14 mm screws fully. Wall screws and plugs aren't included: pick ones made for your wall.",
+      detail: "Push it against the wall, slide the brackets out to touch it and mark through them. Move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten their 14 mm screws fully. Wall screws and plugs aren't included: pick ones made for your wall.",
       tools: ["pencil", "drill", "hammer", "screwdriver"],
       pose: "+y",
       kind: "anchor",

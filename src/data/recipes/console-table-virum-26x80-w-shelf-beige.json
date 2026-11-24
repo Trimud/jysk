@@ -1,0 +1,589 @@
+{
+  "params": {
+    "parts": [
+      {
+        "id": "T",
+        "label": "1",
+        "name": "wide board",
+        "size": [
+          765,
+          15,
+          260
+        ],
+        "pos": [
+          0,
+          797.5,
+          0
+        ]
+      },
+      {
+        "id": "M",
+        "label": "1",
+        "name": "wide board",
+        "size": [
+          765,
+          15,
+          260
+        ],
+        "pos": [
+          0,
+          447.5,
+          0
+        ]
+      },
+      {
+        "id": "L",
+        "label": "2",
+        "name": "frame",
+        "material": "metal",
+        "size": [
+          60,
+          800,
+          260
+        ],
+        "pos": [
+          -367.5,
+          405,
+          0
+        ],
+        "pieces": [
+          {
+            "shape": "box",
+            "size": [
+              15,
+              800,
+              15
+            ],
+            "pos": [
+              -22.5,
+              0,
+              122.5
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              800,
+              15
+            ],
+            "pos": [
+              -22.5,
+              0,
+              -122.5
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              15,
+              230
+            ],
+            "pos": [
+              -22.5,
+              392.5,
+              0
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              15,
+              230
+            ],
+            "pos": [
+              -22.5,
+              -392.5,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "R",
+        "label": "2",
+        "name": "frame",
+        "material": "metal",
+        "size": [
+          60,
+          800,
+          260
+        ],
+        "pos": [
+          367.5,
+          405,
+          0
+        ],
+        "rot": [
+          0,
+          3.141592653589793,
+          0
+        ],
+        "pieces": [
+          {
+            "shape": "box",
+            "size": [
+              15,
+              800,
+              15
+            ],
+            "pos": [
+              -22.5,
+              0,
+              122.5
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              800,
+              15
+            ],
+            "pos": [
+              -22.5,
+              0,
+              -122.5
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              15,
+              230
+            ],
+            "pos": [
+              -22.5,
+              392.5,
+              0
+            ]
+          },
+          {
+            "shape": "box",
+            "size": [
+              15,
+              15,
+              230
+            ],
+            "pos": [
+              -22.5,
+              -392.5,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "S1",
+        "label": "3",
+        "name": "long rail",
+        "material": "metal",
+        "size": [
+          765,
+          15,
+          15
+        ],
+        "pos": [
+          0,
+          12.5,
+          122.5
+        ]
+      },
+      {
+        "id": "S2",
+        "label": "3",
+        "name": "long rail",
+        "material": "metal",
+        "size": [
+          765,
+          15,
+          15
+        ],
+        "pos": [
+          0,
+          12.5,
+          -122.5
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "title": "Set out the frame, rails and boards",
+        "pose": "+x",
+        "detail": "Lay one frame flat, then stand the boards and rails in it.",
+        "add": [
+          "T",
+          "M",
+          "L",
+          "S1",
+          "S2"
+        ],
+        "warnings": [
+          "floor"
+        ]
+      },
+      {
+        "title": "Fit the left bracket and screws",
+        "wall": false,
+        "pose": "+x",
+        "detail": "Tighten the socket screws with the 4 mm key.",
+        "fix": [
+          {
+            "kind": "bolt",
+            "count": 6,
+            "len": 12,
+            "dia": 6,
+            "name": "socket screw",
+            "on": "L",
+            "dir": [
+              -1,
+              0,
+              0
+            ],
+            "at": [
+              [
+                -382.5,
+                447.5,
+                122.5
+              ],
+              [
+                -382.5,
+                447.5,
+                -122.5
+              ],
+              [
+                -382.5,
+                12.5,
+                122.5
+              ],
+              [
+                -382.5,
+                12.5,
+                -122.5
+              ],
+              [
+                -382.5,
+                797.5,
+                122.5
+              ],
+              [
+                -380.5,
+                782.5,
+                -122.5
+              ]
+            ]
+          },
+          {
+            "kind": "bracket",
+            "count": 1,
+            "len": 75,
+            "dia": 15,
+            "name": "anti-topple bracket",
+            "on": "T",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "twist": -1.5707963267948966,
+            "at": [
+              [
+                -366.5,
+                785,
+                -130
+              ]
+            ]
+          }
+        ],
+        "tools": [
+          "allen"
+        ]
+      },
+      {
+        "title": "Lower the second frame on",
+        "pose": "+x",
+        "detail": "Lower the other frame down onto the boards and rails.",
+        "add": [
+          "R"
+        ]
+      },
+      {
+        "title": "Fit the right bracket and screws",
+        "wall": false,
+        "pose": "+x",
+        "detail": "Tighten the socket screws with the 4 mm key.",
+        "fix": [
+          {
+            "kind": "bolt",
+            "count": 6,
+            "len": 12,
+            "dia": 6,
+            "name": "socket screw",
+            "on": "R",
+            "dir": [
+              1,
+              0,
+              0
+            ],
+            "at": [
+              [
+                382.5,
+                447.5,
+                122.5
+              ],
+              [
+                382.5,
+                447.5,
+                -122.5
+              ],
+              [
+                382.5,
+                12.5,
+                122.5
+              ],
+              [
+                382.5,
+                12.5,
+                -122.5
+              ],
+              [
+                382.5,
+                797.5,
+                122.5
+              ],
+              [
+                380.5,
+                782.5,
+                -122.5
+              ]
+            ]
+          },
+          {
+            "kind": "bracket",
+            "count": 1,
+            "len": 75,
+            "dia": 15,
+            "name": "anti-topple bracket",
+            "on": "T",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "twist": 1.5707963267948966,
+            "at": [
+              [
+                366.5,
+                785,
+                -130
+              ]
+            ]
+          }
+        ],
+        "tools": [
+          "allen"
+        ]
+      },
+      {
+        "title": "Fit the round feet underneath",
+        "pose": "+x",
+        "detail": "Two under each frame's bottom corners and one under the middle of each rail.",
+        "fix": [
+          {
+            "kind": "foot",
+            "count": 2,
+            "len": 5,
+            "dia": 12,
+            "name": "round cap",
+            "on": "S1",
+            "dir": [
+              0,
+              1,
+              0
+            ],
+            "at": [
+              [
+                -360,
+                5,
+                122.5
+              ],
+              [
+                360,
+                5,
+                122.5
+              ]
+            ]
+          },
+          {
+            "kind": "foot",
+            "count": 2,
+            "len": 5,
+            "dia": 12,
+            "name": "round cap",
+            "on": "S2",
+            "dir": [
+              0,
+              1,
+              0
+            ],
+            "at": [
+              [
+                -360,
+                5,
+                -122.5
+              ],
+              [
+                360,
+                5,
+                -122.5
+              ]
+            ]
+          },
+          {
+            "kind": "foot",
+            "count": 1,
+            "len": 5,
+            "dia": 12,
+            "name": "round cap",
+            "on": "S1",
+            "dir": [
+              0,
+              1,
+              0
+            ],
+            "at": [
+              [
+                0,
+                5,
+                122.5
+              ]
+            ]
+          },
+          {
+            "kind": "foot",
+            "count": 1,
+            "len": 5,
+            "dia": 12,
+            "name": "round cap",
+            "on": "S2",
+            "dir": [
+              0,
+              1,
+              0
+            ],
+            "at": [
+              [
+                0,
+                5,
+                -122.5
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Fix the brackets to the wall",
+        "pose": "+y",
+        "detail": "Push it against the wall and mark through each bracket. Move it away, drill and tap the plugs into the wall, then push it back and screw each bracket to the wall. Wall plugs and screws are not in the box.",
+        "fix": [
+          {
+            "kind": "plug",
+            "count": 1,
+            "on": "L",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "at": [
+              [
+                -331.5,
+                785,
+                -128
+              ]
+            ]
+          },
+          {
+            "kind": "plug",
+            "count": 1,
+            "on": "R",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "at": [
+              [
+                331.5,
+                785,
+                -128
+              ]
+            ]
+          },
+          {
+            "kind": "screw",
+            "count": 1,
+            "on": "L",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "at": [
+              [
+                -331.5,
+                785,
+                -128
+              ]
+            ]
+          },
+          {
+            "kind": "screw",
+            "count": 1,
+            "on": "R",
+            "dir": [
+              0,
+              0,
+              -1
+            ],
+            "at": [
+              [
+                331.5,
+                785,
+                -128
+              ]
+            ]
+          }
+        ],
+        "tools": [
+          "pencil",
+          "drill",
+          "hammer",
+          "screwdriver",
+          "allen"
+        ],
+        "warnings": [
+          "tip"
+        ],
+        "wall": true
+      },
+      {
+        "title": "Check the load limit",
+        "pose": "+y",
+        "detail": "Each board takes up to 10 kg."
+      }
+    ]
+  },
+  "spec": {
+    "size": {
+      "w": 79.5,
+      "h": 80.5,
+      "d": 26
+    }
+  },
+  "model": "claude-haiku-5-5",
+  "verified": {"at":"2026-11-24","model":"claude-haiku-5-5","parity":true,"visual":1,"reviewer":"yuriy"}
+}

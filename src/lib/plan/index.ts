@@ -25,13 +25,17 @@ export function buildPlan(spec: ProductSpec): Plan {
   const one = (bb: PlanBuilder, s: ProductSpec) => {
     if (!buildOne(bb, s)) manual = false;
   };
-  // a family that draws its own sets of frames goes first
-  if (spec.row && familyRow(b, spec)) {
+  // a recipe (src/data/recipes) draws the whole product, catalog identity kept; approximate until it is verified
+  if (spec.recipe && spec.custom) {
+    buildCustom(b, spec);
+    manual = !!spec.recipe.verified;
+  } else if (spec.row && familyRow(b, spec)) {
+    // a family that draws its own sets of frames goes first
   } else if (spec.row?.units) buildUnits(b, spec, one);
   else if (spec.row) buildRow(b, spec, one);
   else one(b, spec);
   let plan = b.build();
-  if (!manual && spec.source === "catalog") plan = { ...plan, approximate: true };
+  if (!manual && spec.source === "catalog") plan = { ...plan, approximate: spec.recipe ? "unchecked" : "typical" };
   // the manual's two-person mark on every step (TRAPPEDAL's p10) outweighs the listing's one
   if (plan.steps.length && plan.steps.every((st) => st.people === 2) && plan.spec.people !== 2) plan = { ...plan, spec: { ...plan.spec, people: 2 } };
   cache.set(key, plan);

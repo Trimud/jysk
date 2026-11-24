@@ -211,7 +211,7 @@ function build(b: PlanBuilder, s: ProductSpec): boolean {
     {
       page: 16,
       title: "Fix it to the wall",
-      detail: "Push it back to the wall, mark through the two holes in the top board (7), drill, plug and screw it to the wall. If a skirting board keeps it off the wall, put a wall fitting (F) behind each hole; if it stands right against the wall, leave F out. Wall plugs and screws aren't included: pick ones made for your wall.",
+      detail: "Push it back to the wall and mark through the two holes in the top board (7). Move it away, drill and plug the holes, then push it back and screw it to the wall. If a skirting board keeps it off the wall, put a wall fitting (F) behind each hole; if it stands right against the wall, leave F out. Wall plugs and screws aren't included: pick ones made for your wall.",
       kind: "anchor",
       tools: ["drill", "pencil", "screwdriver", "hammer"],
       wall: true,

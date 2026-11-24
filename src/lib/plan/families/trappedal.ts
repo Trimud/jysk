@@ -150,7 +150,7 @@ function shelving(b: PlanBuilder, Y: Heights) {
   /* ---------- standing ---------- */
   step({ page: 16, title: "Stand it up and level it", detail: "Two of you: tip it up onto its feet. Lay a spirit level on the top and turn the feet under the posts until it stands level and doesn't rock.", kind: "standup", tools: ["level"], pose: "+y", warnings: ["two"] });
   // through the hole in the bracket's short leg, 7 mm under the top (p17 IV)
-  step({ page: 17, title: "Fix it to the wall", detail: "Push it against the wall, mark through the hole in the bracket's short leg, drill, plug and screw it to the wall, then tighten the bracket's bolt fully. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer", "allen"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
+  step({ page: 17, title: "Fix it to the wall", detail: "Push it against the wall and mark through the hole in the bracket's short leg. Move it away, drill and plug the hole, then push it back, screw the bracket to the wall and tighten the bracket's bolt fully. Wall plugs and screws aren't included: pick ones made for your wall.", kind: "anchor", tools: ["drill", "screwdriver", "pencil", "hammer", "allen"], pose: "+y", wall: true, warnings: ["wall", "tip"] }, () => {
     b.fit(HW.plug, { at: [0, Y.top - 7, -170], dir: [0, 0, -1] });
     b.then(0.05);
     b.fit(HW.wallScrew, { at: [0, Y.top - 7, -153], dir: [0, 0, -1] });
@@ -364,7 +364,7 @@ function hallway(b: PlanBuilder) {
       {
         page: pages[2],
         title: "Fix it to the wall",
-        detail: "Push it back against the wall, mark through both brackets' short legs, drill, plug and screw them to the wall, then tighten the brackets' bolts fully with the allen key. Wall plugs and screws aren't included: pick ones made for your wall.",
+        detail: "Push it back against the wall and mark through both brackets' short legs. Move it away, drill and plug the holes, then push it back, screw the brackets to the wall and tighten the brackets' bolts fully with the allen key. Wall plugs and screws aren't included: pick ones made for your wall.",
         kind: "anchor",
         tools: ["drill", "pencil", "screwdriver", "hammer", "allen"],
         wall: true,
@@ -399,7 +399,7 @@ function hallway(b: PlanBuilder) {
       {
         page: pages[2],
         title: "Fix it to the wall",
-        detail: `Push ${which} against the wall, mark through the bracket's short leg, drill, plug and screw it to the wall, then tighten its bolt fully with the allen key. Wall plugs and screws aren't included: pick ones made for your wall.`,
+        detail: `Push ${which} against the wall and mark through the bracket's short leg. Move it away, drill and plug the hole, then push it back, screw the bracket to the wall and tighten its bolt fully with the allen key. Wall plugs and screws aren't included: pick ones made for your wall.`,
         kind: "anchor",
         tools: ["drill", "pencil", "screwdriver", "hammer", "allen"],
         wall: true,

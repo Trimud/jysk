@@ -1,0 +1,11 @@
+{
+  "model": "claude-sonnet-5-5",
+  "spec": { "minutes": 7 },
+  "params": {
+    "parts": [
+      { "id": "A", "label": "1", "name": "Recipefixture side", "size": [18, 400, 300], "pos": [-191, 200, 0] },
+      { "id": "B", "label": "2", "name": "Recipefixture top", "size": [400, 18, 300], "pos": [0, 409, 0] }
+    ],
+    "steps": [{ "title": "Screw the top onto the side", "add": ["A", "B"], "fix": [{ "kind": "screw", "count": 2, "len": 30 }] }]
+  }
+}
